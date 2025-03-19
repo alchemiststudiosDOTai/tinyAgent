@@ -50,6 +50,17 @@ def main():
     orchestrator = Orchestrator.get_instance()
     factory = AgentFactory.get_instance()
     
+    # Configure rate limits for brave search
+    if not hasattr(factory, 'config'):
+        factory.config = {}
+    if 'rate_limits' not in factory.config:
+        factory.config['rate_limits'] = {
+            'global': 5,  # Default global limit
+            'tools': {
+                'brave_web_search': 1  # Limit Brave to 1 call per minute
+            }
+        }
+    
     # Register necessary tools
     factory.register_tool(brave_web_search_tool)
     register_content_generation_tool(factory)
@@ -65,6 +76,7 @@ def main():
             f"Research '{research_topic}' and create a comprehensive report with substantive content. "
             f"The report should include an executive summary, key findings, analysis, and recommendations. "
             f"Include specific examples, data points, and insights throughout the report."
+            f"You must save the report to a file in the directory, this report must be college level."
         )
     )
     
@@ -133,9 +145,32 @@ def register_content_generation_tool(factory):
         """
         print(f"Generating a comprehensive, content-rich report on: {topic}")
         
-        # This function returns immediately with an empty string
-        # The LLM will generate the actual report content through direct prompt instruction
-        return ""
+        # Import the LLM to actually generate content
+        from ...agent import get_llm
+        llm = get_llm()
+        
+        # Prepare a prompt for the LLM to generate the report
+        prompt = f"""
+        Create a comprehensive, college-level report on the topic: {topic}
+        
+        Use this research information if provided:
+        {outline if outline else "No specific research provided"}
+        
+        The report MUST include:
+        - A title and executive summary
+        - Multiple sections with actual content (not placeholders)
+        - Specific examples, data points, and real-world applications 
+        - Analysis of benefits, challenges, and implications
+        - Concrete recommendations based on the research
+        - A conclusion that synthesizes the key findings
+        
+        Format the report with proper Markdown headings, bullet points, and emphasis.
+        Make it professional, informative, and comprehensive.
+        """
+        
+        # Actually generate the report content
+        report = llm(prompt)
+        return report
     
     # Register the tool with the factory
     factory.register_tool(generate_report_content._tool)
@@ -178,6 +213,16 @@ def extract_and_display_report(result: Dict[str, Any]):
     # Try to find the report content in different possible locations
     report_content = None
     
+    # Check for recovery mode report
+    recovery_mode = False
+    if "execution" in phases:
+        execution = phases["execution"]
+        if "execution_results" in execution:
+            exec_results = execution["execution_results"]
+            if exec_results.get("recovery_mode") == "llm_knowledge":
+                recovery_mode = True
+                print("⚠️ Note: This report was generated using LLM knowledge due to tool execution issues.\n")
+    
     # Check execution phase for the report content
     if "execution" in phases:
         execution = phases["execution"]
@@ -187,6 +232,13 @@ def extract_and_display_report(result: Dict[str, Any]):
             exec_results = execution["execution_results"]
             if "final_result" in exec_results and isinstance(exec_results["final_result"], str) and len(exec_results["final_result"]) > 100:
                 report_content = exec_results["final_result"]
+                
+                # Print execution issues if any
+                if exec_results.get("encountered_issues"):
+                    print("Issues encountered during execution:")
+                    for issue in exec_results["encountered_issues"][:3]:  # Show first 3 issues
+                        print(f"- {issue}")
+                    print()
     
     # If not found in execution phase, check the top-level final_result
     if not report_content and "final_result" in result and isinstance(result["final_result"], str) and len(result["final_result"]) > 100:
