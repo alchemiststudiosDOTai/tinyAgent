@@ -1,0 +1,79 @@
+# tinyAgent Configuration
+# Model configuration
+# PLEASE NOTE TINY AGENT IN THEORY CAN RUN A INFINITE AMOUNT OF CALLS,
+# THIS CONFIG SHOULD STOP YOU FROM DOING THAT BUT NOTE THIS IS BETA RELEASE AND MAY NOT WORK AS EXPECTED
+# PLEASE BE SURE TO TEST THIS IN A SAFE ENVIRONMENT BEFORE USING IN ANY ENVIRONMENT
+
+model:
+  # Default model to use
+  default: "deepseek/deepseek-chat"
+  # use claude 3.7 for best resutls, v3 is best value while using tools but 3.7 is the SOTA to use if yo can afford it
+  
+
+
+# Parsing configuration
+parsing:
+  # When true, only strict JSON parsing is used
+  strict_json: false
+  
+  # Fallback parsers (only used when strict_json is false)
+  fallback_parsers:
+    # Enable template-style parsing as first fallback
+    template: true
+    
+    # Enable regex-style parsing as last resort
+    regex: true
+
+
+
+# Retry configuration  
+retries:
+  # Maximum retry attempts
+  max_attempts: 3
+
+# Rate limiting configuration
+rate_limits:
+  # Global rate limit (applies to all tools by default)
+  global: 2
+  
+  # Tool-specific rate limits (override global)
+  tools:
+    file_hunter: 5
+    ripgrep: 10
+    chat: -1  # No limit for chat tool
+
+# Dynamic agent configuration
+dynamic_agents:
+  # Whether to allow creating new tools without asking
+  allow_new_tools_by_default: false
+  
+  # Whether to use existing tools if possible before creating new ones
+  prioritize_existing_tools: true
+  
+  # Maximum number of dynamic agents to keep in memory
+  max_agents: 10
+  
+  # Model to use for dynamic agent operations (defaults to model.default if not specified)
+  model: "deepseek/deepseek-chat"
+  
+# ElderBrain configuration
+elder_brain:
+  # Enable ElderBrain by default for all tasks
+  default_enabled: true
+  
+  # Verbosity level for ElderBrain output (higher value = more detailed output)
+  verbosity: 2
+  
+  # Model to use for ElderBrain operations (defaults to model.default if not specified)
+  model: null
+
+# Code execution security configuration
+code_execution:
+  # Allow potentially dangerous operations (file operations, etc)
+  allow_dangerous_operations: true  # Set to false to enforce strict security
+  
+  # Optional: more granular control
+  allowed_operations:
+    file_operations: true
+    os_operations: false
+    imports: ["os", "sys"]  # Additional allowed imports beyond the defaults
