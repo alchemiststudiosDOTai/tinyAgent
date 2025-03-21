@@ -169,6 +169,58 @@ def load_tools() -> List[Tool]:
         return []
 
 
+def format_result(result):
+    """
+    Format results for CLI display with special handling for different result types.
+    
+    Args:
+        result: The result to format
+        
+    Returns:
+        Formatted string representation of the result
+    """
+    if not result:
+        return "No results available"
+    
+    # Handle list of search results with title/description/url structure
+    if isinstance(result, list) and result and all(isinstance(item, dict) and 'title' in item for item in result):
+        output = ["📊 Search Results:", ""]
+        for idx, item in enumerate(result, 1):
+            title = item.get('title', 'No title')
+            description = item.get('description', 'No description')
+            url = item.get('url', 'No URL')
+            
+            # Clean up HTML tags if present
+            description = re.sub(r'<[^>]+>', '', description)
+            
+            output.extend([
+                f"{Colors.BOLD}{idx}. {Colors.YELLOW}{title}{Colors.RESET}",
+                f"   {Colors.OFF_WHITE}{description}{Colors.RESET}",
+                f"   {Colors.BLUE}🔗 {url}{Colors.RESET}",
+                ""
+            ])
+        return "\n".join(output)
+    
+    # Handle dictionaries
+    elif isinstance(result, dict):
+        output = []
+        for key, value in result.items():
+            if isinstance(value, (list, dict)):
+                output.append(f"{Colors.BOLD}{key}:{Colors.RESET}")
+                output.append(format_result(value))
+            else:
+                output.append(f"{Colors.BOLD}{key}:{Colors.RESET} {value}")
+        return "\n".join(output)
+    
+    # Handle generic lists
+    elif isinstance(result, list):
+        return "\n".join([f"{Colors.CYAN}•{Colors.RESET} {format_result(item)}" for item in result])
+    
+    # Default for other types
+    else:
+        return str(result)
+
+
 def main() -> None:
     """
     Main entry point for the tinyAgent CLI.
@@ -550,7 +602,24 @@ def run_interactive_mode(args: argparse.Namespace, tools_dict: Dict[str, Tool]) 
                 print(f"\n{Colors.OFF_WHITE}Task completed by Triage Agent{Colors.RESET}")
                 print(f"{Colors.OFF_WHITE}Result:{Colors.RESET}")
                 print(f"{Colors.LIGHT_RED}╭─{Colors.RESET}")
-                print(f"{Colors.OFF_WHITE}{status.result}{Colors.RESET}")
+                try:
+                    # Try to parse json if possible
+                    import json
+                    if isinstance(status.result, str):
+                        try:
+                            parsed_result = json.loads(status.result)
+                            formatted = format_result(parsed_result)
+                            print(f"{formatted}")
+                        except json.JSONDecodeError:
+                            # Not JSON, print as is
+                            print(f"{Colors.OFF_WHITE}{status.result}{Colors.RESET}")
+                    else:
+                        # Already a Python object
+                        formatted = format_result(status.result)
+                        print(f"{formatted}")
+                except Exception:
+                    # Fallback to plain output
+                    print(f"{Colors.OFF_WHITE}{status.result}{Colors.RESET}")
                 print(f"{Colors.LIGHT_RED}╰─{Colors.RESET}")
             else:
                 print(f"\n{Colors.DARK_RED}Task failed: {status.error}{Colors.RESET}")
