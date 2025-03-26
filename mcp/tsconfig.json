@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "es2022",
+    "moduleResolution": "node",
+    "outDir": "./build",
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowJs": true,
+    "resolveJsonModule": true
+  },
+  "ts-node": {
+    "esm": true
+  },
+  "include": ["./**/*.ts"],
+  "exclude": ["node_modules", "build"]
+}

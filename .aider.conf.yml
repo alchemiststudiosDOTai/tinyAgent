@@ -1,0 +1,36 @@
+##########################################################
+# Aider Configuration
+##########################################################
+
+# this is just an example aider configs are highly configurable please take the time to learn this 
+# Model settings
+model: openrouter/deepseek/deepseek-chat
+timeout: 120
+
+# API settings/Same as openrouter
+env-file: .env
+
+# Cache settings
+cache-prompts: True
+cache-keepalive-pings: 2
+
+# History Files
+input-history-file: .aider.input.history
+chat-history-file: .aider.chat.history.md
+restore-chat-history: false
+llm-history-file: .aider.llm.history
+
+# Output settings
+dark-mode: True
+
+# Git settings
+gitignore: true
+auto-commits: true
+dirty-commits: true
+
+# Model aliases
+alias:
+  - "c:openrouter/anthropic/claude-3.5-sonnet"
+  - "d:openrouter/deepseek/deepseek-chat"
+
+
