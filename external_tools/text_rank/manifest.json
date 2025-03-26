@@ -1,0 +1,30 @@
+{
+  "name": "text_rank",
+  "description": "Compresses text prompts using a TextRank algorithm to reduce token usage while preserving key information",
+  "parameters": {
+    "text": {
+      "type": "string",
+      "required": true,
+      "description": "The input text to compress"
+    },
+    "damping_factor": {
+      "type": "float",
+      "required": false,
+      "default": 0.85,
+      "description": "Controls probability of jumping to random node"
+    },
+    "iterations": {
+      "type": "integer",
+      "required": false,
+      "default": 50,
+      "description": "Number of TextRank iterations to perform"
+    },
+    "compression_ratio": {
+      "type": "float",
+      "required": false,
+      "default": 0.5,
+      "description": "Target ratio of sentences to keep (0.0-1.0)"
+    }
+  },
+  "executable": "text_rank"
+}
