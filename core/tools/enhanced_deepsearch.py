@@ -1552,8 +1552,38 @@ class EnhancedDeepSearch:
                 "steps": steps
             }
 
-# Create the tool instance
+# Create the tool instance for direct usage
 enhanced_deepsearch_tool = EnhancedDeepSearch()
 
-# Export the tool
-__all__ = ['enhanced_deepsearch_tool', 'EnhancedDeepSearch']
+@tool(
+    name="enhanced_deepsearch",
+    description="A comprehensive research tool that can gather, analyze, and synthesize information from various sources"
+)
+def enhanced_deepsearch_tool_wrapper(query: str, max_steps: Optional[int] = None) -> Dict[str, Any]:
+    """
+    Enhanced deep search tool for comprehensive research tasks.
+    
+    Args:
+        query: The research query or topic to investigate
+        max_steps: Optional maximum number of steps per research phase
+        
+    Returns:
+        Dictionary containing research results and metadata
+    """
+    searcher = EnhancedDeepSearch(max_steps=max_steps)
+    return searcher.process_query(query, max_steps)
+
+# Create a proper Tool instance for the wrapper
+from ..tool import Tool, ParamType
+enhanced_deepsearch_tool_wrapper._tool = Tool(
+    name="enhanced_deepsearch",
+    description="A comprehensive research tool that can gather, analyze, and synthesize information from various sources",
+    parameters={
+        "query": ParamType.STRING,
+        "max_steps": ParamType.INTEGER
+    },
+    func=enhanced_deepsearch_tool_wrapper
+)
+
+# Export both the class instance and the tool wrapper
+__all__ = ['enhanced_deepsearch_tool', 'enhanced_deepsearch_tool_wrapper', 'EnhancedDeepSearch']
