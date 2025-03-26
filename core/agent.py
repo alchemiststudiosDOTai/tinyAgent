@@ -212,8 +212,9 @@ class Agent:
         # Add built-in chat tool
         self.create_tool(
             name="chat",
-            description="Respond to general queries and conversation",
-            func=lambda **kwargs: kwargs.get("message", "Hello! I'm the tinyAgent assistant. How can I help you today?")
+            description="Respond to general queries and conversation. Always requires a message parameter.",
+            func=lambda **kwargs: kwargs["message"] if kwargs.get("message") else "I apologize, but I need a message to respond to.",
+            parameters={"message": "The message or response to be sent"}
         )
         
         # Initialize parser
@@ -794,10 +795,12 @@ class Agent:
                         logger.info(f"Created triage assessment: {triage_result}")
                         return triage_result
                     else:
-                        # For non-triage queries, treat as chat message
+                        # For non-triage queries, ensure we pass the content as a message
                         logger.warning(f"Response format not recognized as structured JSON, treating as chat: {content[:100]}...")
                         logger.info("Returning content as chat response")
-                        return self.execute_tool_call("chat", {"message": content})
+                        # Ensure we pass a non-empty message
+                        message = content.strip() if content.strip() else "I apologize, but I couldn't generate a proper response. Could you please rephrase your question?"
+                        return self.execute_tool_call("chat", {"message": message})
                 else:
                     # Only count as an error for retry if response is completely empty
                     error_msg = f"Invalid response format - {content[:100]}..."

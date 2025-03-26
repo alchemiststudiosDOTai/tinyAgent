@@ -89,6 +89,12 @@ if [ ! -f config.yml ]; then
     cp exampleconfig.yml config.yml
 fi
 
+# New addition: Automatically activate venv and start main.py
+echo "\nActivating virtual environment and starting tinyAgent..."
+source .venv/bin/activate
+echo "Starting tinyAgent (main.py)..."
+python3 main.py
+
 echo "\n===================================================="
 echo "tinyAgent installation completed successfully!"
 echo "\nTo activate the environment and start using tinyAgent:"
