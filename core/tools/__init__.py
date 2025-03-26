@@ -13,11 +13,11 @@ from .ripgrep import ripgrep_tool
 from .brave_search import brave_web_search_tool
 from .duckduckgo_search import duckduckgo_web_search
 from .aider import aider_tool
-from .content_processor import process_content
 from .file_manipulator import file_manipulator_tool
 from .custom_text_browser import custom_text_browser_tool
 from .final_extractor_tool import final_answer_extractor
-from .enhanced_deepsearch import enhanced_deepsearch_tool
+from .enhanced_deepsearch import enhanced_deepsearch_tool, enhanced_deepsearch_tool_wrapper
+from .content_processor import process_content
 
 __all__ = [
     # Tool loading utilities
@@ -30,8 +30,10 @@ __all__ = [
     'brave_web_search_tool',
     'duckduckgo_web_search',
     'aider_tool',
-    'process_content',
     'file_manipulator_tool',
     'custom_text_browser_tool',
     'final_answer_extractor',
+    'enhanced_deepsearch_tool',
+    'enhanced_deepsearch_tool_wrapper',
+    'process_content',
 ]
