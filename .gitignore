@@ -116,3 +116,4 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
+output/research_results/*.json
