@@ -3,7 +3,7 @@
 Example 6: Custom Text Browser Demo
 
 This example demonstrates using the custom text browser tool to navigate web content
-through the agent framework with proper error handling and output formatting.
+through the agent framework with proper output formatting.
 """
 
 import sys
@@ -34,65 +34,40 @@ def main():
     # Create an agent using the factory
     agent = factory.create_agent()
 
-    # Example operations
-    operations = [
-        {
-            "desc": "Visit a webpage",
-            "query": "Use text browser to visit huggingface blog",
-            "variables": {
-                "action": "visit",
-                "path_or_uri": "https://huggingface.co/blog/open-deep-research",
-                "use_proxy": False,
-                "random_delay": True
-            }
-        },
-        {
-            "desc": "Find text on page",
-            "query": "Search page for LLM research content",
-            "variables": {
-                "action": "find",
-                "query": "LLM research"
-            }
-        },
-        {
-            "desc": "Get page links",
-            "query": "Extract all links from the page",
-            "variables": {
-                "action": "get_links"
-            }
+    # Visit a webpage
+    result = agent.run(
+        "Use text browser to visit huggingface blog",
+        variables={
+            "action": "visit",
+            "path_or_uri": "https://huggingface.co/blog/open-deep-research",
+            "use_proxy": False,
+            "random_delay": True
         }
-    ]
+    )
 
-    # Run each operation
-    for op in operations:
-        print(f"\nOperation: {op['desc']}")
-        print(f"Executing: {op['query']}")
-        try:
-            result = agent.run(op["query"], variables=op["variables"])
+    # Print the result
+    if result and isinstance(result, dict):
+        # Check for error in result
+        if result.get('error'):
+            print(f"\nError occurred: {result['error']}")
+            return
 
-            if isinstance(result, dict):
-                if result.get("status") == "error":
-                    print(f"Operation failed: {result.get('error')}")
-                else:
-                    print("\nOperation succeeded:")
-                    if 'content' in result:
-                        content = result['content']
-                        preview = content[:500] + \
-                            "..." if len(content) > 500 else content
-                        print(f"Content Preview:\n{preview}")
-                    if 'title' in result:
-                        print(f"Page Title: {result['title']}")
-                    if 'links' in result:
-                        print(f"Found {len(result['links'])} links:")
-                        for link in result['links'][:5]:
-                            print(f"- {link['text']} ({link['href']})")
-            else:
-                print("Received unexpected result format:")
-                print(result)
-
-        except Exception as e:
-            print(f"Error: {str(e)}")
-            print(f"Error type: {type(e).__name__}")
+        # Extract content from the result
+        content = result.get('content', '')
+        # Limit to 500 characters
+        limited_content = content[:500] + "..." if len(content) > 500 else content
+        
+        print("\nPage Title:", result.get('title', 'No title'))
+        print("\nContent (first 500 chars):")
+        print("-" * 50)
+        print(limited_content)
+        print("-" * 50)
+        
+        # Show viewport information
+        viewport_info = result.get('viewport_info', {})
+        print(f"\nViewport: Page {viewport_info.get('current', 1)} of {viewport_info.get('total', 1)}")
+    else:
+        print("No content retrieved")
 
 
 if __name__ == "__main__":

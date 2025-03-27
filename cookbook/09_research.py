@@ -278,8 +278,8 @@ def main():
     # Research configuration
     research_config = {
         "substance": {
-            "query": "starts ups in USA",
-            "max_results": 10
+            "query": " ",
+            "max_results": 2
         },
      
     }
