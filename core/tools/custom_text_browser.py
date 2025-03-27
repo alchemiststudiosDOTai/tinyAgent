@@ -759,9 +759,12 @@ def custom_text_browser_function(**kwargs):
     
     # Handle parallel fetching
     if action == 'fetch_parallel':
-        urls = kwargs.get('urls', [])
+        # Convert comma-separated string to list
+        urls_str = kwargs.get('urls', "")
+        urls = [u.strip() for u in urls_str.split(",") if u.strip()]
+        
         if not urls:
-            raise ValueError("urls parameter is required for fetch_parallel action")
+            raise ValueError("urls parameter must be a comma-separated list of URLs")
         
         concurrency = kwargs.get('concurrency', 5)
         timeout = kwargs.get('timeout', 15)
@@ -889,7 +892,7 @@ Features:
         "url": ParamType.STRING,
         "action": ParamType.STRING,
         "search_query": ParamType.STRING, 
-        "urls": ParamType.ARRAY,
+        "urls": ParamType.STRING,  # Changed from ARRAY to STRING
         "concurrency": ParamType.INTEGER,
         "use_proxy": ParamType.BOOLEAN,
         "random_delay": ParamType.BOOLEAN,
