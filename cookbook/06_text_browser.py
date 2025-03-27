@@ -11,10 +11,9 @@ from core.factory.agent_factory import AgentFactory
 from core.agent import Agent
 import sys
 import os
-from pathlib import Path
 
 # Add project root to the Python path
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def main():
