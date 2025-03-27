@@ -9,12 +9,12 @@ through the agent framework with proper error handling and output formatting.
 from core.tools.custom_text_browser import get_tool
 from core.factory.agent_factory import AgentFactory
 from core.agent import Agent
-import os
 import sys
+import os
 from pathlib import Path
 
-# Add parent directory to the path so we can import the core package
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add project root to the Python path
+sys.path.append(str(Path(__file__).parent.parent))
 
 
 def main():
