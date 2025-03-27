@@ -40,15 +40,23 @@ def main():
 
     # Print formatted results
     print("\nBusiness Research Results:")
-    if task_status.result and task_status.result.get('success'):
-        for idx, result in enumerate(task_status.result['results'], 1):
-            print(f"\nResult {idx}:")
-            print(f"Title: {result.get('title', 'No title')}")
-            print(f"URL: {result.get('url', 'No URL')}")
-            print(f"Snippet: {result.get('snippet', 'No snippet')}")
+    
+    # Fix: Check if result exists and handle string/dict cases
+    if task_status.result:
+        if isinstance(task_status.result, dict):
+            if task_status.result.get('success'):
+                for idx, result in enumerate(task_status.result.get('results', []), 1):
+                    print(f"\nResult {idx}:")
+                    print(f"Title: {result.get('title', 'No title')}")
+                    print(f"URL: {result.get('url', 'No URL')}")
+                    print(f"Snippet: {result.get('snippet', 'No snippet')}")
+            else:
+                print("Error performing research:", task_status.result.get('error', 'Unknown error'))
+        else:
+            # Handle string results
+            print("Raw result:", task_status.result)
     else:
-        print("Error performing research:",
-              task_status.result.get('error', 'Unknown error'))
+        print("No results returned")
 
 
 def business_research_agent(query: str) -> dict:
