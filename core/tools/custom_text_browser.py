@@ -17,6 +17,7 @@ import random
 from typing import Dict, Any, List, Optional, Tuple, Union
 from urllib.parse import urljoin, urlparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dotenv import load_dotenv
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -27,6 +28,9 @@ from ..decorators import tool
 from ..logging import get_logger
 from ..tool import ParamType, Tool
 from ..config import load_config
+
+# Load environment variables
+load_dotenv()
 
 # Set up logger
 logger = get_logger(__name__)
@@ -147,35 +151,22 @@ class CustomTextBrowser:
     def _configure_proxy(self):
         """Configure proxy settings with connection verification."""
         try:
-            logger.debug("Loading proxy configuration from config file...")
-            config = load_config()
-            proxy_config = config.get("proxy", {})
+            logger.debug("Loading proxy configuration from environment...")
             
-            if not proxy_config or not proxy_config.get("enabled", False):
-                logger.info("Proxy is disabled or not configured")
+            # Get credentials directly from environment like OSS.PY
+            username = os.getenv('TINYAGENT_PROXY_USERNAME')
+            password = os.getenv('TINYAGENT_PROXY_PASSWORD')
+            country = os.getenv('TINYAGENT_PROXY_COUNTRY', 'US')
+
+            if not all([username, password]):
+                logger.error("Missing required proxy credentials in environment")
                 return
                 
-            # Validate required settings
-            required = ["url", "username", "password"]
-            missing = [field for field in required if not proxy_config.get(field)]
-            if missing:
-                logger.error(f"Missing required proxy config fields: {', '.join(missing)}")
-                return
-
-            # Format proxy URL safely
-            try:
-                formatted_proxy = proxy_config["url"].format(
-                    username=proxy_config["username"],
-                    password=proxy_config["password"],
-                    country=proxy_config.get("country", "US")
-                )
-                logger.debug(f"Formatted proxy URL: {formatted_proxy.replace(proxy_config['password'], '[REDACTED]')}")
-            except KeyError as e:
-                logger.error(f"Proxy URL template missing placeholder: {str(e)}")
-                return
+            formatted_proxy = f'http://customer-{username}-cc-{country}:{password}@pr.oxylabs.io:7777'
+            logger.debug(f"Formatted proxy URL: {formatted_proxy.replace(password, '[REDACTED]')}")
 
             # Test proxy connection
-            test_url = "http://example.com"
+            test_url = "https://ip.oxylabs.io/location"
             try:
                 test_proxies = {
                     "http": formatted_proxy,

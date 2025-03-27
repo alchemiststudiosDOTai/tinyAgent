@@ -1,99 +1,63 @@
 import asyncio
-from core.tools.business_deepsearch import business_deepsearch_tool
-import json
+from dotenv import load_dotenv
 import os
-from datetime import datetime
+from core.tools.business_deepsearch import BusinessDeepSearch
+from core.config import load_config
+import aiohttp
 
-def load_latest_state(search_term: str) -> dict:
-    """Load the latest search state for a given search term."""
-    output_dir = os.path.join("tinyAgent_output", "business_research")
-    if not os.path.exists(output_dir):
-        return None
-        
-    # Find the most recent directory for this search term
-    dirs = [d for d in os.listdir(output_dir) if d.startswith("query_")]
-    if not dirs:
-        return None
-        
-    latest_dir = max(dirs, key=lambda x: os.path.getctime(os.path.join(output_dir, x)))
-    state_path = os.path.join(output_dir, latest_dir, "search_state.json")
+def format_proxy_url():
+    """Format proxy URL using environment variables."""
+    load_dotenv()  # Load environment variables from .env file
     
-    if os.path.exists(state_path):
-        try:
-            with open(state_path, 'r') as f:
-                state = json.load(f)
-                if state.get("search_term") == search_term:
-                    return state
-        except Exception as e:
-            print(f"Error loading state: {e}")
-    return None
+    username = os.getenv('TINYAGENT_PROXY_USERNAME')
+    password = os.getenv('TINYAGENT_PROXY_PASSWORD')
+    country = os.getenv('TINYAGENT_PROXY_COUNTRY', 'us')
+    
+    if not all([username, password]):
+        return None
+        
+    return f"http://customer-{username}-cc-{country}:{password}@pr.oxylabs.io:7777"
+
+def configure_proxy_session(session):
+    """Configure proxy settings for an aiohttp session."""
+    proxy_url = format_proxy_url()
+    if proxy_url:
+        session.proxy = proxy_url
+        print(f"Configured proxy URL: {proxy_url.replace(os.getenv('TINYAGENT_PROXY_PASSWORD', ''), '********')}")
+    else:
+        print("No proxy configuration found - continuing without proxy")
+    return session
 
 async def main():
-    search_term = "kratom"
+    """Main function to run the business search."""
+    search_term = "kratom market size"
+    max_results = 1
     
-    # Try to load previous state
-    resume_state = load_latest_state(search_term)
-    if resume_state:
-        print(f"\nFound previous search state from {resume_state.get('start_time', 'unknown')}")
-        print(f"Completed queries: {len(resume_state.get('completed_queries', []))}")
-        print(f"Failed queries: {len(resume_state.get('failed_queries', []))}")
-        resume = input("Would you like to resume from this state? (y/n): ").lower() == 'y'
-        if not resume:
-            resume_state = None
+    # Create a session with proxy configuration
+    session = aiohttp.ClientSession()
+    session = configure_proxy_session(session)
     
-    # Perform the search
-    result = await business_deepsearch_tool.search(
-        search_term,
-        max_results=5,
-        resume_state=resume_state
-    )
-    
-    # Print the results
-    print("\nSearch Results:")
-    print("=" * 50)
-    
-    # Print search state
-    if 'search_state' in result:
-        state = result['search_state']
-        print("\nSearch State:")
-        print("-" * 50)
-        print(f"Start time: {state.get('start_time', 'unknown')}")
-        print(f"End time: {state.get('end_time', 'unknown')}")
-        print(f"Total queries: {state.get('total_queries', 0)}")
-        print(f"Completed queries: {state.get('completed_count', 0)}")
-        print(f"Failed queries: {state.get('failed_count', 0)}")
-        print(f"Total results: {state.get('total_results', 0)}")
-        
-        if state.get('failed_queries'):
-            print("\nFailed Queries:")
-            for failed in state['failed_queries']:
-                print(f"  - {failed.get('query', 'Unknown')}: {failed.get('error', 'Unknown error')}")
-    
-    # Print processed data
-    if 'processed_data' in result:
-        print("\nProcessed Data:")
-        print("-" * 50)
-        processed_data = result['processed_data']
-        for category, items in processed_data.items():
-            if category not in ['search_term', 'timestamp']:
-                print(f"\n{category.upper()}:")
-                for item in items:
-                    if isinstance(item, dict):
-                        for key, value in item.items():
-                            print(f"  {key}: {value}")
-                    else:
-                        print(f"  - {item}")
-    
-    # Print save results
-    if 'save_results' in result:
-        print("\nSave Results:")
-        print("-" * 50)
-        save_results = result['save_results']
-        print(f"Success: {save_results.get('success', False)}")
-        if 'saved_files' in save_results:
-            print("\nSaved Files:")
-            for file_path in save_results['saved_files']:
-                print(f"  - {file_path}")
+    try:
+        async with BusinessDeepSearch() as searcher:
+            # Use the configured session
+            searcher.session = session
+            
+            results = await searcher.search(
+                query=search_term,
+                max_results=max_results
+            )
+            
+            print(f"\nSearch Results for '{search_term}':")
+            print("-" * 80)
+            
+            for i, result in enumerate(results, 1):
+                print(f"\nResult {i}:")
+                print(f"Title: {result.get('title', 'N/A')}")
+                print(f"URL: {result.get('url', 'N/A')}")
+                print(f"Snippet: {result.get('snippet', 'N/A')}")
+                print("-" * 40)
+    finally:
+        await session.close()
 
 if __name__ == "__main__":
     asyncio.run(main())
