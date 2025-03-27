@@ -183,7 +183,12 @@ class AgentFactory:
         logger.info(f"Registered tool: {tool.name}")
         return tool
     
-    def create_agent(self, tools: Optional[List[Union[Tool, Callable]]] = None, model: Optional[str] = None) -> 'Agent':
+    def create_agent(
+        self, 
+        tools: Optional[List[Union[Tool, Callable]]] = None,
+        model: Optional[str] = None,
+        max_retries: Optional[int] = None
+    ) -> 'Agent':
         """
         Create a new agent with specified tools.
         
@@ -193,6 +198,7 @@ class AgentFactory:
         Args:
             tools: List of Tool instances or callable functions
             model: Optional model name to use for the agent
+            max_retries: Maximum number of retry attempts for the agent
             
         Returns:
             The created Agent instance
@@ -200,8 +206,12 @@ class AgentFactory:
         # Import Agent here to avoid circular imports
         from ..agent import Agent
         
-        # Create agent without factory reference
-        agent = Agent(model=model)
+        # Create agent with factory reference and max_retries
+        agent = Agent(
+            model=model,
+            max_retries=max_retries,
+            factory=self
+        )
         
         # Register existing factory tools with the agent
         for tool_name, tool in self._tools.items():
