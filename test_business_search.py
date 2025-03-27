@@ -96,4 +96,4 @@ async def main():
                 print(f"  - {file_path}")
 
 if __name__ == "__main__":
-    main() 
+    asyncio.run(main())
