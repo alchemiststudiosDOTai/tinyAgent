@@ -1,3 +1,4 @@
+import asyncio
 from core.tools.business_deepsearch import business_deepsearch_tool
 import json
 import os
@@ -27,7 +28,7 @@ def load_latest_state(search_term: str) -> dict:
             print(f"Error loading state: {e}")
     return None
 
-def main():
+async def main():
     search_term = "kratom"
     
     # Try to load previous state
@@ -41,7 +42,7 @@ def main():
             resume_state = None
     
     # Perform the search
-    result = business_deepsearch_tool.search(
+    result = await business_deepsearch_tool.search(
         search_term,
         max_results=5,
         resume_state=resume_state
