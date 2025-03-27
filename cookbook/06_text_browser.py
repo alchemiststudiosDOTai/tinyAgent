@@ -6,14 +6,15 @@ This example demonstrates using the custom text browser tool to navigate web con
 through the agent framework with proper error handling and output formatting.
 """
 
-from core.tools.custom_text_browser import get_tool
-from core.factory.agent_factory import AgentFactory
-from core.agent import Agent
 import sys
 import os
 
 # Add project root to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from core.tools.custom_text_browser import get_tool
+from core.factory.agent_factory import AgentFactory
+from core.agent import Agent
 
 
 def main():
@@ -30,8 +31,8 @@ def main():
     # Register the text browser tool
     factory.register_tool(get_tool())
 
-    # Create an agent that will use the factory
-    agent = Agent(factory=factory)
+    # Create an agent using the factory
+    agent = factory.create_agent()
 
     # Example operations
     operations = [

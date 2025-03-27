@@ -1,4 +1,5 @@
 """
+
 Custom Text Browser Tool for tinyAgent
 
 This module implements a text-based browser designed specifically for navigating,
