@@ -11,7 +11,7 @@ from .anon_coder import anon_coder_tool
 from .llm_serializer import llm_serializer_tool
 from .ripgrep import ripgrep_tool
 from .brave_search import brave_web_search_tool
-from .duckduckgo_search import duckduckgo_web_search
+from .duckduckgo_search import duckduckgo_search_tool
 from .aider import aider_tool
 from .file_manipulator import file_manipulator_tool
 from .custom_text_browser import custom_text_browser_tool
@@ -29,7 +29,7 @@ __all__ = [
     'llm_serializer_tool',
     'ripgrep_tool',
     'brave_web_search_tool',
-    'duckduckgo_web_search',
+    'duckduckgo_search_tool',  # Replaces duckduckgo_web_search
     'aider_tool',
     'file_manipulator_tool',
     'custom_text_browser_tool',

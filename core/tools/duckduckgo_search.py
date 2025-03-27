@@ -146,5 +146,20 @@ formatted results with titles, URLs, and snippets.""",
     }
 )
 
-# Alias for backward compatibility
-duckduckgo_web_search = duckduckgo_search_tool
+import warnings
+
+# Deprecated alias for backward compatibility
+with warnings.catch_warnings():
+    warnings.simplefilter("always", DeprecationWarning)
+    warnings.warn(
+        "duckduckgo_web_search is deprecated, use duckduckgo_search_tool instead",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    duckduckgo_web_search = duckduckgo_search_tool
+
+def get_tool() -> Tool:
+    """Return the DuckDuckGo search tool instance"""
+    return duckduckgo_search_tool
+
+__all__ = ['duckduckgo_search_tool', 'get_tool']
