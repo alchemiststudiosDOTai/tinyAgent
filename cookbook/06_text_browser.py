@@ -2,64 +2,79 @@
 """
 Example 6: Text Browser Tool Usage
 
-This example demonstrates how to use the custom text browser tool to visit a webpage
-and extract limited content.
+Demonstrates proper tool usage through the AgentFactory with the updated CustomTextBrowser tool.
 """
 
 import os
 import sys
+from typing import Dict, Any
 
-# Add parent directory to the path so we can import the core package
+# Add parent directory to the path to import core package
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.factory.agent_factory import AgentFactory
 from core.factory.orchestrator import Orchestrator
 from core.logging import get_logger
-from core.tools.custom_text_browser import custom_text_browser_tool, custom_text_browser_function
+from core.cli.colors import Colors
 
 logger = get_logger(__name__)
 
+def format_result(result: Dict[str, Any]) -> str:
+    """Format the tool result for display."""
+    formatted = []
+    formatted.append(f"{Colors.INFO}Page Title:{Colors.OFF_WHITE} {result.get('title', 'No title')}")
+    
+    if content := result.get('content'):
+        limited = (content[:500] + "...") if len(content) > 500 else content
+        formatted.append(f"\n{Colors.INFO}Content Preview:{Colors.OFF_WHITE}\n{'-'*50}")
+        formatted.append(limited)
+        formatted.append("-"*50)
+    
+    if viewport := result.get('viewport_info'):
+        formatted.append(
+            f"{Colors.INFO}Viewport:{Colors.OFF_WHITE} "
+            f"Page {viewport.get('current', 1)} of {viewport.get('total', 1)}"
+        )
+    
+    if links := result.get('links'):
+        formatted.append(f"\n{Colors.INFO}Found {len(links)} links:{Colors.OFF_WHITE}")
+        for link in links[:5]:  # Show first 5 links
+            formatted.append(f"• {link['text']} ({link['url']})")
+    
+    return "\n".join(formatted)
+
 def main():
     """Create and run an agent with the text browser tool."""
-    # Initialize the orchestrator
+    # Initialize components
     orchestrator = Orchestrator.get_instance()
-    
-    # Get the factory instance
     factory = AgentFactory.get_instance()
     
-    # Register the text browser tool with the factory
-    factory.register_tool(custom_text_browser_tool)
+    # Create agent with browser tool
+    agent = factory.create_agent(
+        tools=["custom_text_browser"],
+        model="gpt-4-turbo",
+        max_retries=3
+    )
     
     # Example URL to visit
     url = "https://huggingface.co/blog/open-deep-research"
-    print(f"Using text browser to visit: {url}")
+    print(f"{Colors.INFO}Using text browser to visit:{Colors.OFF_WHITE} {url}")
     
-    # Use the text browser function directly with explicit parameters
-    result = custom_text_browser_function(
-        url=url,
-        action='visit',
-        use_proxy=False,
-        random_delay=True
-    )
-    
-    # Print the result
-    if result:
-        # Extract content from the result
-        content = result.get('content', '')
-        # Limit to 500 characters
-        limited_content = content[:500] + "..." if len(content) > 500 else content
+    try:
+        # Execute through agent with proper tool selection
+        result = agent.run(
+            f"Visit {url} using the custom_text_browser with random_delay=True",
+            variables={"random_delay": True}
+        )
         
-        print("\nPage Title:", result.get('title', 'No title'))
-        print("\nContent (first 500 chars):")
-        print("-" * 50)
-        print(limited_content)
-        print("-" * 50)
-        
-        # Show viewport information
-        viewport_info = result.get('viewport_info', {})
-        print(f"\nViewport: Page {viewport_info.get('current', 1)} of {viewport_info.get('total', 1)}")
-    else:
-        print("No content retrieved")
+        if result and isinstance(result, dict):
+            print(f"\n{format_result(result)}")
+        else:
+            print(f"{Colors.WARNING}No valid result returned from agent{Colors.OFF_WHITE}")
+            
+    except Exception as e:
+        print(f"{Colors.ERROR}Error:{Colors.OFF_WHITE} {str(e)}")
+        logger.error("Example failed", exc_info=True)
 
 if __name__ == "__main__":
     main()
