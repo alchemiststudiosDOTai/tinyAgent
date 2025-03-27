@@ -137,77 +137,69 @@ class CustomTextBrowser:
         
         # Configure proxy if requested
         if self._use_proxy:
-            self._configure_proxy()
+            self._configure_proxy()  # This now includes connection test
+        
+        # If proxy failed but was requested, disable it
+        if self._use_proxy and not self.session.proxies:
+            logger.warning("Proxy configuration failed - continuing without proxy")
+            self._use_proxy = False
 
     def _configure_proxy(self):
-        """Configure proxy settings from the config file."""
+        """Configure proxy settings with connection verification."""
         try:
-            # Load configuration
             logger.debug("Loading proxy configuration from config file...")
             config = load_config()
             proxy_config = config.get("proxy", {})
             
-            # Check if proxy configuration exists and is enabled
             if not proxy_config or not proxy_config.get("enabled", False):
                 logger.info("Proxy is disabled or not configured")
                 return
                 
-            # Get required proxy settings
-            proxy_url = proxy_config.get("url")
-            username = proxy_config.get("username")
-            password = proxy_config.get("password")
-            country = proxy_config.get("country", "US")
-            
             # Validate required settings
-            if not all([proxy_url, username, password]):
-                missing = []
-                if not proxy_url: missing.append("url")
-                if not username: missing.append("username")
-                if not password: missing.append("password")
-                logger.warning(f"Incomplete proxy configuration. Missing: {', '.join(missing)}")
+            required = ["url", "username", "password"]
+            missing = [field for field in required if not proxy_config.get(field)]
+            if missing:
+                logger.error(f"Missing required proxy config fields: {', '.join(missing)}")
                 return
-            
-            # Format proxy URL with credentials
+
+            # Format proxy URL safely
             try:
-                formatted_proxy = proxy_url % (username, country, password)
-                logger.debug(f"Formatted proxy URL: {formatted_proxy.replace(password, '[REDACTED]')}")
-            except Exception as e:
-                logger.error(f"Failed to format proxy URL: {str(e)}")
+                formatted_proxy = proxy_config["url"].format(
+                    username=proxy_config["username"],
+                    password=proxy_config["password"],
+                    country=proxy_config.get("country", "US")
+                )
+                logger.debug(f"Formatted proxy URL: {formatted_proxy.replace(proxy_config['password'], '[REDACTED]')}")
+            except KeyError as e:
+                logger.error(f"Proxy URL template missing placeholder: {str(e)}")
                 return
-            
-            # Configure session with proxy
-            self.session.proxies = {
-                "http": formatted_proxy,
-                "https": formatted_proxy
-            }
-            
-            # Apply advanced settings if configured
-            advanced = proxy_config.get("advanced", {})
-            if advanced:
-                if advanced.get("sticky_session"):
-                    self.session.headers["Proxy-Connection"] = "keep-alive"
-                    if "session_duration" in advanced:
-                        self.session.headers["Connection-TTL"] = str(advanced["session_duration"])
-                
-                if "rotate_every" in advanced:
-                    # Store rotation settings for later use
-                    self._proxy_rotation_count = advanced["rotate_every"]
-                    self._proxy_request_count = 0
-            
-            # Apply debug settings if configured
-            debug = proxy_config.get("debug", {})
-            if debug:
-                if debug.get("verify_ssl") is not None:
-                    self.session.verify = debug["verify_ssl"]
-                if debug.get("timeout"):
-                    # If you need a global request timeout
-                    self._global_timeout = debug["timeout"]
-            
-            logger.info("Proxy configured successfully with all settings")
-            
+
+            # Test proxy connection
+            test_url = "http://example.com"
+            try:
+                test_proxies = {
+                    "http": formatted_proxy,
+                    "https": formatted_proxy
+                }
+                response = requests.get(
+                    test_url, 
+                    proxies=test_proxies,
+                    timeout=10
+                )
+                response.raise_for_status()
+                logger.info("Proxy connection verified successfully")
+            except Exception as test_error:
+                logger.error(f"Proxy connection test failed: {str(test_error)}")
+                logger.info("Falling back to direct connection")
+                self.session.proxies = {}
+                return
+
+            # Apply verified proxy to session
+            self.session.proxies = test_proxies
+
         except Exception as e:
             logger.error(f"Error configuring proxy: {str(e)}")
-            logger.debug("Full error details:", exc_info=True)
+            logger.debug("Proxy configuration failed", exc_info=True)
 
     @property
     def use_proxy(self) -> bool:
@@ -383,9 +375,19 @@ class CustomTextBrowser:
             
             while retry_count < max_retries:
                 try:
+                    # Add proxy awareness to error messages
+                    if self._use_proxy:
+                        logger.debug(f"Using proxy: {self.session.proxies['https']}")
+                    
                     response = self.session.get(url, timeout=15)
                     response.raise_for_status()
                     break
+                except requests.exceptions.ProxyError as pe:
+                    logger.error(f"Proxy error: {str(pe)}")
+                    if retry_count < max_retries - 1:
+                        logger.info("Reconfiguring proxy before retry...")
+                        self._configure_proxy()  # Re-check proxy config
+                    raise
                 except (requests.exceptions.ConnectTimeout, 
                         requests.exceptions.ReadTimeout,
                         requests.exceptions.ConnectionError) as e:
@@ -393,7 +395,7 @@ class CustomTextBrowser:
                     if retry_count >= max_retries:
                         raise
                     logger.warning(f"Retry {retry_count}/{max_retries} for {url}: {str(e)}")
-                    time.sleep(1)  # Wait before retrying
+                    time.sleep(1)
             
             content_type = response.headers.get("content-type", "")
             
