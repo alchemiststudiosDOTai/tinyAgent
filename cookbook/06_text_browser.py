@@ -1,6 +1,14 @@
-from core.agent import Agent
-from core.factory.agent_factory import AgentFactory
+
+
 from core.tools.custom_text_browser import custom_text_browser_function
+from core.factory.agent_factory import AgentFactory
+from core.agent import Agent
+import os
+import sys
+
+# Add parent directory to the path so we can import the core package
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 # Create agent components
 factory = AgentFactory.get_instance()
@@ -13,7 +21,7 @@ result = agent.run(
     f"Use text browser to visit: {url} with no proxy and random delays",
     variables={
         "action": "visit",
-        "use_proxy": False,
+        "use_proxy": True,
         "random_delay": True
     }
 )
