@@ -878,7 +878,27 @@ def custom_text_browser_function(**kwargs):
     }
 
 
-@tool(
+def custom_text_browser_tool(**kwargs) -> Dict[str, Any]:
+    """
+    Enhanced text browser tool with safety features and parallel execution.
+    
+    Examples:
+    - Visit page: {"url": "https://example.com", "action": "visit"}
+    - Search content: {"url": "https://example.com", "action": "search", "search_query": "news"}
+    - Fetch multiple URLs: {"action": "fetch_parallel", "urls": "https://example.com/1,https://example.com/2"}
+    
+    Security:
+    - Automatic proxy rotation
+    - Request throttling  
+    - User-agent randomization
+    """
+    try:
+        return custom_text_browser_function(**kwargs)
+    except Exception as e:
+        raise ToolError(f"Browser operation failed: {str(e)}") from e
+
+# Create Tool instance directly like anon_coder does
+custom_text_browser_tool = Tool(
     name="custom_text_browser",
     description="""Control a text-based browser to navigate, view, and search web content.
     
@@ -891,31 +911,14 @@ Features:
     parameters={
         "url": ParamType.STRING,
         "action": ParamType.STRING,
-        "search_query": ParamType.STRING, 
-        "urls": ParamType.STRING,  # Changed from ARRAY to STRING
+        "search_query": ParamType.STRING,
+        "urls": ParamType.STRING,
         "concurrency": ParamType.INTEGER,
         "use_proxy": ParamType.BOOLEAN,
         "random_delay": ParamType.BOOLEAN,
         "max_retries": ParamType.INTEGER,
         "timeout": ParamType.INTEGER
     },
+    func=custom_text_browser_tool,
     rate_limit=10
 )
-def custom_text_browser_tool(**kwargs) -> Dict[str, Any]:
-    """
-    Enhanced text browser tool with safety features and parallel execution.
-    
-    Examples:
-    - Visit page: {"url": "https://example.com", "action": "visit"}
-    - Search content: {"url": "https://example.com", "action": "search", "search_query": "news"}
-    - Fetch multiple URLs: {"action": "fetch_parallel", "urls": ["https://example.com/1", "https://example.com/2"]}
-    
-    Security:
-    - Automatic proxy rotation
-    - Request throttling  
-    - User-agent randomization
-    """
-    try:
-        return custom_text_browser_function(**kwargs)
-    except Exception as e:
-        raise ToolError(f"Browser operation failed: {str(e)}") from e
