@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.agent import Agent
 from core.factory.agent_factory import AgentFactory
-from core.tools.custom_text_browser import custom_text_browser_function
+from core.tools.custom_text_browser import get_tool
 
 
 def main():
@@ -30,7 +30,7 @@ def main():
     factory = AgentFactory.get_instance()
     
     # Register the text browser tool
-    factory.register_tool(custom_text_browser_function)
+    factory.register_tool(get_tool())
     
     # Create an agent that will use the factory
     agent = Agent(factory=factory)
