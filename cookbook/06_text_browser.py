@@ -19,8 +19,7 @@ if result:
     # Extract content from the result
     content = result.get('content', '')
     # Limit to 500 characters
-    limited_content = content[:500] + \
-        "..." if len(content) > 500 else content
+    limited_content = (content[:500] + "...") if len(content) > 500 else content
 
     print("\nPage Title:", result.get('title', 'No title'))
     print("\nContent (first 500 chars):")
@@ -52,4 +51,4 @@ if result and 'content' in result:
     print("\nPage Title:", result.get('title', 'No title'))
     print("\nContent (first 500 chars):")
     print("-" * 50)
-    print(limited_content)  # Create agent components
+    print(limited_content)
