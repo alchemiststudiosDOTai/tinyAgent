@@ -91,63 +91,6 @@ def save_results(results: List[Dict[str, str]], query: str, aspect: str, output_
     except Exception as e:
         raise ToolError(f"Failed to save results: {str(e)}")
     
-    @classmethod
-    def from_config(cls) -> 'ProxyConfig':
-        """Create proxy config from config.yml."""
-        load_dotenv()
-        
-        try:
-            import yaml
-            with open('config.yml', 'r') as f:
-                config = yaml.safe_load(f)
-            
-            proxy_config = config.get('proxy', {})
-            
-            if not proxy_config.get('enabled', False):
-                return cls(enabled=False, url_template="")
-            
-            return cls(
-                enabled=True,
-                url_template=proxy_config.get('url', ''),
-                username=os.getenv('TINYAGENT_PROXY_USERNAME'),
-                password=os.getenv('TINYAGENT_PROXY_PASSWORD'),
-                country=os.getenv('TINYAGENT_PROXY_COUNTRY', 'US')
-            )
-        except Exception as e:
-            print(f"Warning: Failed to load proxy config: {str(e)}")
-            return cls(enabled=False, url_template="")
-    
-    def get_proxy_string(self) -> Optional[str]:
-        """Get formatted proxy string using the URL template."""
-        if not self.enabled or not self.url_template:
-            return None
-            
-        if not all([self.username, self.password]):
-            print("Warning: Proxy credentials not found in environment variables")
-            return None
-            
-        try:
-            # Format the URL template with credentials
-            proxy_url = self.url_template % (
-                self.username,
-                self.country,
-                self.password
-            )
-            return proxy_url
-        except Exception as e:
-            print(f"Warning: Failed to format proxy URL: {str(e)}")
-            return None
-
-    def get_proxy_handler(self) -> Optional[urllib.request.ProxyHandler]:
-        """Get configured proxy handler for urllib."""
-        proxy_url = self.get_proxy_string()
-        if not proxy_url:
-            return None
-        
-        return urllib.request.ProxyHandler({
-            'http': proxy_url,
-            'https': proxy_url
-        })
 
 @tool
 def format_search_results(results: List[Dict[str, str]]) -> str:
