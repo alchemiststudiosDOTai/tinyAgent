@@ -59,7 +59,7 @@ def main():
             "desc": "Get page links",
             "query": "Extract all links from the page",
             "variables": {
-                "action": "get_links"
+                "action": "links"
             }
         }
     ]
