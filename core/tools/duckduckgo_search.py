@@ -102,8 +102,8 @@ def perform_duckduckgo_search(
         for result in raw_results:
             formatted_results.append({
                 "title": result.get("title", ""),
-                "url": result.get("href", ""),
-                "snippet": result.get("body", "")
+                "href": result.get("href", ""),  # Changed from 'url'
+                "body": result.get("body", "")   # Changed from 'snippet'
             })
         
         print(f"Found {len(formatted_results)} results")
