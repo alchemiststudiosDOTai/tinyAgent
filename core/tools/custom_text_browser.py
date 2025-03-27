@@ -69,13 +69,21 @@ class CustomTextBrowser:
         self,
         viewport_size: int = 8192,
         downloads_folder: str = "./downloads",
-        use_proxy: bool = True,
-        max_retries: int = 3,
+        use_proxy: Optional[bool] = None,
+        max_retries: Optional[int] = None,
         backoff_factor: float = 1.0,
         pool_connections: int = 10,
         pool_maxsize: int = 10,
         random_delay_range: Optional[Tuple[float, float]] = (0.5, 2.0),
     ):
+        # Load config first
+        config = load_config()
+        self._use_proxy = use_proxy if use_proxy is not None else get_config_value(
+            config, "tools.browser.use_proxy", True
+        )
+        self._max_retries = max_retries if max_retries is not None else get_config_value(
+            config, "tools.browser.max_retries", 3
+        )
         """
         Initialize the text browser with enhanced scraping capabilities.
         
@@ -528,6 +536,15 @@ class CustomTextBrowser:
         # Return mapped extension or default
         return mime_map.get(base_type, '.bin')
 
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.session.close()
+        if exc_type is not None:
+            logger.error(f"Browser error: {exc_val}", exc_info=True)
+        return False  # Don't suppress exceptions
+
     def _sanitize_filename(self, filename: str) -> str:
         """
         Sanitize filename to be safe for the filesystem.
@@ -658,6 +675,17 @@ class CustomTextBrowser:
     # -------------------------------------------------------------------------
     # Concurrency / Bulk Fetching
     # -------------------------------------------------------------------------
+    async def async_fetch(self, url: str) -> str:
+        """Asynchronous version of page fetching using aiohttp"""
+        try:
+            import aiohttp
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as response:
+                    response.raise_for_status()
+                    return await response.text()
+        except Exception as e:
+            raise ToolError(f"Async fetch failed for {url}: {str(e)}") from e
+
     def fetch_pages_in_parallel(
         self, 
         urls: List[str], 
@@ -847,77 +875,44 @@ def custom_text_browser_function(**kwargs):
     }
 
 
-# Create the tool instance with proper manifest
-custom_text_browser_tool = Tool(
+@tool(
     name="custom_text_browser",
     description="""Control a text-based browser to navigate, view, and search web content.
     
-This enhanced browser provides improved scraping capabilities including:
-- Connection pooling with retry logic for reliability
-- Randomized headers with user agent rotation to avoid blocking
-- Optional random delays to mimic human browsing
-- Parallel fetching of multiple URLs for efficiency""",
-    parameters={},  # We use manifest for parameter specification
-    func=custom_text_browser_function,
-    manifest={
-        "name": "custom_text_browser",
-        "description": "Control a text-based browser to navigate and search web content with advanced scraping capabilities",
-        "parameters": {
-            "url": {
-                "type": "string",
-                "required": True,
-                "description": "URL to visit or currently visited URL for other actions"
-            },
-            "action": {
-                "type": "string",
-                "required": False,
-                "default": "visit",
-                "enum": ["visit", "search", "links", "next_page", "prev_page", "state", "fetch_parallel"],
-                "description": "Action to perform: visit (default), search, links, next_page, prev_page, state, or fetch_parallel"
-            },
-            "search_query": {
-                "type": "string",
-                "required": False,
-                "description": "Query string when action is 'search'"
-            },
-            "urls": {
-                "type": "array",
-                "items": {"type": "string"},
-                "required": False,
-                "description": "List of URLs when action is 'fetch_parallel'"
-            },
-            "concurrency": {
-                "type": "integer",
-                "required": False,
-                "default": 5,
-                "description": "Number of concurrent requests for 'fetch_parallel' action"
-            },
-            "use_proxy": {
-                "type": "boolean",
-                "required": False,
-                "default": True,
-                "description": "Whether to use proxy configuration"
-            },
-            "random_delay": {
-                "type": "boolean",
-                "required": False,
-                "default": True,
-                "description": "Whether to add random delays between requests"
-            },
-            "max_retries": {
-                "type": "integer",
-                "required": False,
-                "default": 3,
-                "description": "Maximum number of retries for failed requests"
-            },
-            "timeout": {
-                "type": "integer",
-                "required": False,
-                "default": 15,
-                "description": "Request timeout in seconds"
-            }
-        },
-        "required": ["url"],
-        "additionalProperties": False
-    }
-) 
+Features:
+- Connection pooling with retry logic
+- Randomized headers with user agent rotation  
+- Configurable delays between requests
+- Parallel URL fetching
+- Proxy support with automatic configuration""",
+    parameters={
+        "url": ParamType.STRING,
+        "action": ParamType.STRING,
+        "search_query": ParamType.STRING, 
+        "urls": ParamType.ARRAY,
+        "concurrency": ParamType.INTEGER,
+        "use_proxy": ParamType.BOOLEAN,
+        "random_delay": ParamType.BOOLEAN,
+        "max_retries": ParamType.INTEGER,
+        "timeout": ParamType.INTEGER
+    },
+    rate_limit=10
+)
+def custom_text_browser_tool(**kwargs) -> Dict[str, Any]:
+    """
+    Enhanced text browser tool with safety features and parallel execution.
+    
+    Examples:
+    - Visit page: {"url": "https://example.com", "action": "visit"}
+    - Search content: {"url": "https://example.com", "action": "search", "search_query": "news"}
+    - Fetch multiple URLs: {"action": "fetch_parallel", "urls": ["https://example.com/1", "https://example.com/2"]}
+    
+    Security:
+    - Automatic proxy rotation
+    - Request throttling  
+    - User-agent randomization
+    """
+    try:
+        return custom_text_browser_function(**kwargs)
+    except Exception as e:
+        raise ToolError(f"Browser operation failed: {str(e)}") from e
