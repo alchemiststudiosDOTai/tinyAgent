@@ -22,7 +22,7 @@ from ..tools import (
     brave_web_search_tool,
     ripgrep_tool,
     aider_tool,
-    duckduckgo_web_search,
+    duckduckgo_search_tool,
     process_content,
     file_manipulator_tool,
     custom_text_browser_tool,
@@ -162,7 +162,7 @@ def load_tools() -> List[Tool]:
         # Only add MCP-dependent tools if MCP server is available
         if mcp_available:
             tools.append(brave_web_search_tool)
-            tools.append(duckduckgo_web_search)
+            tools.append(duckduckgo_search_tool)
             logger.info("MCP server is available, MCP-dependent tools loaded")
         else:
             logger.warning("MCP server is not available, MCP-dependent tools will not be loaded")
