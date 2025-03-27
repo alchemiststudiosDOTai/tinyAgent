@@ -32,8 +32,8 @@ def main():
     # Register the text browser tool
     factory.register_tool(get_tool())
     
-    # Create an agent that will use the factory
-    agent = Agent(factory=factory)
+    # Create an agent using the factory configuration
+    agent = Agent()
     
     # Example operations
     operations = [
