@@ -897,8 +897,8 @@ def custom_text_browser_tool(**kwargs) -> Dict[str, Any]:
     except Exception as e:
         raise ToolError(f"Browser operation failed: {str(e)}") from e
 
-# Create Tool instance directly like anon_coder does
-custom_text_browser_tool = Tool(
+# Create internal Tool instance
+_custom_text_browser_tool = Tool(
     name="custom_text_browser",
     description="""Control a text-based browser to navigate, view, and search web content.
     
@@ -922,3 +922,12 @@ Features:
     func=custom_text_browser_tool,
     rate_limit=10
 )
+
+def get_tool() -> Tool:
+    """
+    Return the custom_text_browser tool instance for tinyAgent integration.
+
+    Returns:
+        Tool: The custom_text_browser tool object
+    """
+    return _custom_text_browser_tool
