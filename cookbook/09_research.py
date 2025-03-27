@@ -1,48 +1,95 @@
 #!/usr/bin/env python3
 """
-Enhanced Business Research Tool with Advanced Proxy Support
+Agentic Research Workflow using TinyAgent Framework
 
 Features:
-1. Multiple proxy support (Tor, rotating proxies, direct)
-2. Advanced error handling and retries
-3. Configurable search parameters
-4. Enhanced data storage
-5. Rate limiting protection
+1. Proper tool-based architecture
+2. Framework-compatible error handling
+3. Configurable through AgentFactory
+4. Integrated with core tooling
 """
 
 import os
 import sys
 import json
-import time
-import random
-import urllib.request
-from typing import Optional, Dict, List, Generator
 from datetime import datetime
 from pathlib import Path
-from dataclasses import dataclass
-from dotenv import load_dotenv
-
-from duckduckgo_search import DDGS
-from duckduckgo_search.exceptions import (
-    DuckDuckGoSearchException,
-    RatelimitException,
-    TimeoutException,
-)
-
-# Add parent directory to the path so we can import the core package
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from typing import Dict, List, Optional
 
 from core.factory.agent_factory import AgentFactory
-from core.tools.duckduckgo_search import duckduckgo_search_tool, perform_duckduckgo_search
+from core.tools.duckduckgo_search import perform_duckduckgo_search
+from core.decorators import tool
+from core.exceptions import ToolError
+from core.logging import get_logger
 
-@dataclass
-class ProxyConfig:
-    """Proxy configuration settings."""
-    enabled: bool
-    url_template: str
-    username: Optional[str] = None
-    password: Optional[str] = None
-    country: str = "US"
+logger = get_logger(__name__)
+
+@tool
+def setup_output_directory() -> Path:
+    """Create and return the output directory path."""
+    output_dir = Path("output/research_results")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return output_dir
+
+@tool
+def enhance_research_query(base_query: str, aspect: str = "") -> str:
+    """
+    Enhance search query with aspect-specific terms.
+    
+    Args:
+        base_query: Base search query
+        aspect: Research aspect to focus on
+        
+    Returns:
+        Enhanced query string
+    """
+    research_aspects = {
+        "substance": "chemical composition effects uses research studies",
+        "market": "market size vendors suppliers distribution statistics analysis",
+        "legal": "legal status regulation compliance requirements FDA policy",
+        "safety": "safety studies side effects research clinical trials risks",
+        "production": "manufacturing process quality control standards certification"
+    }
+    
+    if aspect and aspect in research_aspects:
+        return f"{base_query} {research_aspects[aspect]}"
+    return base_query
+
+@tool
+def save_results(results: List[Dict[str, str]], query: str, aspect: str, output_dir: Path) -> str:
+    """
+    Save search results with enhanced metadata.
+    
+    Args:
+        results: List of search results
+        query: Search query used
+        aspect: Research aspect
+        output_dir: Output directory path
+        
+    Returns:
+        Path to saved file
+    """
+    try:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"research_{aspect}_{timestamp}.json"
+        filepath = output_dir / filename
+        
+        data = {
+            "metadata": {
+                "timestamp": datetime.now().isoformat(),
+                "query": query,
+                "aspect": aspect,
+                "result_count": len(results)
+            },
+            "results": results
+        }
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        
+        return str(filepath)
+    except Exception as e:
+        raise ToolError(f"Failed to save results: {str(e)}")
     
     @classmethod
     def from_config(cls) -> 'ProxyConfig':
@@ -102,256 +149,106 @@ class ProxyConfig:
             'https': proxy_url
         })
 
-class ResearchManager:
-    """Manages research operations with proxy support and error handling."""
-    
-    def __init__(self, proxy_config: ProxyConfig):
-        self.proxy_config = proxy_config
-        self.ddgs = None
-        self.last_rotation = time.time()
-        self.initialize_ddgs()
-    
-    def initialize_ddgs(self):
-        """Initialize or reinitialize the DDGS client."""
-        proxy = self.proxy_config.get_proxy_string()
-        self.ddgs = DDGS(
-            proxy=proxy,
-            timeout=20
-        )
-        self.last_rotation = time.time()
-    
-    def should_rotate_proxy(self) -> bool:
-        """Check if it's time to rotate the proxy."""
-        if not self.proxy_config.enabled:
-            return False
-        # Rotate every 60 seconds if proxy is enabled
-        return time.time() - self.last_rotation >= 60
-
-    def search_with_retries(
-        self,
-        keywords: str,
-        region: str = "wt-wt",
-        safesearch: str = "moderate",
-        timelimit: Optional[str] = None,
-        backend: str = "auto",
-        max_results: Optional[int] = None,
-        max_retries: int = 3,
-        retry_delay: int = 5
-    ) -> List[Dict[str, str]]:
-        """
-        Perform search with automatic retries and proxy rotation.
-        
-        Args:
-            keywords: Search query
-            region: Search region (e.g., 'wt-wt', 'us-en')
-            safesearch: SafeSearch setting ('on', 'moderate', 'off')
-            timelimit: Time limit for results ('d', 'w', 'm', 'y')
-            backend: Search backend ('auto', 'html', 'lite')
-            max_results: Maximum number of results to return
-            max_retries: Maximum number of retry attempts
-            retry_delay: Delay between retries in seconds
-            
-        Returns:
-            List of search results
-        """
-        attempts = 0
-        while attempts < max_retries:
-            try:
-                if self.should_rotate_proxy():
-                    self.initialize_ddgs()
-                
-                results = list(self.ddgs.text(
-                    keywords=keywords,
-                    region=region,
-                    safesearch=safesearch,
-                    timelimit=timelimit,
-                    backend=backend,
-                    max_results=max_results
-                ))
-                
-                return results
-                
-            except RatelimitException:
-                print(f"Rate limit hit on attempt {attempts + 1}/{max_retries}")
-                if self.proxy_config.enabled:
-                    self.initialize_ddgs()
-                time.sleep(retry_delay * (attempts + 1))
-                
-            except TimeoutException:
-                print(f"Timeout on attempt {attempts + 1}/{max_retries}")
-                time.sleep(retry_delay)
-                
-            except DuckDuckGoSearchException as e:
-                print(f"Search error on attempt {attempts + 1}/{max_retries}: {str(e)}")
-                if attempts == max_retries - 1:
-                    raise
-                time.sleep(retry_delay)
-                
-            attempts += 1
-        
-        raise DuckDuckGoSearchException(f"Failed after {max_retries} attempts")
-
-def setup_output_directory() -> Path:
-    """Create and return the output directory path."""
-    output_dir = Path("output/research_results")
-    output_dir.mkdir(parents=True, exist_ok=True)
-    return output_dir
-
-def save_results(results: List[Dict[str, str]], query: str, aspect: str, output_dir: Path) -> str:
-    """
-    Save search results with enhanced metadata.
-    
-    Args:
-        results: List of search results
-        query: Search query used
-        aspect: Research aspect
-        output_dir: Output directory path
-        
-    Returns:
-        Path to saved file
-    """
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"research_{aspect}_{timestamp}.json"
-    filepath = output_dir / filename
-    
-    data = {
-        "metadata": {
-            "timestamp": datetime.now().isoformat(),
-            "query": query,
-            "aspect": aspect,
-            "result_count": len(results)
-        },
-        "results": results
-    }
-    
-    with open(filepath, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-    
-    return str(filepath)
-
-def enhance_research_query(base_query: str, aspect: str = "") -> str:
-    """
-    Enhance search query with aspect-specific terms.
-    
-    Args:
-        base_query: Base search query
-        aspect: Research aspect to focus on
-        
-    Returns:
-        Enhanced query string
-    """
-    research_aspects = {
-        "substance": "chemical composition effects uses research studies",
-        "market": "market size vendors suppliers distribution statistics analysis",
-        "legal": "legal status regulation compliance requirements FDA policy",
-        "safety": "safety studies side effects research clinical trials risks",
-        "production": "manufacturing process quality control standards certification"
-    }
-    
-    if aspect and aspect in research_aspects:
-        return f"{base_query} {research_aspects[aspect]}"
-    return base_query
-
-def format_search_results(results: list) -> None:
-    """Format and print search results in a readable way."""
+@tool
+def format_search_results(results: List[Dict[str, str]]) -> str:
+    """Format search results in a readable way."""
     if not results:
-        print("No results found")
-        return
+        return "No results found"
 
-    print("\n=== Search Results ===")
+    formatted = ["\n=== Search Results ==="]
     for i, result in enumerate(results, 1):
-        print(f"\nResult {i}:")
-        print("-" * 50)
-        print(f"Title: {result.get('title', 'N/A')}")
-        print(f"URL: {result.get('url', 'N/A')}")
-        print("\nSnippet:")
-        print(result.get('snippet', 'No snippet available'))
-        print("-" * 50)
+        formatted.extend([
+            f"\nResult {i}:",
+            "-" * 50,
+            f"Title: {result.get('title', 'N/A')}",
+            f"URL: {result.get('url', 'N/A')}",
+            "\nSnippet:",
+            result.get('snippet', 'No snippet available'),
+            "-" * 50
+        ])
+    return "\n".join(formatted)
+
+def register_research_tools(factory: AgentFactory) -> None:
+    """Register all research tools with the factory."""
+    tools = [
+        setup_output_directory,
+        enhance_research_query,
+        save_results,
+        format_search_results,
+        perform_duckduckgo_search
+    ]
+    
+    for tool_func in tools:
+        factory.register_tool(tool_func)
 
 def main():
-    """Run the enhanced research tool."""
-    # Setup
-    output_dir = setup_output_directory()
-    proxy_config = ProxyConfig.from_config()
-    research_mgr = ResearchManager(proxy_config)
-    
-    # Research configuration
-    research_config = {
-        "substance": {
-            "query": " ",
-            "max_results": 2
-        },
-     
-    }
-    
-    print("Enhanced Research Tool")
-    print("====================")
-    print(f"Proxy enabled: {proxy_config.enabled}")
-    if proxy_config.enabled:
-        print(f"Using proxy with country: {proxy_config.country}")
-    print(f"Output directory: {output_dir}")
-    print()
-    
-    all_results = {}
-    
-    # Run research for each aspect
-    for aspect, config in research_config.items():
-        print(f"\nResearching {aspect.upper()}")
-        print("-" * 50)
+    """Run the agentic research workflow."""
+    try:
+        # Initialize agent factory
+        factory = AgentFactory.get_instance()
+        register_research_tools(factory)
         
-        try:
-            # Enhance the query with aspect-specific terms
-            enhanced_query = enhance_research_query(config["query"], aspect)
-            print(f"Enhanced query: {enhanced_query}")
+        # Create research agent
+        research_agent = factory.create_agent(
+            model="gpt-4",
+            max_retries=3
+        )
+        
+        # Research configuration
+        research_config = {
+            "substance": {
+                "query": "python programming",
+                "max_results": 5
+            },
+            "market": {
+                "query": "python jobs",
+                "max_results": 3
+            }
+        }
+        
+        # Execute research workflow
+        for aspect, config in research_config.items():
+            logger.info(f"Researching {aspect}")
             
-            # Perform the search with retries and proxy rotation
-            results = research_mgr.search_with_retries(
-                keywords=enhanced_query,
-                max_results=config["max_results"],
-                region="us-en",
-                safesearch="moderate",
-                timelimit="y",
-                backend="auto"
+            # Enhanced query
+            enhanced_query = research_agent.execute_tool(
+                "enhance_research_query",
+                base_query=config["query"],
+                aspect=aspect
             )
             
+            # Perform search
+            results = research_agent.execute_tool(
+                "perform_duckduckgo_search",
+                keywords=enhanced_query,
+                max_results=config["max_results"]
+            )
+            
+            # Setup output
+            output_dir = research_agent.execute_tool("setup_output_directory")
+            
             # Save results
-            output_file = save_results(
+            output_file = research_agent.execute_tool(
+                "save_results",
                 results=results,
                 query=enhanced_query,
                 aspect=aspect,
                 output_dir=output_dir
             )
             
-            print(f"Found {len(results)} results")
-            print(f"Saved to: {output_file}")
+            # Format results
+            formatted = research_agent.execute_tool(
+                "format_search_results",
+                results=results
+            )
             
-            all_results[aspect] = {
-                "query": enhanced_query,
-                "results": results,
-                "output_file": output_file
-            }
+            logger.info(f"Research completed for {aspect}")
+            logger.info(f"Results saved to: {output_file}")
+            logger.info(formatted)
             
-        except DuckDuckGoSearchException as e:
-            print(f"Error researching {aspect}: {str(e)}")
-            continue
-        
-        except Exception as e:
-            print(f"Unexpected error researching {aspect}: {str(e)}")
-            continue
-    
-    # Print summary
-    print("\nResearch Summary")
-    print("===============")
-    for aspect, data in all_results.items():
-        print(f"\n{aspect.upper()}:")
-        print(f"- Results: {len(data['results'])}")
-        print(f"- Output: {data['output_file']}")
+    except Exception as e:
+        logger.error(f"Research failed: {str(e)}")
+        raise
 
 if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        print("\nResearch interrupted by user")
-    except Exception as e:
-        print(f"Fatal error: {str(e)}")
-        sys.exit(1)
+    main()
