@@ -12,6 +12,7 @@ Features:
 
 
 from typing import Dict, List, Optional
+from core.agent import get_llm
 from pathlib import Path
 from datetime import datetime
 import json
@@ -35,56 +36,95 @@ logger = get_logger(__name__)
 @tool
 def interpret_research_request(request: str) -> Dict[str, any]:
     """
-    Interprets a natural language research request to extract the topic and relevant aspects.
-
+    Interprets a natural language research request using LLM analysis to extract 
+    the primary topic and relevant research aspects from predefined categories.
+    
     Args:
-        request: The natural language research request (e.g., "research the kratom industry and safety").
-
+        request: The natural language research request
+        
     Returns:
-        A dictionary containing the identified 'topic' (str) and 'aspects' (list of str).
+        Dictionary with 'topic' (str) and 'aspects' (list of valid aspect strings)
     """
     logger.info(f"Interpreting research request: \"{request}\"")
-    request_lower = request.lower()
     
-    # Predefined aspect keywords and their mapping
-    # Simple keyword matching for now. Could be enhanced with NLP libraries or LLM calls.
-    aspect_mapping = {
-        "substance": ["substance", "chemical", "composition", "effects", "uses"],
-        "market": ["market", "vendors", "suppliers", "distribution", "statistics", "analysis", "industry", "business"],
-        "legal": ["legal", "law", "laws", "regulation", "compliance", "policy", "fda"],
-        "safety": ["safety", "safe", "side effects", "clinical trials", "risks", "danger"],
-        "production": ["production", "manufacturing", "process", "quality", "standards", "certification"]
+    # Define aspect descriptions based on enhance_research_query's categories
+    aspect_descriptions = {
+        "substance": "Chemical composition, effects, uses, and research studies",
+        "market": "Market size, vendors, suppliers, distribution, statistics, analysis",
+        "legal": "Legal status, regulation, compliance requirements, FDA policy",
+        "safety": "Safety studies, side effects, clinical trials, risks",
+        "production": "Manufacturing process, quality control, standards, certification"
     }
-
-    identified_aspects = set()
-    potential_topic_words = request_lower.split()
-
-    for aspect_key, keywords in aspect_mapping.items():
-        for keyword in keywords:
-            if keyword in request_lower:
-                identified_aspects.add(aspect_key)
-                # Remove aspect-related keywords from potential topic words
-                potential_topic_words = [word for word in potential_topic_words if keyword not in word] # Simple word removal
-
-    # If no specific aspects identified, use a default set
-    if not identified_aspects:
-        identified_aspects = {"substance", "market", "safety"}
-        logger.info("No specific aspects identified in request, using defaults.")
-
-    # Basic topic extraction: Assume the longest remaining word sequence is the topic.
-    # Remove common filler words. This is a basic heuristic.
-    filler_words = {"research", "about", "the", "and", "its", "tell", "me", "find", "information", "on"}
-    topic_words = [word for word in potential_topic_words if word not in filler_words]
-    topic = " ".join(topic_words).strip()
-
-    # Fallback topic if extraction fails
-    if not topic:
-        topic = "kratom" # Default topic if extraction fails badly
-        logger.warning("Could not reliably extract topic, defaulting to 'kratom'.")
     
-    logger.info(f"Identified Topic: '{topic}', Aspects: {list(identified_aspects)}")
+    # Create structured prompt for the LLM
+    prompt = f"""Analyze this research request and identify:
+1. Primary research topic (concise phrase)
+2. Relevant aspects from this list: {list(aspect_descriptions.keys())}
+
+Aspect Definitions:
+{json.dumps(aspect_descriptions, indent=2)}
+
+Request: "{request}"
+
+Respond ONLY with JSON format:
+{{
+    "topic": "extracted_topic",
+    "aspects": ["aspect1", "aspect2"]
+}}"""
     
-    return {"topic": topic, "aspects": list(identified_aspects)}
+    try:
+        # Get LLM response
+        llm = get_llm()
+        response = llm(prompt)
+        
+        # Parse and validate response
+        parsed = json.loads(response)
+        if not isinstance(parsed, dict):
+            raise ValueError("Response is not a JSON object")
+            
+        topic = parsed.get("topic", "").strip()
+        aspects = [a.strip().lower() for a in parsed.get("aspects", [])]
+        
+        # Validate aspects against allowed list
+        valid_aspects = [a for a in aspects if a in aspect_descriptions]
+        if not valid_aspects:
+            raise ValueError("No valid aspects identified")
+            
+        # Fallback topic extraction if empty
+        if not topic:
+            topic = " ".join(request.split()[:5]).strip()  # First 5 words as fallback
+            
+        return {"topic": topic, "aspects": valid_aspects}
+        
+    except Exception as e:
+        logger.warning(f"LLM interpretation failed ({str(e)}), using fallback analysis")
+        
+        # Fallback logic using simple keyword matching
+        request_lower = request.lower()
+        fallback_aspects = set()
+        
+        for aspect, keywords in [
+            ("substance", ["chemical", "composition", "effects", "uses"]),
+            ("market", ["market", "industry", "vendors", "suppliers"]), 
+            ("legal", ["legal", "law", "regulation", "fda"]),
+            ("safety", ["safety", "risk", "side effect", "clinical"]),
+            ("production", ["production", "manufacturing", "quality", "standard"])
+        ]:
+            if any(kw in request_lower for kw in keywords):
+                fallback_aspects.add(aspect)
+                
+        # Default aspects if none found
+        if not fallback_aspects:
+            fallback_aspects = {"substance", "market", "safety"}
+            
+        # Simple topic extraction
+        topic = " ".join([w for w in request.split() 
+                        if w not in {"research", "about", "the", "and", "its"}][:5])
+                        
+        return {
+            "topic": topic or "kratom",
+            "aspects": list(fallback_aspects)
+        }
 
 
 @tool
