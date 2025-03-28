@@ -15,7 +15,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))))  # isort:skip
 from core.agent import get_llm
-from core.logging import get_logger
+from core.logging import get_logger, Colors
 from core.exceptions import ToolError
 from core.decorators import tool
 from core.tools.custom_text_browser import get_tool as get_browser_tool
