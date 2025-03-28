@@ -12,11 +12,14 @@ Features:
 import json
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__))))  # isort:skip
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # isort:skip
 from ..core.agent import get_llm
-from core.logging import get_logger, Colors
+
+
+from core.logging import get_logger
 from core.exceptions import ToolError
+
 from core.decorators import tool
 from core.tools.custom_text_browser import get_tool as get_browser_tool
 from core.tools.duckduckgo_search import duckduckgo_search_tool
@@ -24,6 +27,7 @@ from core.factory.agent_factory import AgentFactory
 from typing import Dict, List, Optional, Any
 from pathlib import Path
 from datetime import datetime
+
 #
 
 
@@ -38,7 +42,7 @@ def interpret_research_request(request: str) -> Dict[str, any]:
     Returns:
         Dictionary with 'topic' (str) and 'aspects' (list of generated aspects)
     """
-    logger.info(f"Interpreting research request: \"{request}\"")
+    logger.info(f'Interpreting research request: "{request}"')
 
     prompt = f"""Analyze this research request and identify:
 1. Primary research topic (concise phrase)
@@ -59,10 +63,7 @@ Respond ONLY with JSON format:
         return {"topic": topic, "aspects": aspects}
     except Exception as e:
         logger.warning(f"Request interpretation failed: {str(e)}")
-        return {
-            "topic": " ".join(request.split()[:5]).strip(),
-            "aspects": ["general_analysis"]
-        }
+        return {"topic": " ".join(request.split()[:5]).strip(), "aspects": ["general_analysis"]}
 
 
 @tool
@@ -93,17 +94,15 @@ def scrape_urls(urls: List[str], agent) -> List[Dict[str, Any]]:
             action="fetch_parallel",
             urls=urls,
             use_proxy=True,
-            random_delay=True
+            random_delay=True,
         )
 
         # Process and format the scraped content
         processed_data = []
         for url, content in zip(urls, scraped_data):
-            processed_data.append({
-                "url": url,
-                "scraped_content": content,
-                "scrape_time": datetime.now().isoformat()
-            })
+            processed_data.append(
+                {"url": url, "scraped_content": content, "scrape_time": datetime.now().isoformat()}
+            )
 
         return processed_data
 
@@ -154,12 +153,12 @@ def save_results(results: List[Dict[str, str]], query: str, aspect: str, output_
                 "timestamp": datetime.now().isoformat(),
                 "query": query,
                 "aspect": aspect,
-                "result_count": len(results)
+                "result_count": len(results),
             },
-            "results": results
+            "results": results,
         }
 
-        with open(filepath, 'w', encoding='utf-8') as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
         return str(filepath)
@@ -175,18 +174,27 @@ def format_search_results(results: List[Dict[str, str]]) -> str:
 
     formatted = ["\n=== Search Results ==="]
     for i, result in enumerate(results, 1):
-        formatted.extend([
-            f"\nResult {i}:",
-            "-" * 50,
-            f"Title: {result.get('title', 'N/A')}",
-            f"URL: {result.get('href', result.get('url', 'N/A'))}",
-            "\nSnippet:",
-            result.get('body', result.get('snippet', 'No snippet available')),
-            "\nScraped Content:" if 'scraped_content' in result else "",
-            (result['scraped_content'][:500] + "..." if len(result['scraped_content']) >
-             500 else result['scraped_content']) if 'scraped_content' in result else "",
-            "-" * 50
-        ])
+        formatted.extend(
+            [
+                f"\nResult {i}:",
+                "-" * 50,
+                f"Title: {result.get('title', 'N/A')}",
+                f"URL: {result.get('href', result.get('url', 'N/A'))}",
+                "\nSnippet:",
+                result.get("body", result.get("snippet", "No snippet available")),
+                "\nScraped Content:" if "scraped_content" in result else "",
+                (
+                    (
+                        result["scraped_content"][:500] + "..."
+                        if len(result["scraped_content"]) > 500
+                        else result["scraped_content"]
+                    )
+                    if "scraped_content" in result
+                    else ""
+                ),
+                "-" * 50,
+            ]
+        )
     return "\n".join(formatted)
 
 
@@ -210,7 +218,7 @@ def generate_final_report(output_dir: Path, research_topic: str, aspects: List[s
     # Aggregate data
     all_data = []
     for file in research_files:
-        with open(file, 'r', encoding='utf-8') as f:
+        with open(file, "r", encoding="utf-8") as f:
             data = json.load(f)
             all_data.append(data)
 
@@ -238,7 +246,7 @@ Generate the report:"""
         # Save report
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         report_path = output_dir / f"final_report_{timestamp}.md"
-        report_path.write_text(report_content, encoding='utf-8')
+        report_path.write_text(report_content, encoding="utf-8")
 
         return str(report_path)
     except Exception as e:
@@ -249,7 +257,7 @@ Generate the report:"""
 def generate_research_config(research_topic: str, aspects: List[str]) -> Dict[str, Dict[str, int]]:
     """Generates a research configuration dictionary with suggested max_results per aspect.
 
-    Uses LLM analysis to determine a reasonable number of search results ('max_results') 
+    Uses LLM analysis to determine a reasonable number of search results ('max_results')
     to retrieve for each research aspect, considering the overall research topic.
 
     Args:
@@ -268,8 +276,7 @@ def generate_research_config(research_topic: str, aspects: List[str]) -> Dict[st
     Example format: {{"aspect1": {{"max_results": 5}}, "aspect2": {{"max_results": 8}}}}
     """
 
-    logger.warning(
-        "Using placeholder implementation for generate_research_config")
+    logger.warning("Using placeholder implementation for generate_research_config")
     generated_config = {}
     for aspect in aspects:
         generated_config[aspect] = {"max_results": 5}
@@ -288,11 +295,11 @@ def register_research_tools(factory: AgentFactory) -> None:
         generate_final_report,
         scrape_urls,
         duckduckgo_search_tool,
-        get_browser_tool()
+        get_browser_tool(),
     ]
 
     for tool_func in tools:
-        if hasattr(tool_func, '_tool'):
+        if hasattr(tool_func, "_tool"):
             factory.register_tool(tool_func._tool)
         else:
             factory.register_tool(tool_func)
@@ -307,32 +314,26 @@ def main():
         research_agent = factory.create_agent(model="deepseek/deepseek-chat")
 
         user_request = "research about the latest trends in the kratom industry"
-        logger.info(
-            f"Starting research based on user request: \"{user_request}\"")
+        logger.info(f'Starting research based on user request: "{user_request}"')
 
         interpretation = research_agent.execute_tool(
-            "interpret_research_request",
-            request=user_request
+            "interpret_research_request", request=user_request
         )
 
         research_topic = interpretation.get("topic")
         aspects_to_research = interpretation.get("aspects", [])
 
         if not research_topic or not aspects_to_research:
-            logger.error(
-                "Failed to interpret research request. Cannot proceed.")
+            logger.error("Failed to interpret research request. Cannot proceed.")
             return
 
         logger.info("Generating dynamic research configuration...")
         research_aspects_config = research_agent.execute_tool(
-            "generate_research_config",
-            research_topic=research_topic,
-            aspects=aspects_to_research
+            "generate_research_config", research_topic=research_topic, aspects=aspects_to_research
         )
 
         if not research_aspects_config:
-            logger.error(
-                "Failed to generate research configuration. Cannot proceed.")
+            logger.error("Failed to generate research configuration. Cannot proceed.")
             return
 
         logger.info(f"Generated config: {research_aspects_config}")
@@ -340,41 +341,37 @@ def main():
         for aspect in aspects_to_research:
             if aspect not in research_aspects_config:
                 logger.warning(
-                    f"Aspect '{aspect}' was identified but missing from generated config. Skipping.")
+                    f"Aspect '{aspect}' was identified but missing from generated config. Skipping."
+                )
                 continue
 
             config = research_aspects_config[aspect]
-            logger.info(
-                f"Researching aspect '{aspect}' of topic '{research_topic}'")
+            logger.info(f"Researching aspect '{aspect}' of topic '{research_topic}'")
 
             enhanced_query = research_agent.execute_tool(
-                "enhance_research_query",
-                research_topic=research_topic,
-                aspect=aspect
+                "enhance_research_query", research_topic=research_topic, aspect=aspect
             )
             logger.info(f"Generated query: {enhanced_query}")
 
             search_result = research_agent.execute_tool(
-                "duckduckgo_search",
-                keywords=enhanced_query,
-                max_results=config["max_results"]
+                "duckduckgo_search", keywords=enhanced_query, max_results=config["max_results"]
             )
 
             if isinstance(search_result, dict) and "results" in search_result:
                 results = search_result["results"]
             else:
-                logger.warning(
-                    f"Unexpected search result format: {search_result}")
+                logger.warning(f"Unexpected search result format: {search_result}")
                 results = []
 
             output_dir = research_agent.execute_tool("setup_output_directory")
 
             # Extract URLs from search results
             logger.info(f"Raw search results: {results}")
-            urls = [result.get('href', result.get(
-                'url', result.get('link', ''))) for result in results]
+            urls = [
+                result.get("href", result.get("url", result.get("link", ""))) for result in results
+            ]
             logger.info(f"Extracted URLs before filtering: {urls}")
-            urls = [url for url in urls if url and url.startswith('http')]
+            urls = [url for url in urls if url and url.startswith("http")]
             logger.info(f"Final URLs after filtering: {urls}")
 
             # Only scrape if we have valid URLs
@@ -385,34 +382,35 @@ def main():
                     action="fetch_parallel",
                     urls=",".join(urls),
                     use_proxy=True,
-                    random_delay=True
+                    random_delay=True,
                 )
             else:
                 logger.warning("No valid URLs found to scrape")
-                scraped_data = {'results': {}}
+                scraped_data = {"results": {}}
 
             # Process the scraped data
             processed_data = []
-            if isinstance(scraped_data, dict) and 'results' in scraped_data:
-                for url, content in scraped_data['results'].items():
-                    if not content.startswith('Error:'):
-                        processed_data.append({
-                            'url': url,
-                            'scraped_content': content,
-                            'scrape_time': datetime.now().isoformat()
-                        })
+            if isinstance(scraped_data, dict) and "results" in scraped_data:
+                for url, content in scraped_data["results"].items():
+                    if not content.startswith("Error:"):
+                        processed_data.append(
+                            {
+                                "url": url,
+                                "scraped_content": content,
+                                "scrape_time": datetime.now().isoformat(),
+                            }
+                        )
 
             # Enhance results with scraped content
             enhanced_results = []
             for result in results:
                 enhanced_result = result.copy()
                 # Find matching scraped data
-                result_url = result.get('href', result.get(
-                    'url', result.get('link', '')))
+                result_url = result.get("href", result.get("url", result.get("link", "")))
                 for scraped in processed_data:
-                    if scraped['url'] == result_url:
-                        enhanced_result['scraped_content'] = scraped['scraped_content']
-                        enhanced_result['scrape_time'] = scraped['scrape_time']
+                    if scraped["url"] == result_url:
+                        enhanced_result["scraped_content"] = scraped["scraped_content"]
+                        enhanced_result["scrape_time"] = scraped["scrape_time"]
                         break
                 enhanced_results.append(enhanced_result)
 
@@ -421,13 +419,10 @@ def main():
                 results=enhanced_results,
                 query=enhanced_query,
                 aspect=aspect,
-                output_dir=output_dir
+                output_dir=output_dir,
             )
 
-            formatted = research_agent.execute_tool(
-                "format_search_results",
-                results=results
-            )
+            formatted = research_agent.execute_tool("format_search_results", results=results)
 
             logger.info(f"Research completed for {aspect}")
             logger.info(f"Results saved to: {output_file}")
@@ -439,11 +434,8 @@ def main():
             "generate_final_report",
             output_dir=output_dir,
             research_topic=research_topic,
-            aspects=aspects_to_research
+            aspects=aspects_to_research,
         )
-
-        logger.info(Colors.success(
-            f"\nResearch complete! Final report: {final_report}"))
 
     except Exception as e:
         logger.error(f"Research failed: {str(e)}")
