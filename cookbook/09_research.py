@@ -36,33 +36,16 @@ logger = get_logger(__name__)
 @tool
 def interpret_research_request(request: str) -> Dict[str, any]:
     """
-    Interprets a natural language research request using LLM analysis to extract 
-    the primary topic and relevant research aspects from predefined categories.
+    Interprets research requests using pure LLM analysis without predefined aspects.
     
-    Args:
-        request: The natural language research request
-        
     Returns:
-        Dictionary with 'topic' (str) and 'aspects' (list of valid aspect strings)
+        Dictionary with 'topic' (str) and 'aspects' (list of generated aspects)
     """
     logger.info(f"Interpreting research request: \"{request}\"")
     
-    # Define aspect descriptions based on enhance_research_query's categories
-    aspect_descriptions = {
-        "substance": "Chemical composition, effects, uses, and research studies",
-        "market": "Market size, vendors, suppliers, distribution, statistics, analysis",
-        "legal": "Legal status, regulation, compliance requirements, FDA policy",
-        "safety": "Safety studies, side effects, clinical trials, risks",
-        "production": "Manufacturing process, quality control, standards, certification"
-    }
-    
-    # Create structured prompt for the LLM
     prompt = f"""Analyze this research request and identify:
 1. Primary research topic (concise phrase)
-2. Relevant aspects from this list: {list(aspect_descriptions.keys())}
-
-Aspect Definitions:
-{json.dumps(aspect_descriptions, indent=2)}
+2. 3-5 key aspects to investigate
 
 Request: "{request}"
 
@@ -73,57 +56,26 @@ Respond ONLY with JSON format:
 }}"""
     
     try:
-        # Get LLM response
         llm = get_llm()
         response = llm(prompt)
-        
-        # Parse and validate response
         parsed = json.loads(response)
+        
         if not isinstance(parsed, dict):
-            raise ValueError("Response is not a JSON object")
+            raise ValueError("Invalid response format")
             
         topic = parsed.get("topic", "").strip()
         aspects = [a.strip().lower() for a in parsed.get("aspects", [])]
         
-        # Validate aspects against allowed list
-        valid_aspects = [a for a in aspects if a in aspect_descriptions]
-        if not valid_aspects:
-            raise ValueError("No valid aspects identified")
+        if not aspects:
+            raise ValueError("No aspects identified")
             
-        # Fallback topic extraction if empty
-        if not topic:
-            topic = " ".join(request.split()[:5]).strip()  # First 5 words as fallback
-            
-        return {"topic": topic, "aspects": valid_aspects}
+        return {"topic": topic or request, "aspects": aspects}
         
     except Exception as e:
-        logger.warning(f"LLM interpretation failed ({str(e)}), using fallback analysis")
-        
-        # Fallback logic using simple keyword matching
-        request_lower = request.lower()
-        fallback_aspects = set()
-        
-        for aspect, keywords in [
-            ("substance", ["chemical", "composition", "effects", "uses"]),
-            ("market", ["market", "industry", "vendors", "suppliers"]), 
-            ("legal", ["legal", "law", "regulation", "fda"]),
-            ("safety", ["safety", "risk", "side effect", "clinical"]),
-            ("production", ["production", "manufacturing", "quality", "standard"])
-        ]:
-            if any(kw in request_lower for kw in keywords):
-                fallback_aspects.add(aspect)
-                
-        # Default aspects if none found
-        if not fallback_aspects:
-            fallback_aspects = {"substance", "market", "safety"}
-            
-        # Simple topic extraction
-        topic = " ".join([w for w in request.split() 
-                        if w not in {"research", "about", "the", "and", "its"}][:5])
-                        
+        logger.warning(f"LLM interpretation failed: {str(e)}")
         return {
-            "topic": topic or "kratom",
-            "aspects": list(fallback_aspects)
+            "topic": " ".join(request.split()[:5]).strip(),
+            "aspects": ["general_analysis"]
         }
 
 
@@ -137,27 +89,19 @@ def setup_output_directory() -> Path:
 
 @tool
 def enhance_research_query(research_topic: str, aspect: str) -> str:
-    """
-    Enhance search query with aspect-specific terms.
+    """Generate optimized search queries using LLM analysis."""
+    prompt = f"""Create a comprehensive search query for researching:
+Topic: {research_topic}
+Focus Aspect: {aspect}
 
-    Args:
-        research_topic: The core topic to research
-        aspect: Research aspect to focus on
-
-    Returns:
-        Enhanced query string
-    """
-    research_aspects = {
-        "substance": "chemical composition effects uses research studies",
-        "market": "market size vendors suppliers distribution statistics analysis",
-        "legal": "legal status regulation compliance requirements FDA policy",
-        "safety": "safety studies side effects research clinical trials risks",
-        "production": "manufacturing process quality control standards certification"
-    }
-
-    if aspect and aspect in research_aspects:
-        return f"{research_topic} {research_aspects[aspect]}"
-    return research_topic # Return the base topic if aspect is not found or not provided
+Include relevant keywords and search operators. Respond ONLY with the query."""
+    
+    try:
+        llm = get_llm()
+        return llm(prompt).strip()
+    except Exception as e:
+        logger.warning(f"Query enhancement failed: {str(e)}")
+        return f"{research_topic} {aspect}"
 
 
 @tool
