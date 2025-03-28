@@ -14,7 +14,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))))  # isort:skip
-from core.llm import get_llm
+from core.agent import get_llm
 from core.logging import get_logger
 from core.exceptions import ToolError
 from core.decorators import tool
