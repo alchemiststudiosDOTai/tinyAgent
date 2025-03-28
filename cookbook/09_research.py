@@ -1,34 +1,31 @@
 #!/usr/bin/env python3
 """
 Agentic Research Workflow using TinyAgent Framework
-
-Features:
-1. Proper tool-based architecture
-2. Framework-compatible error handling
-3. Configurable through AgentFactory
-4. Integrated with core tooling
 """
 
-import json
+# Fix the path manipulation at the top
 import sys
 import os
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # isort:skip
-from ..core.agent import get_llm
+# Add project root to Python path (one level up from cookbook)
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-
-from core.logging import get_logger
-from core.exceptions import ToolError
-
-from core.decorators import tool
-from core.tools.custom_text_browser import get_tool as get_browser_tool
-from core.tools.duckduckgo_search import duckduckgo_search_tool
+# Now use absolute imports matching your working version
+from core.agent import get_llm
 from core.factory.agent_factory import AgentFactory
-from typing import Dict, List, Optional, Any
+from core.tools.duckduckgo_search import duckduckgo_search_tool
+from core.tools.custom_text_browser import get_tool as get_browser_tool
+from core.decorators import tool
+from core.exceptions import ToolError
+from core.logging import get_logger
+
+# Rest of your imports
+import json
 from pathlib import Path
 from datetime import datetime
+from typing import Dict, List, Optional, Any
 
-#
+logger = get_logger(__name__)
 
 
 logger = get_logger(__name__)
