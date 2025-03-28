@@ -197,57 +197,77 @@ def format_search_results(results: List[Dict[str, str]]) -> str:
 
 @tool
 def generate_final_report(output_dir: Path, research_topic: str, aspects: List[str]) -> str:
-    """Generate a modern formatted report from research findings.
-
-    Args:
-        output_dir: Directory containing research JSON files
-        research_topic: Main research topic
-        aspects: List of researched aspects
-
-    Returns:
-        Path to generated report file
-    """
+    """Generate a modern formatted report from research findings."""
     logger.info("Compiling final research report")
 
-    # Collect all research files
     research_files = list(output_dir.glob("research_*.json"))
-
-    # Aggregate data
     all_data = []
+    url_tracker = set()  # Track all unique URLs used
+
     for file in research_files:
         with open(file, "r", encoding="utf-8") as f:
             data = json.load(f)
             all_data.append(data)
+            # Collect URLs from results
+            for result in data.get('results', []):
+                url = result.get('href') or result.get('url') or result.get('link', '')
+                if url.startswith('http'):
+                    url_tracker.add(url)
 
-    # Build LLM prompt
-    prompt = f"""Create a modern, sleek research report with these requirements:
+    # Enhanced prompt with professional structure requirements
+    prompt = f"""Create a professional research report with this structure:
     
-- Title page with research topic
-- Executive summary
-- Section for each research aspect
-- Key findings with bullet points
-- Data visualization suggestions
-- Conclusion with recommendations
-- Modern formatting using markdown
+# {research_topic} - Research Report
+## Executive Summary
+- Key findings and high-level insights
 
-Research Topic: {research_topic}
-Aspects: {', '.join(aspects)}
-Collected Data: {json.dumps(all_data, indent=2)[:3000]}... [truncated]
+## Methodology
+- Research approach and tools used
 
-Generate the report:"""
+## Detailed Analysis
+{subsections_for_aspects(aspects)}
+
+## Key Discoveries
+- Bullet-point list of major findings
+- Comparative analysis where applicable
+
+## Recommendations
+- Actionable suggestions based on findings
+
+## Conclusion
+- Summary of research impact and next steps
+
+Use markdown formatting with:
+- Clean header hierarchy
+- Tables for comparative data
+- Bullet points for key findings
+- Hyperlinks to sources
+- Data visualization suggestions as mermaid.js diagrams
+
+Research Data:
+{json.dumps(all_data, indent=2)[:10000]}... [truncated]
+"""
 
     try:
-        # Get LLM response
         report_content = get_llm()(prompt)
+        
+        # Add sources appendix with all tracked URLs
+        report_content += "\n\n## Reference Links\n"
+        report_content += "### All Sources Consulted\n"
+        report_content += "\n".join([f"- [{url}]({url})" for url in sorted(url_tracker)])
 
-        # Save report
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        report_path = output_dir / f"final_report_{timestamp}.md"
+        report_path = output_dir / f"professional_report_{timestamp}.md"
         report_path.write_text(report_content, encoding="utf-8")
 
         return str(report_path)
     except Exception as e:
         raise ToolError(f"Report generation failed: {str(e)}")
+
+def subsections_for_aspects(aspects: List[str]) -> str:
+    """Generate subsection prompts for each research aspect"""
+    return "\n".join([f"### {aspect.capitalize()} Analysis\n- Key trends\n- Supporting data\n- Source references" 
+                      for aspect in aspects])
 
 
 @tool
@@ -400,10 +420,13 @@ def main():
 
             # Enhance results with scraped content
             enhanced_results = []
+            url_tracker = set()
             for result in results:
                 enhanced_result = result.copy()
                 # Find matching scraped data
-                result_url = result.get("href", result.get("url", result.get("link", "")))
+                result_url = result.get("href") or result.get("url") or result.get("link", "")
+                if result_url:
+                    url_tracker.add(result_url)
                 for scraped in processed_data:
                     if scraped["url"] == result_url:
                         enhanced_result["scraped_content"] = scraped["scraped_content"]
