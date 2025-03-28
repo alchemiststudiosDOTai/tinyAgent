@@ -16,35 +16,9 @@ from core.tools.boilerplate_tool import get_tool
 from core.factory.agent_factory import AgentFactory
 from core.factory.elder_brain import ElderBrain
 from core.logging import get_logger
+from core.factory.orchestrator import Orchestrator
 
 logger = get_logger(__name__)
-
-def create_elder_brain_agent() -> ElderBrain:
-    """Create and configure an ElderBrain instance with boilerplate tool."""
-    factory = AgentFactory.get_instance()
-    factory.register_tool(get_tool())
-    agent = factory.create_agent()
-    return ElderBrain(agent)
-
-def process_with_elder_brain(eb: ElderBrain, input_data: str) -> Dict[str, Any]:
-    """Process input using ElderBrain's three-phase approach."""
-    # Phase 1: Information Gathering
-    context = eb.gather_information(
-        f"Process this input: {input_data}",
-        variables={"input_data": input_data, "max_items": 3}
-    )
-    
-    # Phase 2: Solution Planning
-    plan = eb.plan_solution(
-        "Plan how to process the input data",
-        context=context
-    )
-    
-    # Phase 3: Execution
-    return eb.execute_solution(
-        "Execute the processing plan",
-        plan=plan
-    )
 
 def main():
     """Test the boilerplate tool through ElderBrain with proper initialization."""
@@ -55,23 +29,39 @@ def main():
     print()
 
     try:
+        # Initialize factory and orchestrator
+        factory = AgentFactory.get_instance()
+        factory.register_tool(get_tool())
+        orchestrator = Orchestrator.get_instance(factory=factory)
+        
         # Create ElderBrain instance
-        eb = create_elder_brain_agent()
+        eb = ElderBrain(orchestrator)
         
         # Test input
         test_input = "sample text for demonstration purposes"
         print(f"Testing boilerplate tool with input: {test_input}")
 
-        # Process through ElderBrain
-        result = process_with_elder_brain(eb, test_input)
+        # Process through ElderBrain's full three-phase approach
+        info_results = eb.gather_information(f"Process this input: {test_input}")
+        if 'error' in info_results:
+            raise RuntimeError(f"Information gathering failed: {info_results['error']}")
 
-        if result.get('success', False):
-            print("\nExecution successful!")
-            print("Output:", result.get('output', 'No output'))
+        plan_results = eb.plan_solution(f"Plan how to process: {test_input}", info_results)
+        if 'error' in plan_results:
+            raise RuntimeError(f"Solution planning failed: {plan_results['error']}")
+
+        execution_results = eb.execute_plan(f"Execute processing of: {test_input}", plan_results)
+        
+        # Print results
+        print("\nExecution Results:")
+        print("-" * 40)
+        if 'error' in execution_results:
+            print("Execution failed!")
+            print(f"Error: {execution_results['error']}")
         else:
-            print("\nExecution failed!")
-            print("Error:", result.get('error', 'Unknown error'))
-
+            print("Execution successful!")
+            print("Final Result:", execution_results.get('execution_results', {}).get('final_result', 'No output'))
+        
         return 0
 
     except Exception as e:
