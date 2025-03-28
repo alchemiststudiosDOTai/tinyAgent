@@ -209,9 +209,9 @@ def generate_final_report(output_dir: Path, research_topic: str, aspects: List[s
             data = json.load(f)
             all_data.append(data)
             # Collect URLs from results
-            for result in data.get('results', []):
-                url = result.get('href') or result.get('url') or result.get('link', '')
-                if url.startswith('http'):
+            for result in data.get("results", []):
+                url = result.get("href") or result.get("url") or result.get("link", "")
+                if url.startswith("http"):
                     url_tracker.add(url)
 
     # Enhanced prompt with professional structure requirements
@@ -250,7 +250,7 @@ Research Data:
 
     try:
         report_content = get_llm()(prompt)
-        
+
         # Add sources appendix with all tracked URLs
         report_content += "\n\n## Reference Links\n"
         report_content += "### All Sources Consulted\n"
@@ -264,10 +264,15 @@ Research Data:
     except Exception as e:
         raise ToolError(f"Report generation failed: {str(e)}")
 
+
 def subsections_for_aspects(aspects: List[str]) -> str:
     """Generate subsection prompts for each research aspect"""
-    return "\n".join([f"### {aspect.capitalize()} Analysis\n- Key trends\n- Supporting data\n- Source references" 
-                      for aspect in aspects])
+    return "\n".join(
+        [
+            f"### {aspect.capitalize()} Analysis\n- Key trends\n- Supporting data\n- Source references"
+            for aspect in aspects
+        ]
+    )
 
 
 @tool
@@ -330,7 +335,7 @@ def main():
 
         research_agent = factory.create_agent(model="deepseek/deepseek-r1")
 
-        user_request = "research about the latest trends in the kratom industry"
+        user_request = "research about the latest trends in the ai industry"
         logger.info(f'Starting research based on user request: "{user_request}"')
 
         interpretation = research_agent.execute_tool(

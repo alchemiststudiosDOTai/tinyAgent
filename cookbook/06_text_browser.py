@@ -41,31 +41,33 @@ def main():
             "action": "visit",
             "path_or_uri": "https://huggingface.co/blog/open-deep-research",
             "use_proxy": False,
-            "random_delay": True
-        }
+            "random_delay": True,
+        },
     )
 
     # Print the result
     if result and isinstance(result, dict):
         # Check for error in result
-        if result.get('error'):
+        if result.get("error"):
             print(f"\nError occurred: {result['error']}")
             return
 
         # Extract content from the result
-        content = result.get('content', '')
+        content = result.get("content", "")
         # Limit to 500 characters
         limited_content = content[:500] + "..." if len(content) > 500 else content
-        
-        print("\nPage Title:", result.get('title', 'No title'))
+
+        print("\nPage Title:", result.get("title", "No title"))
         print("\nContent (first 500 chars):")
         print("-" * 50)
         print(limited_content)
         print("-" * 50)
-        
+
         # Show viewport information
-        viewport_info = result.get('viewport_info', {})
-        print(f"\nViewport: Page {viewport_info.get('current', 1)} of {viewport_info.get('total', 1)}")
+        viewport_info = result.get("viewport_info", {})
+        print(
+            f"\nViewport: Page {viewport_info.get('current', 1)} of {viewport_info.get('total', 1)}"
+        )
     else:
         print("No content retrieved")
 
