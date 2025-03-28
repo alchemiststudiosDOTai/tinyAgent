@@ -13,7 +13,7 @@ from typing import Dict, Any
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.tools.boilerplate_tool import get_tool
-from core.factory.agent_factory import AgentFactory
+from core.factory.dynamic_agent_factory import DynamicAgentFactory
 from core.factory.elder_brain import ElderBrain
 from core.logging import get_logger
 from core.factory.orchestrator import Orchestrator
@@ -30,9 +30,9 @@ def main():
 
     try:
         # Initialize factory and orchestrator
-        factory = AgentFactory.get_instance()
+        factory = DynamicAgentFactory.get_instance()
         factory.register_tool(get_tool())
-        orchestrator = Orchestrator.get_instance(factory=factory)
+        orchestrator = Orchestrator.get_instance()
         
         # Create ElderBrain instance
         eb = ElderBrain(orchestrator)
