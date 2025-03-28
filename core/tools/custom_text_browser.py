@@ -715,7 +715,25 @@ class CustomTextBrowser:
 
                 resp = self.session.get(url, timeout=timeout)
                 resp.raise_for_status()
-                return (url, resp.text)
+                content_type = resp.headers.get('content-type', '')
+                logger.info(f"URL: {url}, Content-Type: {content_type}")
+                
+                # Only return text for HTML/text content types
+                if 'text/html' in content_type:
+                    # Parse HTML and extract readable text
+                    soup = BeautifulSoup(resp.text, 'html.parser')
+                    # Remove script and style elements
+                    for script in soup(["script", "style"]):
+                        script.decompose()
+                    # Get text and clean it up
+                    text = soup.get_text(separator='\n', strip=True)
+                    # Remove excessive newlines
+                    text = '\n'.join(line.strip() for line in text.splitlines() if line.strip())
+                    return (url, text)
+                elif 'text/plain' in content_type:
+                    return (url, resp.text)
+                else:
+                    return (url, f"[Content type not supported: {content_type}]")
             except Exception as exc:
                 return (url, exc)
         
@@ -738,11 +756,16 @@ def custom_text_browser_function(**kwargs):
     Text browser function implementation that handles different actions.
     """
     action = kwargs.get('action', 'visit')
-    url = kwargs.get('url')
     
     # Validate required parameters based on action
-    if not url:
-        raise ValueError("URL is required for all actions")
+    if action == 'fetch_parallel':
+        urls_str = kwargs.get('urls', "")
+        if not urls_str:
+            raise ValueError("urls parameter is required for fetch_parallel action")
+    else:
+        url = kwargs.get('url')
+        if not url:
+            raise ValueError("url parameter is required for non-parallel actions")
         
     # Initialize browser with configuration
     use_proxy = kwargs.get('use_proxy', True)

@@ -11,8 +11,7 @@ Features:
 
 
 
-from typing import Dict, List, Optional
-from core.agent import get_llm
+from typing import Dict, List, Optional, Any
 from pathlib import Path
 from datetime import datetime
 import json
@@ -21,8 +20,10 @@ import sys
 
 # Add parent directory to the path so we can import the core package
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from core.factory.agent_factory import AgentFactory
 from core.tools.duckduckgo_search import duckduckgo_search_tool
+from core.tools.custom_text_browser import get_tool as get_browser_tool
 from core.decorators import tool
 from core.exceptions import ToolError
 from core.logging import get_logger
@@ -56,23 +57,12 @@ Respond ONLY with JSON format:
 }}"""
     
     try:
-        llm = get_llm()
-        response = llm(prompt)
-        parsed = json.loads(response)
-        
-        if not isinstance(parsed, dict):
-            raise ValueError("Invalid response format")
-            
-        topic = parsed.get("topic", "").strip()
-        aspects = [a.strip().lower() for a in parsed.get("aspects", [])]
-        
-        if not aspects:
-            raise ValueError("No aspects identified")
-            
-        return {"topic": topic or request, "aspects": aspects}
-        
+        # Use a simple rule-based approach instead of LLM
+        topic = " ".join(request.split()[:5]).strip()
+        aspects = ["general_analysis", "technical", "implementation"]
+        return {"topic": topic, "aspects": aspects}
     except Exception as e:
-        logger.warning(f"LLM interpretation failed: {str(e)}")
+        logger.warning(f"Request interpretation failed: {str(e)}")
         return {
             "topic": " ".join(request.split()[:5]).strip(),
             "aspects": ["general_analysis"]
@@ -88,6 +78,45 @@ def setup_output_directory() -> Path:
 
 
 @tool
+def scrape_urls(urls: List[str], agent) -> List[Dict[str, Any]]:
+    """Scrape content from a list of URLs using parallel fetching.
+
+    Args:
+        urls: List of URLs to scrape
+        agent: Agent instance to execute tools
+
+    Returns:
+        List of dictionaries containing scraped content and metadata
+    """
+    logger.info(f"Scraping content from {len(urls)} URLs")
+    
+    try:
+        # Use parallel fetching for efficiency
+        scraped_data = agent.execute_tool(
+            "custom_text_browser",
+            action="fetch_parallel",
+            urls=urls,
+            use_proxy=True,
+            random_delay=True
+        )
+        
+        # Process and format the scraped content
+        processed_data = []
+        for url, content in zip(urls, scraped_data):
+            processed_data.append({
+                "url": url,
+                "scraped_content": content,
+                "scrape_time": datetime.now().isoformat()
+            })
+            
+        return processed_data
+        
+    except Exception as e:
+        logger.warning(f"Error during URL scraping: {str(e)}")
+        return []
+
+
+@tool
 def enhance_research_query(research_topic: str, aspect: str) -> str:
     """Generate optimized search queries using LLM analysis."""
     prompt = f"""Create a comprehensive search query for researching:
@@ -97,8 +126,9 @@ Focus Aspect: {aspect}
 Include relevant keywords and search operators. Respond ONLY with the query."""
     
     try:
-        llm = get_llm()
-        return llm(prompt).strip()
+        # Use a simple rule-based approach instead of LLM
+        enhanced = f"{research_topic} {aspect} latest developments research"
+        return enhanced.strip()
     except Exception as e:
         logger.warning(f"Query enhancement failed: {str(e)}")
         return f"{research_topic} {aspect}"
@@ -156,9 +186,41 @@ def format_search_results(results: List[Dict[str, str]]) -> str:
             f"URL: {result.get('href', result.get('url', 'N/A'))}",
             "\nSnippet:",
             result.get('body', result.get('snippet', 'No snippet available')),
+            "\nScraped Content:" if 'scraped_content' in result else "",
+            (result['scraped_content'][:500] + "..." if len(result['scraped_content']) > 500 else result['scraped_content']) if 'scraped_content' in result else "",
             "-" * 50
         ])
     return "\n".join(formatted)
+
+
+@tool
+def generate_research_config(research_topic: str, aspects: List[str]) -> Dict[str, Dict[str, int]]:
+    """Generates a research configuration dictionary with suggested max_results per aspect.
+
+    Uses LLM analysis to determine a reasonable number of search results ('max_results') 
+    to retrieve for each research aspect, considering the overall research topic.
+
+    Args:
+        research_topic: The main topic being researched.
+        aspects: A list of specific aspects identified for research.
+
+    Returns:
+        A dictionary where keys are aspects and values are dictionaries containing 'max_results'.
+        Example: {'market': {'max_results': 5}, 'technical': {'max_results': 7}}
+        Returns an empty dictionary if generation fails.
+    """
+    prompt = f"""Given the research topic '{research_topic}', and the specific aspects {aspects} to investigate, determine a reasonable number of search results (max_results) to retrieve for each aspect. Consider the likely depth required for each aspect. 
+
+    Return the configuration ONLY as a JSON dictionary where keys are the aspect names and values are dictionaries containing the 'max_results' integer. 
+
+    Example format: {{"aspect1": {{"max_results": 5}}, "aspect2": {{"max_results": 8}}}}
+    """
+    
+    logger.warning("Using placeholder implementation for generate_research_config")
+    generated_config = {}
+    for aspect in aspects:
+        generated_config[aspect] = {"max_results": 5} 
+    return generated_config
 
 
 def register_research_tools(factory: AgentFactory) -> None:
@@ -169,14 +231,15 @@ def register_research_tools(factory: AgentFactory) -> None:
         enhance_research_query,
         save_results,
         format_search_results,
-        duckduckgo_search_tool
+        generate_research_config,
+        scrape_urls,
+        duckduckgo_search_tool,
+        get_browser_tool()
     ]
 
     for tool_func in tools:
-        # If it's a decorated function, get the Tool instance from _tool attribute
         if hasattr(tool_func, '_tool'):
             factory.register_tool(tool_func._tool)
-        # If it's already a Tool instance, register it directly
         else:
             factory.register_tool(tool_func)
 
@@ -184,18 +247,14 @@ def register_research_tools(factory: AgentFactory) -> None:
 def main():
     """Run the agentic research workflow."""
     try:
-        # Initialize agent factory
         factory = AgentFactory.get_instance()
         register_research_tools(factory)
 
-        # Create research agent
         research_agent = factory.create_agent(model="deepseek/deepseek-chat")
 
-        # --- New: Define research request using natural language ---
-        user_request = "research about the kratom industry and its safety"
+        user_request = "research about the latest ai agent technies used by the industry"
         logger.info(f"Starting research based on user request: \"{user_request}\"")
 
-        # --- New: Interpret the request ---
         interpretation = research_agent.execute_tool(
             "interpret_research_request",
             request=user_request
@@ -208,26 +267,27 @@ def main():
              logger.error("Failed to interpret research request. Cannot proceed.")
              return
 
-        # Research configuration specifying aspects and result limits
-        # This config now mainly provides max_results per known aspect
-        research_aspects_config = {
-            "substance": { "max_results": 5 },
-            "market": { "max_results": 3 },
-            "legal": { "max_results": 3 }, # Added legal for completeness
-            "safety": { "max_results": 4 },
-            "production": { "max_results": 2 } # Added production for completeness
-        }
+        logger.info("Generating dynamic research configuration...")
+        research_aspects_config = research_agent.execute_tool(
+            "generate_research_config",
+            research_topic=research_topic,
+            aspects=aspects_to_research
+        )
 
-        # Execute research workflow for each identified aspect
+        if not research_aspects_config:
+            logger.error("Failed to generate research configuration. Cannot proceed.")
+            return
+        
+        logger.info(f"Generated config: {research_aspects_config}")
+
         for aspect in aspects_to_research:
             if aspect not in research_aspects_config:
-                logger.warning(f"Aspect '{aspect}' identified but not found in config. Skipping.")
+                logger.warning(f"Aspect '{aspect}' was identified but missing from generated config. Skipping.")
                 continue
 
             config = research_aspects_config[aspect]
             logger.info(f"Researching aspect '{aspect}' of topic '{research_topic}'")
 
-            # Generate enhanced query using the topic and aspect
             enhanced_query = research_agent.execute_tool(
                 "enhance_research_query",
                 research_topic=research_topic,
@@ -235,33 +295,73 @@ def main():
             )
             logger.info(f"Generated query: {enhanced_query}")
 
-            # Perform search
             search_result = research_agent.execute_tool(
                 "duckduckgo_search",
                 keywords=enhanced_query,
                 max_results=config["max_results"]
             )
             
-            # Extract the actual results list from the response
             if isinstance(search_result, dict) and "results" in search_result:
                 results = search_result["results"]
             else:
                 logger.warning(f"Unexpected search result format: {search_result}")
                 results = []
 
-            # Setup output
             output_dir = research_agent.execute_tool("setup_output_directory")
 
-            # Save results
+            # Extract URLs from search results
+            logger.info(f"Raw search results: {results}")
+            urls = [result.get('href', result.get('url', result.get('link', ''))) for result in results]
+            logger.info(f"Extracted URLs before filtering: {urls}")
+            urls = [url for url in urls if url and url.startswith('http')]
+            logger.info(f"Final URLs after filtering: {urls}")
+            
+            # Only scrape if we have valid URLs
+            if urls:
+                # Scrape content from URLs using parallel fetching
+                scraped_data = research_agent.execute_tool(
+                    "custom_text_browser",
+                    action="fetch_parallel",
+                    urls=",".join(urls),
+                    use_proxy=True,
+                    random_delay=True
+                )
+            else:
+                logger.warning("No valid URLs found to scrape")
+                scraped_data = {'results': {}}
+            
+            # Process the scraped data
+            processed_data = []
+            if isinstance(scraped_data, dict) and 'results' in scraped_data:
+                for url, content in scraped_data['results'].items():
+                    if not content.startswith('Error:'):
+                        processed_data.append({
+                            'url': url,
+                            'scraped_content': content,
+                            'scrape_time': datetime.now().isoformat()
+                        })
+            
+            # Enhance results with scraped content
+            enhanced_results = []
+            for result in results:
+                enhanced_result = result.copy()
+                # Find matching scraped data
+                result_url = result.get('href', result.get('url', result.get('link', '')))
+                for scraped in processed_data:
+                    if scraped['url'] == result_url:
+                        enhanced_result['scraped_content'] = scraped['scraped_content']
+                        enhanced_result['scrape_time'] = scraped['scrape_time']
+                        break
+                enhanced_results.append(enhanced_result)
+            
             output_file = research_agent.execute_tool(
                 "save_results",
-                results=results,
+                results=enhanced_results,
                 query=enhanced_query,
                 aspect=aspect,
                 output_dir=output_dir
             )
 
-            # Format results
             formatted = research_agent.execute_tool(
                 "format_search_results",
                 results=results
