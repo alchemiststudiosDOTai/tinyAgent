@@ -1,3 +1,5 @@
+# Creating Agents in tinyAgent Framework
+
 This document explains the various methods to create, configure, and utilize agents in the tinyAgent framework.
 
 ## Understanding Agents in tinyAgent
@@ -15,9 +17,9 @@ The framework offers multiple approaches to create agents, each suited for diffe
 
 ### 1. Using Orchestrator (For Most Applications)
 
-The Orchestrator provides a high-level interface for task submission and management, as shown in cookbook/01_basic_agent.py:
+The `Orchestrator` provides a high-level interface for task submission and management, as shown in cookbook/01_basic_agent.py:
 
-python
+```python
 from core.factory.orchestrator import Orchestrator
 
 # Get the orchestrator singleton
@@ -30,13 +32,13 @@ task_id = orchestrator.submit_task("Calculate 5 + 3")
 status = orchestrator.get_task_status(task_id)
 result = status.result
 print(f"\nResult: {result}")
-
+```
 
 ### 2. Using AgentFactory (Direct Access)
 
-The AgentFactory gives you more direct control when you need it, as shown in cookbook/06_text_browser.py:
+The `AgentFactory` gives you more direct control when you need it, as shown in cookbook/06_text_browser.py:
 
-python
+```python
 from core.factory.agent_factory import AgentFactory
 from core.tools.custom_text_browser import get_tool
 
@@ -59,13 +61,13 @@ result = agent.run(
         "random_delay": True
     }
 )
-
+```
 
 ### 3. Dynamic Agent Creation (For Specialized Tasks)
 
 When you need an agent with specialized capabilities:
 
-python
+```python
 from core.factory.dynamic_agent_factory import DynamicAgentFactory
 
 # Get the dynamic factory
@@ -79,7 +81,7 @@ agent_result = factory.create_agent_from_requirement(
 if agent_result["success"]:
     agent = agent_result["agent"]
     result = agent.run("Analyze this protein sequence...")
-
+```
 
 ## Agent Execution Methods
 
@@ -89,15 +91,15 @@ Once you have an agent, you can interact with it in several ways:
 
 The simplest approach is to run a natural language query:
 
-python
+```python
 result = agent.run("Find information about Python programming")
-
+```
 
 ### 2. Direct Tool Execution
 
 You can explicitly call a specific tool, as demonstrated in cookbook/09_research.py:
 
-python
+```python
 # Enhanced query
 enhanced_query = agent.execute_tool(
     "enhance_research_query",
@@ -111,13 +113,13 @@ search_result = agent.execute_tool(
     keywords=enhanced_query,
     max_results=5
 )
-
+```
 
 ### 3. Structured Task Execution
 
 For more complex tasks with structured data:
 
-python
+```python
 result = agent.run(
     "Search for information about Python",
     variables={
@@ -126,7 +128,7 @@ result = agent.run(
         "detailed": True
     }
 )
-
+```
 
 ## Tool Registration
 
@@ -134,7 +136,7 @@ Agents use tools to perform tasks. There are several ways to register tools:
 
 ### 1. With the Factory
 
-python
+```python
 # Register a tool function
 factory.create_tool(
     name="echo",
@@ -144,13 +146,13 @@ factory.create_tool(
 
 # Register an existing Tool object
 factory.register_tool(my_tool)
-
+```
 
 ### 2. Using Decorators
 
 As shown in cookbook/09_research.py:
 
-python
+```python
 from core.decorators import tool
 
 @tool
@@ -170,19 +172,19 @@ def enhance_research_query(base_query: str, aspect: str = "") -> str:
         "business": "market industry companies commercial"
     }
     return f"{base_query} {research_aspects.get(aspect, '')}"
-
+```
 
 ### 3. When Creating an Agent
 
-python
+```python
 agent = Agent(tools=[tool1, tool2, tool3])
-
+```
 
 ## Handling Tool Results
 
 When working with tools, you may need to process their results:
 
-python
+```python
 # When tools might return metadata alongside results
 search_result = agent.execute_tool(
     "duckduckgo_search",
@@ -195,26 +197,26 @@ if isinstance(search_result, dict) and "results" in search_result:
     results = search_result["results"]
 else:
     results = []
-
+```
 
 ## Agent Configuration
 
 You can configure agents through the factory or directly:
 
-python
+```python
 # Configure through factory
 factory.config["model"] = "deepseek/deepseek-chat"
 agent = factory.create_agent()
 
 # Or when creating an agent
 agent = factory.create_agent(model="anthropic/claude-3-opus")
-
+```
 
 ## Real-World Example: Research Agent
 
 Here's a complete example of a research agent based on cookbook/09_research.py:
 
-python
+```python
 from core.factory.agent_factory import AgentFactory
 from core.tools.duckduckgo_search import duckduckgo_search_tool
 from core.decorators import tool
@@ -291,19 +293,19 @@ formatted = agent.execute_tool(
     results=results
 )
 print(formatted)
-
+```
 
 ## Best Practices
 
 1. **Choose the Right Creation Method**:
-   - Use Orchestrator.get_instance() for complex workflows with potential handoffs
-   - Use factory.create_agent() when you need more direct control
+   - Use `Orchestrator.get_instance()` for complex workflows with potential handoffs
+   - Use `factory.create_agent()` when you need more direct control
    - Use dynamic agent creation for specialized, on-demand capabilities
 
 2. **Register Tools Appropriately**:
    - Centralize tool registration with the factory when possible
-   - Use the @tool decorator for simple function-based tools
-   - Remember to use function._tool when registering decorated tools
+   - Use the `@tool` decorator for simple function-based tools
+   - Remember to use `function._tool` when registering decorated tools
 
 3. **Handle Results Carefully**:
    - Always check the format of tool results
@@ -319,6 +321,6 @@ print(formatted)
 
 Common issues and solutions:
 
-1. **AttributeError: 'function' object has no attribute 'name'**: Remember to use function._tool when registering a decorated function
+1. **AttributeError: 'function' object has no attribute 'name'**: Remember to use `function._tool` when registering a decorated function
 2. **TypeError: Agent.execute_tool() missing argument 'tool_name'**: The first argument to execute_tool must be the tool name
 3. **String vs Dictionary Results**: Some tools return dictionaries with a "results" key, others return direct results 
