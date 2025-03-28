@@ -9,27 +9,21 @@ Features:
 4. Integrated with core tooling
 """
 
-
-
+import json
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))))  # isort:skip
+from core.llm import get_llm
+from core.logging import get_logger
+from core.exceptions import ToolError
+from core.decorators import tool
+from core.tools.custom_text_browser import get_tool as get_browser_tool
+from core.tools.duckduckgo_search import duckduckgo_search_tool
+from core.factory.agent_factory import AgentFactory
 from typing import Dict, List, Optional, Any
 from pathlib import Path
 from datetime import datetime
-import json
-import os
-import sys
-
-# Add parent directory to the path so we can import the core package
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from core.factory.agent_factory import AgentFactory
-from core.tools.duckduckgo_search import duckduckgo_search_tool
-from core.tools.custom_text_browser import get_tool as get_browser_tool
-from core.decorators import tool
-from core.exceptions import ToolError
-from core.logging import get_logger
-from core.llm import get_llm
-from core.utils.colors import Colors
-
 #
 
 
@@ -40,12 +34,12 @@ logger = get_logger(__name__)
 def interpret_research_request(request: str) -> Dict[str, any]:
     """
     Interprets research requests using pure LLM analysis without predefined aspects.
-    
+
     Returns:
         Dictionary with 'topic' (str) and 'aspects' (list of generated aspects)
     """
     logger.info(f"Interpreting research request: \"{request}\"")
-    
+
     prompt = f"""Analyze this research request and identify:
 1. Primary research topic (concise phrase)
 2. 3-5 key aspects to investigate
@@ -57,7 +51,7 @@ Respond ONLY with JSON format:
     "topic": "extracted_topic",
     "aspects": ["aspect1", "aspect2"]
 }}"""
-    
+
     try:
         # Use a simple rule-based approach instead of LLM
         topic = " ".join(request.split()[:5]).strip()
@@ -91,7 +85,7 @@ def scrape_urls(urls: List[str], agent) -> List[Dict[str, Any]]:
         List of dictionaries containing scraped content and metadata
     """
     logger.info(f"Scraping content from {len(urls)} URLs")
-    
+
     try:
         # Use parallel fetching for efficiency
         scraped_data = agent.execute_tool(
@@ -101,7 +95,7 @@ def scrape_urls(urls: List[str], agent) -> List[Dict[str, Any]]:
             use_proxy=True,
             random_delay=True
         )
-        
+
         # Process and format the scraped content
         processed_data = []
         for url, content in zip(urls, scraped_data):
@@ -110,9 +104,9 @@ def scrape_urls(urls: List[str], agent) -> List[Dict[str, Any]]:
                 "scraped_content": content,
                 "scrape_time": datetime.now().isoformat()
             })
-            
+
         return processed_data
-        
+
     except Exception as e:
         logger.warning(f"Error during URL scraping: {str(e)}")
         return []
@@ -126,7 +120,7 @@ Topic: {research_topic}
 Focus Aspect: {aspect}
 
 Include relevant keywords and search operators. Respond ONLY with the query."""
-    
+
     try:
         # Use a simple rule-based approach instead of LLM
         enhanced = f"{research_topic} {aspect} latest developments research"
@@ -189,7 +183,8 @@ def format_search_results(results: List[Dict[str, str]]) -> str:
             "\nSnippet:",
             result.get('body', result.get('snippet', 'No snippet available')),
             "\nScraped Content:" if 'scraped_content' in result else "",
-            (result['scraped_content'][:500] + "..." if len(result['scraped_content']) > 500 else result['scraped_content']) if 'scraped_content' in result else "",
+            (result['scraped_content'][:500] + "..." if len(result['scraped_content']) >
+             500 else result['scraped_content']) if 'scraped_content' in result else "",
             "-" * 50
         ])
     return "\n".join(formatted)
@@ -198,27 +193,27 @@ def format_search_results(results: List[Dict[str, str]]) -> str:
 @tool
 def generate_final_report(output_dir: Path, research_topic: str, aspects: List[str]) -> str:
     """Generate a modern formatted report from research findings.
-    
+
     Args:
         output_dir: Directory containing research JSON files
         research_topic: Main research topic
         aspects: List of researched aspects
-        
+
     Returns:
         Path to generated report file
     """
     logger.info("Compiling final research report")
-    
+
     # Collect all research files
     research_files = list(output_dir.glob("research_*.json"))
-    
+
     # Aggregate data
     all_data = []
     for file in research_files:
         with open(file, 'r', encoding='utf-8') as f:
             data = json.load(f)
             all_data.append(data)
-    
+
     # Build LLM prompt
     prompt = f"""Create a modern, sleek research report with these requirements:
     
@@ -235,19 +230,20 @@ Aspects: {', '.join(aspects)}
 Collected Data: {json.dumps(all_data, indent=2)[:3000]}... [truncated]
 
 Generate the report:"""
-    
+
     try:
         # Get LLM response
         report_content = get_llm()(prompt)
-        
+
         # Save report
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         report_path = output_dir / f"final_report_{timestamp}.md"
         report_path.write_text(report_content, encoding='utf-8')
-        
+
         return str(report_path)
     except Exception as e:
         raise ToolError(f"Report generation failed: {str(e)}")
+
 
 @tool
 def generate_research_config(research_topic: str, aspects: List[str]) -> Dict[str, Dict[str, int]]:
@@ -271,11 +267,12 @@ def generate_research_config(research_topic: str, aspects: List[str]) -> Dict[st
 
     Example format: {{"aspect1": {{"max_results": 5}}, "aspect2": {{"max_results": 8}}}}
     """
-    
-    logger.warning("Using placeholder implementation for generate_research_config")
+
+    logger.warning(
+        "Using placeholder implementation for generate_research_config")
     generated_config = {}
     for aspect in aspects:
-        generated_config[aspect] = {"max_results": 5} 
+        generated_config[aspect] = {"max_results": 5}
     return generated_config
 
 
@@ -309,20 +306,22 @@ def main():
 
         research_agent = factory.create_agent(model="deepseek/deepseek-chat")
 
-        user_request = "research about the latest ai agent technies used by the industry"
-        logger.info(f"Starting research based on user request: \"{user_request}\"")
+        user_request = "research about the latest trends in the kratom industry"
+        logger.info(
+            f"Starting research based on user request: \"{user_request}\"")
 
         interpretation = research_agent.execute_tool(
             "interpret_research_request",
             request=user_request
         )
-        
+
         research_topic = interpretation.get("topic")
         aspects_to_research = interpretation.get("aspects", [])
 
         if not research_topic or not aspects_to_research:
-             logger.error("Failed to interpret research request. Cannot proceed.")
-             return
+            logger.error(
+                "Failed to interpret research request. Cannot proceed.")
+            return
 
         logger.info("Generating dynamic research configuration...")
         research_aspects_config = research_agent.execute_tool(
@@ -332,18 +331,21 @@ def main():
         )
 
         if not research_aspects_config:
-            logger.error("Failed to generate research configuration. Cannot proceed.")
+            logger.error(
+                "Failed to generate research configuration. Cannot proceed.")
             return
-        
+
         logger.info(f"Generated config: {research_aspects_config}")
 
         for aspect in aspects_to_research:
             if aspect not in research_aspects_config:
-                logger.warning(f"Aspect '{aspect}' was identified but missing from generated config. Skipping.")
+                logger.warning(
+                    f"Aspect '{aspect}' was identified but missing from generated config. Skipping.")
                 continue
 
             config = research_aspects_config[aspect]
-            logger.info(f"Researching aspect '{aspect}' of topic '{research_topic}'")
+            logger.info(
+                f"Researching aspect '{aspect}' of topic '{research_topic}'")
 
             enhanced_query = research_agent.execute_tool(
                 "enhance_research_query",
@@ -357,22 +359,24 @@ def main():
                 keywords=enhanced_query,
                 max_results=config["max_results"]
             )
-            
+
             if isinstance(search_result, dict) and "results" in search_result:
                 results = search_result["results"]
             else:
-                logger.warning(f"Unexpected search result format: {search_result}")
+                logger.warning(
+                    f"Unexpected search result format: {search_result}")
                 results = []
 
             output_dir = research_agent.execute_tool("setup_output_directory")
 
             # Extract URLs from search results
             logger.info(f"Raw search results: {results}")
-            urls = [result.get('href', result.get('url', result.get('link', ''))) for result in results]
+            urls = [result.get('href', result.get(
+                'url', result.get('link', ''))) for result in results]
             logger.info(f"Extracted URLs before filtering: {urls}")
             urls = [url for url in urls if url and url.startswith('http')]
             logger.info(f"Final URLs after filtering: {urls}")
-            
+
             # Only scrape if we have valid URLs
             if urls:
                 # Scrape content from URLs using parallel fetching
@@ -386,7 +390,7 @@ def main():
             else:
                 logger.warning("No valid URLs found to scrape")
                 scraped_data = {'results': {}}
-            
+
             # Process the scraped data
             processed_data = []
             if isinstance(scraped_data, dict) and 'results' in scraped_data:
@@ -397,20 +401,21 @@ def main():
                             'scraped_content': content,
                             'scrape_time': datetime.now().isoformat()
                         })
-            
+
             # Enhance results with scraped content
             enhanced_results = []
             for result in results:
                 enhanced_result = result.copy()
                 # Find matching scraped data
-                result_url = result.get('href', result.get('url', result.get('link', '')))
+                result_url = result.get('href', result.get(
+                    'url', result.get('link', '')))
                 for scraped in processed_data:
                     if scraped['url'] == result_url:
                         enhanced_result['scraped_content'] = scraped['scraped_content']
                         enhanced_result['scrape_time'] = scraped['scrape_time']
                         break
                 enhanced_results.append(enhanced_result)
-            
+
             output_file = research_agent.execute_tool(
                 "save_results",
                 results=enhanced_results,
@@ -436,8 +441,9 @@ def main():
             research_topic=research_topic,
             aspects=aspects_to_research
         )
-        
-        logger.info(Colors.success(f"\nResearch complete! Final report: {final_report}"))
+
+        logger.info(Colors.success(
+            f"\nResearch complete! Final report: {final_report}"))
 
     except Exception as e:
         logger.error(f"Research failed: {str(e)}")
