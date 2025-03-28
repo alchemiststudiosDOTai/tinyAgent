@@ -27,6 +27,8 @@ from core.tools.custom_text_browser import get_tool as get_browser_tool
 from core.decorators import tool
 from core.exceptions import ToolError
 from core.logging import get_logger
+from core.llm import get_llm
+from core.utils.colors import Colors
 
 #
 
@@ -194,6 +196,60 @@ def format_search_results(results: List[Dict[str, str]]) -> str:
 
 
 @tool
+def generate_final_report(output_dir: Path, research_topic: str, aspects: List[str]) -> str:
+    """Generate a modern formatted report from research findings.
+    
+    Args:
+        output_dir: Directory containing research JSON files
+        research_topic: Main research topic
+        aspects: List of researched aspects
+        
+    Returns:
+        Path to generated report file
+    """
+    logger.info("Compiling final research report")
+    
+    # Collect all research files
+    research_files = list(output_dir.glob("research_*.json"))
+    
+    # Aggregate data
+    all_data = []
+    for file in research_files:
+        with open(file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            all_data.append(data)
+    
+    # Build LLM prompt
+    prompt = f"""Create a modern, sleek research report with these requirements:
+    
+- Title page with research topic
+- Executive summary
+- Section for each research aspect
+- Key findings with bullet points
+- Data visualization suggestions
+- Conclusion with recommendations
+- Modern formatting using markdown
+
+Research Topic: {research_topic}
+Aspects: {', '.join(aspects)}
+Collected Data: {json.dumps(all_data, indent=2)[:3000]}... [truncated]
+
+Generate the report:"""
+    
+    try:
+        # Get LLM response
+        report_content = get_llm()(prompt)
+        
+        # Save report
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        report_path = output_dir / f"final_report_{timestamp}.md"
+        report_path.write_text(report_content, encoding='utf-8')
+        
+        return str(report_path)
+    except Exception as e:
+        raise ToolError(f"Report generation failed: {str(e)}")
+
+@tool
 def generate_research_config(research_topic: str, aspects: List[str]) -> Dict[str, Dict[str, int]]:
     """Generates a research configuration dictionary with suggested max_results per aspect.
 
@@ -232,6 +288,7 @@ def register_research_tools(factory: AgentFactory) -> None:
         save_results,
         format_search_results,
         generate_research_config,
+        generate_final_report,
         scrape_urls,
         duckduckgo_search_tool,
         get_browser_tool()
@@ -370,6 +427,17 @@ def main():
             logger.info(f"Research completed for {aspect}")
             logger.info(f"Results saved to: {output_file}")
             logger.info(formatted)
+
+        # Generate final report
+        logger.info("Generating final research report")
+        final_report = research_agent.execute_tool(
+            "generate_final_report",
+            output_dir=output_dir,
+            research_topic=research_topic,
+            aspects=aspects_to_research
+        )
+        
+        logger.info(Colors.success(f"\nResearch complete! Final report: {final_report}"))
 
     except Exception as e:
         logger.error(f"Research failed: {str(e)}")
