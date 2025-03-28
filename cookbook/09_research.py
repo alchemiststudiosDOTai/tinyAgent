@@ -308,7 +308,7 @@ def main():
         factory = AgentFactory.get_instance()
         register_research_tools(factory)
 
-        research_agent = factory.create_agent(model="deepseek/deepseek-chat")
+        research_agent = factory.create_agent(model="deepseek/deepseek-r1")
 
         user_request = "research about the latest trends in the kratom industry"
         logger.info(f'Starting research based on user request: "{user_request}"')
