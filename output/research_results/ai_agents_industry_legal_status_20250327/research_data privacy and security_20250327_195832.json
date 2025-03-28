@@ -1,0 +1,25 @@
+{
+  "metadata": {
+    "timestamp": "2025-03-27T19:58:32.772860",
+    "query": "AI Agents Industry Legal Status data privacy and security",
+    "aspect": "data privacy and security",
+    "result_count": 3
+  },
+  "results": [
+    {
+      "title": "Using AI Agents Requires a Balance of Trust, Privacy, Compliance",
+      "href": "https://news.bloomberglaw.com/us-law-week/using-ai-agents-requires-a-balance-of-trust-privacy-compliance",
+      "body": "By implementing robust data governance, privacy-by-design principles, and safeguards addressing how AI agents can process data and perform tasks—coupled with maintaining human handoffs, oversight, and engagement when needed—legal leaders can help their organizations navigate regulatory uncertainty. Building Ethical Guardrails"
+    },
+    {
+      "title": "Opportunities, Risks, and Legal Challenges for AI Agents - Galkin Law",
+      "href": "https://galkinlaw.com/2025-the-year-of-ai-agents/",
+      "body": "For years, AI has been creeping into everyday workflows, but 2025 has been heralded as the year of AI agents. These advanced, autonomous systems are moving beyond simple chatbots and recommendation engines to fully-fledged digital assistants that handle everything from scheduling meetings and summarizing documents to executing complex business processes without human intervention. But as […]"
+    },
+    {
+      "title": "No Strings Attached: Agentic AI Tests Privacy & Antitrust Boundaries",
+      "href": "https://www.corporatecomplianceinsights.com/no-strings-attached-agentic-ai-tests-privacy-antitrust-boundaries/",
+      "body": "Many in the tech industry view AI agents as the next frontier in the development and commercialization of AI technology. AI agents, or \"agentic AI,\" can be thought of as AI-powered software applications that can take in information on their own, without the same level of human instruction typically relied upon by current generative AI tools, and then use that information together with ..."
+    }
+  ]
+}
