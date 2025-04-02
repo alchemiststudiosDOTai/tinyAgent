@@ -6,12 +6,14 @@ requiring tool selection. It handles conversation history, API communication,
 and provides a simple CLI interface.
 """
 
+from __future__ import annotations
+
 import sys
 import os
 import time
 import threading
 import itertools
-from typing import Optional, Dict, Any, List
+from typing import Optional, Final, Dict, Any, List
 from datetime import datetime
 
 from openai import OpenAI
@@ -24,6 +26,11 @@ from ..exceptions import ConfigurationError
 # Set up logger
 logger = get_logger(__name__)
 
+# Constants
+API_URL: Final[str] = "https://openrouter.ai/api/v1/chat/completions"
+ENV_API_KEY: Final[str] = "OPENROUTER_API_KEY"
+DEFAULT_MODEL: Final[str] = "anthropic/claude-3.5-sonnet"
+DEFAULT_SYSTEM_PROMPT: Final[str] = "You are a helpful AI assistant. Respond concisely and accurately to questions."
 
 class ChatSession:
     """
@@ -35,13 +42,14 @@ class ChatSession:
     Attributes:
         model: Name of the language model to use
         api_key: API key for authentication
-        conversation: List of conversation messages
+        conversation: List of conversation messages with timestamps
     """
     
-    API_URL = "https://openrouter.ai/api/v1/chat/completions"
-    ENV_API_KEY = "OPENROUTER_API_KEY"
-    
-    def __init__(self, model: Optional[str] = None, api_key: Optional[str] = None):
+    def __init__(
+        self,
+        model: Optional[str] = None,
+        api_key: Optional[str] = None,
+    ) -> None:
         """
         Initialize a chat session with the specified model.
         
@@ -57,18 +65,18 @@ class ChatSession:
         try:
             config = load_config()
             if config:
-                config_model = get_config_value(config, 'model.default')
+                config_model = get_config_value(config, "model.default")
         except Exception as e:
             logger.warning(f"Error loading config: {e}")
         
         # Priority: 1. Explicitly provided model, 2. Config model, 3. Default
-        self.model = model or config_model or "anthropic/claude-3.5-sonnet"
-        self.api_key = api_key or os.getenv(self.ENV_API_KEY)
+        self.model = model or config_model or DEFAULT_MODEL
+        self.api_key = api_key or os.getenv(ENV_API_KEY)
         
         if not self.api_key:
-            raise ConfigurationError(f"{self.ENV_API_KEY} must be set in .env")
+            raise ConfigurationError(f"{ENV_API_KEY} must be set in .env")
             
-        self.conversation: List[Dict[str, str]] = []  # Store conversation history
+        self.conversation: list[dict[str, str]] = []  # Store conversation history
         logger.debug(f"Initialized chat session with model: {self.model}")
     
     def add_message(self, role: str, content: str) -> None:
@@ -76,13 +84,13 @@ class ChatSession:
         Add a message to the conversation history.
         
         Args:
-            role: Message role ('system', 'user', or 'assistant')
+            role: Message role ("system", "user", or "assistant")
             content: Message content
         """
         self.conversation.append({
             "role": role,
             "content": content,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         })
         logger.debug(f"Added {role} message: {content[:50]}...")
     
@@ -106,20 +114,29 @@ class ChatSession:
         self.add_message("user", prompt)
         
         # Log debug info about the model and conversation length
-        logger.debug(f"Using model: {self.model} | History: {len(self.conversation)} messages")
-        print(f"\r{Colors.OFF_WHITE}Using model: {self.model} | History: {len(self.conversation)} messages{Colors.RESET}", flush=True)
+        logger.debug(
+            f"Using model: {self.model} | History: {len(self.conversation)} messages"
+        )
+        print(
+            f"\r{Colors.OFF_WHITE}Using model: {self.model} | "
+            f"History: {len(self.conversation)} messages{Colors.RESET}",
+            flush=True,
+        )
         
         # Initialize spinner for loading feedback
-        spinner = itertools.cycle(['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'])
+        spinner = itertools.cycle(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"])
         
         # Create an event for stopping the spinner thread
         stop_event = threading.Event()
         
-        # Define the spinner function with proper event checking
         def spin_animation() -> None:
+            """Display a spinning animation while waiting for response."""
             while not stop_event.is_set():
                 for frame in spinner:
-                    sys.stdout.write(f"\r{Colors.LIGHT_RED}{frame}{Colors.OFF_WHITE} Thinking...{Colors.RESET}")
+                    sys.stdout.write(
+                        f"\r{Colors.LIGHT_RED}{frame}{Colors.OFF_WHITE} "
+                        f"Thinking...{Colors.RESET}"
+                    )
                     sys.stdout.flush()
                     # Short sleep with frequent checks for the stop event
                     for _ in range(10):  # 10 * 0.01 = 0.1 seconds per frame
@@ -129,7 +146,7 @@ class ChatSession:
                     if stop_event.is_set():
                         break
             # Clear the line when stopped
-            sys.stdout.write('\r' + ' ' * 50 + '\r')
+            sys.stdout.write("\r" + " " * 50 + "\r")
             sys.stdout.flush()
         
         try:
@@ -146,7 +163,7 @@ class ChatSession:
             
             try:
                 # Make the API request with explicit timeout
-                logger.debug(f"Sending request to {self.API_URL}")
+                logger.debug(f"Sending request to {API_URL}")
                 
                 completion = client.chat.completions.create(
                     extra_headers={
@@ -171,7 +188,10 @@ class ChatSession:
                     
                     # Check for empty response and provide fallback
                     if not assistant_message or assistant_message.strip() == "":
-                        fallback_msg = "Sorry, I couldn't generate a response. Let's try again with a different question."
+                        fallback_msg = (
+                            "Sorry, I couldn't generate a response. "
+                            "Let's try again with a different question."
+                        )
                         logger.warning("Empty response received - using fallback")
                         # Add fallback message to conversation history
                         self.add_message("assistant", fallback_msg)
@@ -184,11 +204,11 @@ class ChatSession:
                     # Extended debug output for troubleshooting
                     debug_msg = "Unexpected API response format: no valid choices found"
                     logger.warning(debug_msg)
-                    
                     # Create a fallback response that will be more useful than blank
                     fallback = "I'm having trouble processing your request. Please try asking a different question."
                     self.add_message("assistant", fallback)
                     return fallback
+                    
             except Exception as e:
                 # Make sure to stop the spinner on error
                 stop_event.set()
@@ -198,7 +218,7 @@ class ChatSession:
         except Exception as e:
             # Enhanced error handling with more details and fallback response
             logger.error(f"Error in get_response: {type(e).__name__}: {str(e)}")
-            if hasattr(e, 'response') and hasattr(e.response, 'text'):
+            if hasattr(e, "response") and hasattr(e.response, "text"):
                 logger.error(f"API response: {e.response.text[:500]}...")
             
             # Provide a useful fallback response for the user
@@ -208,7 +228,10 @@ class ChatSession:
             return fallback
 
 
-def run_chat_mode(model: Optional[str] = None, system_prompt: Optional[str] = None) -> None:
+def run_chat_mode(
+    model: Optional[str] = None,
+    system_prompt: Optional[str] = None,
+) -> None:
     """
     Run the chat mode interface with the specified model.
     
@@ -221,21 +244,27 @@ def run_chat_mode(model: Optional[str] = None, system_prompt: Optional[str] = No
     """
     # Print welcome message
     print(f"\n{Colors.OFF_WHITE}Welcome to tinyAgent Chat Mode!{Colors.RESET}")
-    print(f"{Colors.OFF_WHITE}Type 'exit' or 'quit' to return to the main interface.{Colors.RESET}")
+    print(
+        f"{Colors.OFF_WHITE}Type 'exit' or 'quit' to return to the main interface."
+        f"{Colors.RESET}"
+    )
     
     try:
         # Create chat session
         session = ChatSession(model=model)
         
         # Print the model being used (which could be from config)
-        print(f"{Colors.OFF_WHITE}Using model: {session.model} (from config.yml or default){Colors.RESET}")
+        print(
+            f"{Colors.OFF_WHITE}Using model: {session.model} "
+            f"(from config.yml or default){Colors.RESET}"
+        )
         
         # Add system prompt if provided
         if system_prompt:
             session.add_message("system", system_prompt)
         else:
             # Default system prompt
-            session.add_message("system", "You are a helpful AI assistant. Respond concisely and accurately to questions.")
+            session.add_message("system", DEFAULT_SYSTEM_PROMPT)
         
         # Main chat loop
         while True:
