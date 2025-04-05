@@ -44,7 +44,8 @@ class BusinessDeepSearch:
         debug_level: Optional[int] = None,
         rate_limit_delay: float = 2.0,
         max_retries: int = 3,
-        retry_delay: float = 1.0
+        retry_delay: float = 1.0,
+        use_proxy: bool = False
     ):
         """
         Initialize the business deep search tool.
@@ -56,8 +57,10 @@ class BusinessDeepSearch:
             rate_limit_delay: Delay between searches in seconds
             max_retries: Maximum number of retries for failed searches
             retry_delay: Delay between retries in seconds
+            use_proxy: Enable proxy usage (requires valid proxy env vars)
         """
         self.config = load_config()
+        self.use_proxy = use_proxy
 
         agent_config = self.config.get("agent", {})
         tool_config = self.config.get("business_deepsearch", {})
@@ -94,15 +97,18 @@ class BusinessDeepSearch:
             "financial data"
         ]
 
-        # Load proxy configuration
-        self.proxy_config = self._load_proxy_config()
-        if not self.proxy_config["is_valid"]:
-            logger.error("Invalid proxy configuration")
-            print("ERROR: Invalid proxy configuration. Required environment variables:")
-            print("- TINYAGENT_PROXY_USERNAME")
-            print("- TINYAGENT_PROXY_PASSWORD")
-            print("- TINYAGENT_PROXY_COUNTRY (optional, defaults to US)")
-            raise ValueError("Invalid proxy configuration")
+        # Load proxy configuration if enabled
+        if self.use_proxy:
+            self.proxy_config = self._load_proxy_config()
+            if not self.proxy_config["is_valid"]:
+                logger.error("Invalid proxy configuration when use_proxy=True")
+                print("ERROR: Required proxy environment variables missing:")
+                print("- TINYAGENT_PROXY_USERNAME")
+                print("- TINYAGENT_PROXY_PASSWORD")
+                print("- TINYAGENT_PROXY_COUNTRY (optional, defaults to US)")
+                raise ValueError("Invalid proxy configuration with use_proxy=True")
+        else:
+            self.proxy_config = {"is_valid": False}
 
         print(f"Using model: {self.model}")
         print(f"Max steps per research phase: {self.max_steps}")
@@ -116,7 +122,7 @@ class BusinessDeepSearch:
         self.session = None
 
     def _load_proxy_config(self) -> Dict[str, Any]:
-        """Load and validate proxy configuration from environment."""
+        """Load proxy config only when use_proxy=True"""
         from dotenv import load_dotenv
         load_dotenv()
 
@@ -124,63 +130,48 @@ class BusinessDeepSearch:
         password = os.getenv('TINYAGENT_PROXY_PASSWORD')
         country = os.getenv('TINYAGENT_PROXY_COUNTRY', 'US')
 
-        is_valid = bool(username and password)
-        
-        if is_valid:
-            proxy_url = f"http://customer-{username}-cc-{country}:{password}@pr.oxylabs.io:7777"
-            return {
-                "is_valid": True,
-                "url": proxy_url,
-                "username": username,
-                "password": "********",  # Masked for security
-                "country": country
-            }
-        else:
-            return {
-                "is_valid": False,
-                "error": "Missing required proxy credentials"
-            }
+        if not username or not password:
+            return {"is_valid": False}
+            
+        return {
+            "is_valid": True,
+            "url": f"http://customer-{username}-cc-{country}:{password}@pr.oxylabs.io:7777",
+            "username": username,
+            "country": country
+        }
 
     async def __aenter__(self):
-        """Set up async context manager."""
-        # Create session with proxy configuration
-        if self.proxy_config["is_valid"]:
+        """Set up async context manager with optional proxy"""
+        if self.use_proxy and not self.proxy_config["is_valid"]:
+            raise ValueError("Proxy enabled but configuration invalid")
+            
+        # Create appropriate session based on proxy setting
+        self.session = aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=30),
+            headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'text/html',
+                'Accept-Language': 'en-US,en;q=0.5'
+            }
+        )
+        
+        if self.use_proxy:
+            # Test proxy connection
             try:
-                # Configure proxy properly at the TCP level
-                proxy_url = f"http://customer-{self.proxy_config['username']}-cc-{self.proxy_config['country']}:{os.getenv('TINYAGENT_PROXY_PASSWORD')}@pr.oxylabs.io:7777"
-                
-                # Create session with proper proxy configuration
-                self.session = aiohttp.ClientSession(
-                    timeout=aiohttp.ClientTimeout(total=30),
-                    headers={
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                        'Accept': 'text/html',
-                        'Accept-Language': 'en-US,en;q=0.5'
-                    }
-                )
-                
-                # Test proxy connection before proceeding
                 async with self.session.get(
                     "https://ip.oxylabs.io/location",
-                    proxy=proxy_url,
+                    proxy=self.proxy_config["url"],
                     ssl=False
                 ) as test_response:
                     if test_response.status != 200:
                         await self.session.close()
-                        raise ValueError(f"Proxy connection test failed: HTTP {test_response.status}")
+                        raise ValueError(f"Proxy test failed: HTTP {test_response.status}")
                     proxy_test = await test_response.json()
-                    print(f"Proxy connection successful. Using IP: {proxy_test.get('ip', 'unknown')}")
-                    
-                # Store working proxy URL for future requests
-                self.proxy_url = proxy_url
-                print(f"Proxy configured successfully")
-                
+                    print(f"Proxy IP: {proxy_test.get('ip', 'unknown')}")
             except Exception as e:
-                if hasattr(self, 'session') and self.session:
-                    await self.session.close()
-                raise ValueError(f"Failed to configure proxy: {str(e)}")
-        else:
-            raise ValueError("Cannot initialize session without valid proxy configuration")
+                await self.session.close()
+                raise ValueError(f"Proxy connection failed: {str(e)}")
+
         return self
         
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -771,21 +762,23 @@ def business_deepsearch_tool_wrapper(
     query: str,
     max_results: int = 10,
     max_steps: Optional[int] = None,
-    resume_state: Optional[Dict[str, Any]] = None
+    resume_state: Optional[Dict[str, Any]] = None,
+    use_proxy: bool = False
 ) -> Dict[str, Any]:
     """
-    Business deep search tool for gathering and analyzing business information.
+    Business deep search tool with optional proxy support
     
     Args:
         query: The business-related search query
         max_results: Maximum number of results to return per query (default: 10)
         max_steps: Optional maximum number of steps per research phase
         resume_state: Optional state to resume from a previous search
+        use_proxy: Enable proxy usage (requires valid proxy env vars)
         
     Returns:
         Dictionary containing search results and metadata
     """
-    searcher = BusinessDeepSearch(max_steps=max_steps)
+    searcher = BusinessDeepSearch(max_steps=max_steps, use_proxy=use_proxy)
     return searcher.search(query, max_results=max_results, resume_state=resume_state)
 
 # Create a proper Tool instance for the wrapper
