@@ -1,9 +1,9 @@
 # API Keys - Replace with your actual keys
 OPENROUTER_API_KEY=your_openrouter_key_here
 BRAVE=your_brave_key_here
-OR_SITE_URL = "httsp://openrouter.ai"
-OR_APP_NAME = "OpenRouter"
 
 TINYAGENT_PROXY_USERNAME=proxyuser
 TINYAGENT_PROXY_PASSWORD=proxyuser_pw
 TINYAGENT_PROXY_COUNTRY=US
+
+

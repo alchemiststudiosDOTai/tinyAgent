@@ -1,52 +1,36 @@
 # tinyAgent Configuration
 # Model configuration
-# PLEASE NOTE TINY AGENT IN THEORY CAN RUN A INFINITE AMOUNT OF CALLS,
-# THIS CONFIG SHOULD STOP YOU FROM DOING THAT BUT NOTE THIS IS BETA RELEASE AND MAY NOT WORK AS EXPECTED
-# PLEASE BE SURE TO TEST THIS IN A SAFE ENVIRONMENT BEFORE USING IN ANY ENVIRONMENT
-
 #base_url: "http://localhost:1234/v1"
 base_url: "https://openrouter.ai/api/v1"
 
-
 model:
   # Default model to use
-  #default: "deepseek-r1-distill-qwen-14b"
   #default: "deepseek/deepseek-r1"
   #default: "mistral-small-24b-instruct-2501"
-  #default: "qwq-32b"
-  #default: "anthropic/claude-3.5-sonnet"
+  #default: "anthropic/claude-3.7-sonnet"
   default: "deepseek/deepseek-chat"
   # use claude 3.7 for best resutls, v3 is best value while using tools but 3.7 is the SOTA to use if you can afford it, r1 is best for general use
-  #default: "anthropic/claude-3.7-sonnet"
-
-
-
+  
 # Parsing configuration
 parsing:
   # When true, only strict JSON parsing is used
   strict_json: false
-  
   # Fallback parsers (only used when strict_json is false)
   fallback_parsers:
     # Enable template-style parsing as first fallback
     template: true
-    
     # Enable regex-style parsing as last resort
     regex: true
-
-
 
 # Retry configuration with warming and escalation
 retries:
   # Maximum retry attempts
-  max_attempts: 3
-  
+  max_attempts: 3  
   # Temperature control for creativity
   temperature:
     initial: 0.2
     increment: 0.4
     max: 1
-  
   # Model escalation sequence
   model_escalation:
     enabled: true
@@ -59,7 +43,6 @@ retries:
 rate_limits:
   # Global rate limit (applies to all tools by default)
   global: 2
-  
   # Tool-specific rate limits (override global)
   tools:
     file_hunter: 5
@@ -70,44 +53,34 @@ rate_limits:
 dynamic_agents:
   # Whether to allow creating new tools without asking
   allow_new_tools_by_default: false
-  
   # Whether to use existing tools if possible before creating new ones
   prioritize_existing_tools: true
-  
   # Maximum number of dynamic agents to keep in memory
   max_agents: 10
-  
   # Model to use for dynamic agent operations (defaults to model.default if not specified)
   model: "deepseek/deepseek-chat"
-  
 # ElderBrain configuration
 elder_brain:
   # Enable ElderBrain by default for all tasks, this is a beta feature and may not work as expected 
   # this is mostly for agents that need to handle complex tasks that may require multiple steps frequently
   default_enabled: false
-  
   # Verbosity level for ElderBrain output (higher value = more detailed output)
   verbosity: 2
-  
   # Model to use for ElderBrain operations (defaults to model.default if not specified)
   model: null
-
 # Code execution security configuration
 code_execution:
   # Allow potentially dangerous operations (file operations, etc)
   allow_dangerous_operations: true  # Set to false to enforce strict security
-  
   # Optional: more granular control
   allowed_operations:
     file_operations: true
     os_operations: false
     imports: ["os", "sys"]  # Additional allowed imports beyond the defaults
-
 # File operations configuration
 file_operations:
   # Default output directory for file operations
   output_dir: "tinyAgent_output"
-  
   # List of allowed file extensions (empty list means all extensions allowed)
   allowed_extensions:
     - ".txt"
@@ -116,22 +89,18 @@ file_operations:
     - ".md"
     - ".py"
     - ".log"
-  
   # Maximum file size in bytes (10MB default)
   max_file_size: 10485760
-  
   # Whether to create subdirectories automatically
   create_subdirs: true
-  
   # Whether to allow overwriting existing files
   allow_overwrite: true
-
 # Proxy configuration
 proxy:
   # Master switch for proxy functionality
   # When false, all proxy features are disabled regardless of other settings
   # When true, the proxy will be used according to the configuration below
-  enabled: true
+  enabled: False
 
   # Proxy URL template with placeholders
   # Format: http://customer-{username}-cc-{country}:{password}@pr.oxylabs.io:7777
@@ -141,14 +110,12 @@ proxy:
   # 3. password (from TINYAGENT_PROXY_PASSWORD env var)
   # basd on your proxy provider the url format can be diffrent, these confgis are for oxy
   url: "http://customer-%s-cc-%s:%s@pr.oxylabs.io:7777"
-
   # Authentication credentials loaded from environment variables
   # These values will be inserted into the URL template above
   username: ${TINYAGENT_PROXY_USERNAME}
   password: ${TINYAGENT_PROXY_PASSWORD}
   country: ${TINYAGENT_PROXY_COUNTRY}
-
-
+  
 logging:
   level: INFO    # DEBUG, INFO, WARNING, ERROR, CRITICAL
   format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

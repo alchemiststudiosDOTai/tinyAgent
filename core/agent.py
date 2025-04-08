@@ -5,9 +5,6 @@ This module provides the Agent class, which is the central component of the
 tinyAgent framework. The Agent uses a language model to select and execute
 tools based on user queries.
 """
-
-from openai import OpenAI
-
 import os
 import re
 import json
@@ -16,14 +13,16 @@ from typing import List, Dict, Any, Optional, Union, Callable, TypeVar, cast, Tu
 from datetime import datetime, timedelta
 import hashlib
 import logging
-
 from openai import OpenAI
-
 from .exceptions import AgentRetryExceeded, ConfigurationError, ParsingError
 from .tool import Tool
 from .logging import get_logger
 from .prompts.prompt_manager import PromptManager
 
+
+
+
+#We can move this to utils probbaly
 # Set up logger
 logger = get_logger(__name__)
 

@@ -43,6 +43,7 @@ var/
 pytest_cache/
 .coverage.*
 coverage.*
+output/
 
 # Virtual Environment
 venv/
@@ -116,3 +117,4 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
+output/research_results/*.json

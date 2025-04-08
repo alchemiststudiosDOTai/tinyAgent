@@ -35,11 +35,16 @@ def main():
     # Get the singleton factory instance
     factory = AgentFactory.get_instance()
     
-    # Register the built-in file manipulation tool
-    factory.register_tool(file_manipulator_tool)
+    # Create an agent
+    agent = Agent()
     
-    # Create an agent that will use the factory
-    agent = Agent(factory=factory)
+    # Register the file manipulator tool with the agent
+    agent.create_tool(
+        name=file_manipulator_tool.name,
+        description=file_manipulator_tool.description,
+        func=file_manipulator_tool.func,
+        parameters=file_manipulator_tool.parameters
+    )
     
     # Example operations
     operations = [

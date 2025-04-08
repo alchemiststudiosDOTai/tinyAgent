@@ -8,7 +8,13 @@ and provides reliable error handling and result formatting.
 
 from typing import Dict, Any, List, Optional
 import logging
+import os
+from dotenv import load_dotenv
 from ..tool import Tool, ParamType
+from ..config import load_config
+
+# Load environment variables
+load_dotenv()
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -49,8 +55,29 @@ def perform_duckduckgo_search(
         return [{"error": "The duckduckgo_search package is not installed. Please install it with: pip install duckduckgo-search"}]
     
     try:
-        # Create DDGS instance and perform search
-        ddgs = DDGS()
+        # Get proxy credentials directly from environment
+        username = os.getenv('TINYAGENT_PROXY_USERNAME')
+        password = os.getenv('TINYAGENT_PROXY_PASSWORD')
+        country = os.getenv('TINYAGENT_PROXY_COUNTRY', 'US')
+        
+        # Configure proxy if credentials available
+        proxies = None
+        if all([username, password]):
+            try:
+                proxy_url = f'http://customer-{username}-cc-{country}:{password}@pr.oxylabs.io:7777'
+                masked_url = proxy_url.replace(password, "********")
+                print(f"Using proxy: {masked_url}")
+                proxies = {
+                    "http": proxy_url,
+                    "https": proxy_url
+                }
+            except Exception as exc:
+                print(f"Error configuring proxy: {str(exc)}")
+        else:
+            print("No proxy credentials found in environment, skipping proxy")
+        
+        # Create DDGS instance with proxy if configured
+        ddgs = DDGS(proxies=proxies)
         logger.info(f"Searching DuckDuckGo for: {keywords}")
         
         # Convert parameters to expected types
@@ -75,8 +102,8 @@ def perform_duckduckgo_search(
         for result in raw_results:
             formatted_results.append({
                 "title": result.get("title", ""),
-                "url": result.get("href", ""),
-                "snippet": result.get("body", "")
+                "href": result.get("href", ""),  # Changed from 'url'
+                "body": result.get("body", "")   # Changed from 'snippet'
             })
         
         print(f"Found {len(formatted_results)} results")
@@ -119,5 +146,8 @@ formatted results with titles, URLs, and snippets.""",
     }
 )
 
-# Alias for backward compatibility
-duckduckgo_web_search = duckduckgo_search_tool
+def get_tool() -> Tool:
+    """Return the DuckDuckGo search tool instance"""
+    return duckduckgo_search_tool
+
+__all__ = ['duckduckgo_search_tool', 'get_tool']

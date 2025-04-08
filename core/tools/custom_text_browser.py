@@ -1,4 +1,5 @@
 """
+
 Custom Text Browser Tool for tinyAgent
 
 This module implements a text-based browser designed specifically for navigating,
@@ -17,6 +18,7 @@ import random
 from typing import Dict, Any, List, Optional, Tuple, Union
 from urllib.parse import urljoin, urlparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dotenv import load_dotenv
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -25,8 +27,11 @@ from bs4 import BeautifulSoup
 
 from ..decorators import tool
 from ..logging import get_logger
-from ..tool import ParamType, Tool
-from ..config import load_config
+from ..tool import ParamType, Tool, ToolError
+from ..config import load_config, get_config_value
+
+# Load environment variables
+load_dotenv()
 
 # Set up logger
 logger = get_logger(__name__)
@@ -65,13 +70,21 @@ class CustomTextBrowser:
         self,
         viewport_size: int = 8192,
         downloads_folder: str = "./downloads",
-        use_proxy: bool = True,
-        max_retries: int = 3,
+        use_proxy: Optional[bool] = None,
+        max_retries: Optional[int] = None,
         backoff_factor: float = 1.0,
         pool_connections: int = 10,
         pool_maxsize: int = 10,
         random_delay_range: Optional[Tuple[float, float]] = (0.5, 2.0),
     ):
+        # Load config first
+        config = load_config()
+        self._use_proxy = use_proxy if use_proxy is not None else get_config_value(
+            config, "tools.browser.use_proxy", True
+        )
+        self._max_retries = max_retries if max_retries is not None else get_config_value(
+            config, "tools.browser.max_retries", 3
+        )
         """
         Initialize the text browser with enhanced scraping capabilities.
         
@@ -137,77 +150,56 @@ class CustomTextBrowser:
         
         # Configure proxy if requested
         if self._use_proxy:
-            self._configure_proxy()
+            self._configure_proxy()  # This now includes connection test
+        
+        # If proxy failed but was requested, disable it
+        if self._use_proxy and not self.session.proxies:
+            logger.warning("Proxy configuration failed - continuing without proxy")
+            self._use_proxy = False
 
     def _configure_proxy(self):
-        """Configure proxy settings from the config file."""
+        """Configure proxy settings with connection verification."""
         try:
-            # Load configuration
-            logger.debug("Loading proxy configuration from config file...")
-            config = load_config()
-            proxy_config = config.get("proxy", {})
+            logger.debug("Loading proxy configuration from environment...")
             
-            # Check if proxy configuration exists and is enabled
-            if not proxy_config or not proxy_config.get("enabled", False):
-                logger.info("Proxy is disabled or not configured")
+            # Get credentials directly from environment like OSS.PY
+            username = os.getenv('TINYAGENT_PROXY_USERNAME')
+            password = os.getenv('TINYAGENT_PROXY_PASSWORD')
+            country = os.getenv('TINYAGENT_PROXY_COUNTRY', 'US')
+
+            if not all([username, password]):
+                logger.error("Missing required proxy credentials in environment")
                 return
                 
-            # Get required proxy settings
-            proxy_url = proxy_config.get("url")
-            username = proxy_config.get("username")
-            password = proxy_config.get("password")
-            country = proxy_config.get("country", "US")
-            
-            # Validate required settings
-            if not all([proxy_url, username, password]):
-                missing = []
-                if not proxy_url: missing.append("url")
-                if not username: missing.append("username")
-                if not password: missing.append("password")
-                logger.warning(f"Incomplete proxy configuration. Missing: {', '.join(missing)}")
-                return
-            
-            # Format proxy URL with credentials
+            formatted_proxy = f'http://customer-{username}-cc-{country}:{password}@pr.oxylabs.io:7777'
+            logger.debug(f"Formatted proxy URL: {formatted_proxy.replace(password, '[REDACTED]')}")
+
+            # Test proxy connection
+            test_url = "https://ip.oxylabs.io/location"
             try:
-                formatted_proxy = proxy_url % (username, country, password)
-                logger.debug(f"Formatted proxy URL: {formatted_proxy.replace(password, '[REDACTED]')}")
-            except Exception as e:
-                logger.error(f"Failed to format proxy URL: {str(e)}")
+                test_proxies = {
+                    "http": formatted_proxy,
+                    "https": formatted_proxy
+                }
+                response = requests.get(
+                    test_url, 
+                    proxies=test_proxies,
+                    timeout=10
+                )
+                response.raise_for_status()
+                logger.info("Proxy connection verified successfully")
+            except Exception as test_error:
+                logger.error(f"Proxy connection test failed: {str(test_error)}")
+                logger.info("Falling back to direct connection")
+                self.session.proxies = {}
                 return
-            
-            # Configure session with proxy
-            self.session.proxies = {
-                "http": formatted_proxy,
-                "https": formatted_proxy
-            }
-            
-            # Apply advanced settings if configured
-            advanced = proxy_config.get("advanced", {})
-            if advanced:
-                if advanced.get("sticky_session"):
-                    self.session.headers["Proxy-Connection"] = "keep-alive"
-                    if "session_duration" in advanced:
-                        self.session.headers["Connection-TTL"] = str(advanced["session_duration"])
-                
-                if "rotate_every" in advanced:
-                    # Store rotation settings for later use
-                    self._proxy_rotation_count = advanced["rotate_every"]
-                    self._proxy_request_count = 0
-            
-            # Apply debug settings if configured
-            debug = proxy_config.get("debug", {})
-            if debug:
-                if debug.get("verify_ssl") is not None:
-                    self.session.verify = debug["verify_ssl"]
-                if debug.get("timeout"):
-                    # If you need a global request timeout
-                    self._global_timeout = debug["timeout"]
-            
-            logger.info("Proxy configured successfully with all settings")
-            
+
+            # Apply verified proxy to session
+            self.session.proxies = test_proxies
+
         except Exception as e:
             logger.error(f"Error configuring proxy: {str(e)}")
-            logger.debug("Full error details:", exc_info=True)
+            logger.debug("Proxy configuration failed", exc_info=True)
 
     @property
     def use_proxy(self) -> bool:
@@ -383,9 +375,19 @@ class CustomTextBrowser:
             
             while retry_count < max_retries:
                 try:
+                    # Add proxy awareness to error messages
+                    if self._use_proxy:
+                        logger.debug(f"Using proxy: {self.session.proxies['https']}")
+                    
                     response = self.session.get(url, timeout=15)
                     response.raise_for_status()
                     break
+                except requests.exceptions.ProxyError as pe:
+                    logger.error(f"Proxy error: {str(pe)}")
+                    if retry_count < max_retries - 1:
+                        logger.info("Reconfiguring proxy before retry...")
+                        self._configure_proxy()  # Re-check proxy config
+                    raise
                 except (requests.exceptions.ConnectTimeout, 
                         requests.exceptions.ReadTimeout,
                         requests.exceptions.ConnectionError) as e:
@@ -393,7 +395,7 @@ class CustomTextBrowser:
                     if retry_count >= max_retries:
                         raise
                     logger.warning(f"Retry {retry_count}/{max_retries} for {url}: {str(e)}")
-                    time.sleep(1)  # Wait before retrying
+                    time.sleep(1)
             
             content_type = response.headers.get("content-type", "")
             
@@ -535,6 +537,15 @@ class CustomTextBrowser:
         # Return mapped extension or default
         return mime_map.get(base_type, '.bin')
 
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.session.close()
+        if exc_type is not None:
+            logger.error(f"Browser error: {exc_val}", exc_info=True)
+        return False  # Don't suppress exceptions
+
     def _sanitize_filename(self, filename: str) -> str:
         """
         Sanitize filename to be safe for the filesystem.
@@ -665,6 +676,17 @@ class CustomTextBrowser:
     # -------------------------------------------------------------------------
     # Concurrency / Bulk Fetching
     # -------------------------------------------------------------------------
+    async def async_fetch(self, url: str) -> str:
+        """Asynchronous version of page fetching using aiohttp"""
+        try:
+            import aiohttp
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as response:
+                    response.raise_for_status()
+                    return await response.text()
+        except Exception as e:
+            raise ToolError(f"Async fetch failed for {url}: {str(e)}") from e
+
     def fetch_pages_in_parallel(
         self, 
         urls: List[str], 
@@ -693,7 +715,25 @@ class CustomTextBrowser:
 
                 resp = self.session.get(url, timeout=timeout)
                 resp.raise_for_status()
-                return (url, resp.text)
+                content_type = resp.headers.get('content-type', '')
+                logger.info(f"URL: {url}, Content-Type: {content_type}")
+                
+                # Only return text for HTML/text content types
+                if 'text/html' in content_type:
+                    # Parse HTML and extract readable text
+                    soup = BeautifulSoup(resp.text, 'html.parser')
+                    # Remove script and style elements
+                    for script in soup(["script", "style"]):
+                        script.decompose()
+                    # Get text and clean it up
+                    text = soup.get_text(separator='\n', strip=True)
+                    # Remove excessive newlines
+                    text = '\n'.join(line.strip() for line in text.splitlines() if line.strip())
+                    return (url, text)
+                elif 'text/plain' in content_type:
+                    return (url, resp.text)
+                else:
+                    return (url, f"[Content type not supported: {content_type}]")
             except Exception as exc:
                 return (url, exc)
         
@@ -716,11 +756,16 @@ def custom_text_browser_function(**kwargs):
     Text browser function implementation that handles different actions.
     """
     action = kwargs.get('action', 'visit')
-    url = kwargs.get('url')
     
     # Validate required parameters based on action
-    if not url:
-        raise ValueError("URL is required for all actions")
+    if action == 'fetch_parallel':
+        urls_str = kwargs.get('urls', "")
+        if not urls_str:
+            raise ValueError("urls parameter is required for fetch_parallel action")
+    else:
+        url = kwargs.get('url')
+        if not url:
+            raise ValueError("url parameter is required for non-parallel actions")
         
     # Initialize browser with configuration
     use_proxy = kwargs.get('use_proxy', True)
@@ -738,9 +783,12 @@ def custom_text_browser_function(**kwargs):
     
     # Handle parallel fetching
     if action == 'fetch_parallel':
-        urls = kwargs.get('urls', [])
+        # Convert comma-separated string to list
+        urls_str = kwargs.get('urls', "")
+        urls = [u.strip() for u in urls_str.split(",") if u.strip()]
+        
         if not urls:
-            raise ValueError("urls parameter is required for fetch_parallel action")
+            raise ValueError("urls parameter must be a comma-separated list of URLs")
         
         concurrency = kwargs.get('concurrency', 5)
         timeout = kwargs.get('timeout', 15)
@@ -854,77 +902,57 @@ def custom_text_browser_function(**kwargs):
     }
 
 
-# Create the tool instance with proper manifest
-custom_text_browser_tool = Tool(
-    name="custom_text_browser",
-    description="""Control a text-based browser to navigate, view, and search web content.
+def custom_text_browser_tool(**kwargs) -> Dict[str, Any]:
+    """
+    Enhanced text browser tool with safety features and parallel execution.
     
-This enhanced browser provides improved scraping capabilities including:
-- Connection pooling with retry logic for reliability
-- Randomized headers with user agent rotation to avoid blocking
-- Optional random delays to mimic human browsing
-- Parallel fetching of multiple URLs for efficiency""",
-    parameters={},  # We use manifest for parameter specification
-    func=custom_text_browser_function,
-    manifest={
-        "name": "custom_text_browser",
-        "description": "Control a text-based browser to navigate and search web content with advanced scraping capabilities",
-        "parameters": {
-            "url": {
-                "type": "string",
-                "required": True,
-                "description": "URL to visit or currently visited URL for other actions"
-            },
-            "action": {
-                "type": "string",
-                "required": False,
-                "default": "visit",
-                "enum": ["visit", "search", "links", "next_page", "prev_page", "state", "fetch_parallel"],
-                "description": "Action to perform: visit (default), search, links, next_page, prev_page, state, or fetch_parallel"
-            },
-            "search_query": {
-                "type": "string",
-                "required": False,
-                "description": "Query string when action is 'search'"
-            },
-            "urls": {
-                "type": "array",
-                "items": {"type": "string"},
-                "required": False,
-                "description": "List of URLs when action is 'fetch_parallel'"
-            },
-            "concurrency": {
-                "type": "integer",
-                "required": False,
-                "default": 5,
-                "description": "Number of concurrent requests for 'fetch_parallel' action"
-            },
-            "use_proxy": {
-                "type": "boolean",
-                "required": False,
-                "default": True,
-                "description": "Whether to use proxy configuration"
-            },
-            "random_delay": {
-                "type": "boolean",
-                "required": False,
-                "default": True,
-                "description": "Whether to add random delays between requests"
-            },
-            "max_retries": {
-                "type": "integer",
-                "required": False,
-                "default": 3,
-                "description": "Maximum number of retries for failed requests"
-            },
-            "timeout": {
-                "type": "integer",
-                "required": False,
-                "default": 15,
-                "description": "Request timeout in seconds"
-            }
-        },
-        "required": ["url"],
-        "additionalProperties": False
-    }
-) 
+    Examples:
+    - Visit page: {"url": "https://example.com", "action": "visit"}
+    - Search content: {"url": "https://example.com", "action": "search", "search_query": "news"}
+    - Fetch multiple URLs: {"action": "fetch_parallel", "urls": "https://example.com/1,https://example.com/2"}
+    
+    Security:
+    - Automatic proxy rotation
+    - Request throttling  
+    - User-agent randomization
+    """
+    try:
+        return custom_text_browser_function(**kwargs)
+    except Exception as e:
+        raise ToolError(f"Browser operation failed: {str(e)}") from e
+
+# Create internal Tool instance
+_custom_text_browser_tool = Tool(
+    name="custom_text_browser",
+    description="""Control a text-based browser to interact with web content. 
+Primary actions: 'visit' (load a URL), 'search' (find text on page), 'links' (extract links), 'fetch_parallel' (load multiple URLs). Also supports pagination ('next_page', 'prev_page') and state retrieval ('state').
+
+Features:
+- Connection pooling with retry logic
+- Randomized headers with user agent rotation  
+- Configurable delays between requests
+- Parallel URL fetching
+- Proxy support with automatic configuration""",
+    parameters={
+        "url": ParamType.STRING,
+        "action": ParamType.STRING,
+        "search_query": ParamType.STRING,
+        "urls": ParamType.STRING,
+        "concurrency": ParamType.INTEGER,
+        "use_proxy": ParamType.BOOLEAN,
+        "random_delay": ParamType.BOOLEAN,
+        "max_retries": ParamType.INTEGER,
+        "timeout": ParamType.INTEGER
+    },
+    func=custom_text_browser_tool,
+    rate_limit=10
+)
+
+def get_tool() -> Tool:
+    """
+    Return the custom_text_browser tool instance for tinyAgent integration.
+
+    Returns:
+        Tool: The custom_text_browser tool object
+    """
+    return _custom_text_browser_tool

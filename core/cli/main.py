@@ -9,27 +9,16 @@ import os
 import sys
 import argparse
 import re
-from typing import List, Dict, Any, Optional, Tuple, cast
+from typing import List, Dict
 
 from ..logging import get_logger, configure_logging
 from ..config import load_config, get_config_value
 from ..agent import Agent
 from ..tool import Tool
 from ..mcp import ensure_mcp_server
-from ..tools import (
-    anon_coder_tool,
-    llm_serializer_tool,
-    brave_web_search_tool,
-    ripgrep_tool,
-    aider_tool,
-    duckduckgo_web_search,
-    process_content,
-    file_manipulator_tool,
-    custom_text_browser_tool,
-    final_answer_extractor,
-    enhanced_deepsearch_tool,
-    load_external_tools
-)
+
+#import all of the tools 
+from ..tools import *
 from .colors import Colors
 from .spinner import Spinner
 
@@ -162,7 +151,7 @@ def load_tools() -> List[Tool]:
         # Only add MCP-dependent tools if MCP server is available
         if mcp_available:
             tools.append(brave_web_search_tool)
-            tools.append(duckduckgo_web_search)
+            tools.append(duckduckgo_search_tool)
             logger.info("MCP server is available, MCP-dependent tools loaded")
         else:
             logger.warning("MCP server is not available, MCP-dependent tools will not be loaded")
@@ -662,3 +651,15 @@ def run_interactive_mode(args: argparse.Namespace, tools_dict: Dict[str, Tool]) 
 
 if __name__ == "__main__":
     main()
+
+""" Summary of the Issue:
+The core problem was that you couldn't reliably run the duckduckgo_search tool directly from the interactive CLI using commands like ❯ duckduckgo_search "query" --max_results 5. This manifested in two main ways:
+Fallback to Triage Agent: Initially, the command wasn't recognized as a direct tool call at all. It was passed to the Triage Agent, which also failed because it either didn't know about duckduckgo_search or misinterpreted the command. This was likely due to the tool not being loaded correctly in the interactive context (potentially related to the MCP check).
+Missing Parameter Error: After fixing the tool loading, the CLI did recognize duckduckgo_search for direct execution. However, it then failed with a Missing required parameter: max_results error. This happened because the argument parsing logic in the CLI for direct calls was too basic – it only grabbed the first argument (keywords) and ignored named arguments like --max_results. A validation step then failed because max_results was expected (based on the tool's definition) but wasn't provided by the faulty parser.
+What We Learned:
+CLI Parsing is Crucial: The way the interactive CLI (main.py) parses commands is critical for determining whether a tool is run directly or handed off to an agent. Simple parsing can easily break with prefixes (❯) or standard argument formats (--option value).
+Conditional Tool Loading Matters: Tools might only be loaded if certain conditions are met (like the MCP server running). If a tool isn't loaded, it can't be called directly by name.
+Framework Validation Exists: There's a validation step before a tool's specific function code runs. This validation checks the arguments provided by the caller against the parameters defined in the tool's Tool object.
+Defaults Don't Always Save You: Even if a tool's function code defines default values for parameters (like duckduckgo_search does for max_results), an error can occur before that code runs if the framework's validation layer strictly requires the parameter based on its definition.
+Hardcoded Logic is Brittle: The interactive CLI had specific, hardcoded argument handling for aider and brave_web_search, but a very basic default for everything else. This made it inflexible for tools with multiple or named arguments.
+Debugging Requires Tracing: We had to follow the command from input, through parsing in main.py, tool loading checks, the direct execution attempt, the argument validation step, and the Triage Agent fallback path to understand the different failure points. """

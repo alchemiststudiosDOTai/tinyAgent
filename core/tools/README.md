@@ -4,6 +4,27 @@ This directory contains the core tools for the TinyAgent framework. Each tool is
 
 ## Tool Categories
 
+### Template & Examples
+
+#### `boilerplate_tool.py`
+- **Purpose**: Example implementation demonstrating complete tool lifecycle
+- **Features**:
+  - Parameter validation
+  - Rate limiting
+  - Error handling
+  - Logging integration
+  - Documentation standards
+  - Example test case
+- **Usage Example**:
+  ```python
+  from core.tools import boilerplate_tool
+  
+  result = boilerplate_tool.execute(
+      input_data="sample text to process",
+      max_items=3
+  )
+  ```
+
 ### Code & Development Tools
 
 #### `codeagent_tool.py`
