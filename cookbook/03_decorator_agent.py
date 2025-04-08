@@ -35,8 +35,18 @@ def main():
     factory.register_tool(word_counter._tool)
     
     # Create an agent with our factory
-    agent = Agent(factory=factory)
-    
+    agent = Agent()
+
+    # Register factory tools with the agent
+    for tool_name, tool in factory.list_tools().items():
+        if tool_name != "chat":  # Agent adds chat tool automatically
+            agent.create_tool(
+                name=tool.name,
+                description=tool.description,
+                func=tool.func,
+                parameters=tool.parameters
+            )
+
     # Execute the agent with different queries to demonstrate our decorated tools
     queries = [
         "Format this text: hello world",
@@ -52,15 +62,6 @@ def main():
             print(f"Result: {result}")
         except Exception as e:
             print(f"Error: {e}")
-    
-    # Show tool usage statistics
-    print("\nTool usage statistics:")
-    status = factory.get_status()
-    for tool_name, stats in status["tools"].items():
-        # Skip built-in tools for cleaner output
-        if tool_name not in ["chat"]:
-            limit = "∞" if stats['limit'] == -1 else stats['limit']
-            print(f"  {tool_name}: {stats['calls']}/{limit} calls")
 
 
 # ---- Tool Definitions ----

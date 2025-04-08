@@ -25,14 +25,19 @@ def main():
     print("navigate web content through the agent framework.")
     print()
 
-    # Get the singleton factory instance
-    factory = AgentFactory.get_instance()
+    # Get the text browser tool
+    text_browser_tool = get_tool()
 
-    # Register the text browser tool
-    factory.register_tool(get_tool())
+    # Create an agent
+    agent = Agent()
 
-    # Create an agent using the factory
-    agent = factory.create_agent()
+    # Register the text browser tool with the agent
+    agent.create_tool(
+        name=text_browser_tool.name,
+        description=text_browser_tool.description,
+        func=text_browser_tool.func,
+        parameters=text_browser_tool.parameters
+    )
 
     # Visit a webpage
     result = agent.run(

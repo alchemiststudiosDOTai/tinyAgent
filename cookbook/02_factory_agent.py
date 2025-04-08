@@ -37,8 +37,19 @@ def main():
     )
     
     # Create an agent that will use the factory
-    agent = Agent(factory=factory, model="deepseek/deepseek-chat")
-    
+    agent = Agent(model="deepseek/deepseek-chat")
+
+    # Register factory tools with the agent
+    for tool_name, tool in factory.list_tools().items():
+        if tool_name != "chat":  # Agent adds chat tool automatically
+            agent.create_tool(
+                name=tool.name,
+                description=tool.description,
+                func=tool.func,
+                parameters=tool.parameters
+            )
+
+
     # Run the agent with different queries
     queries = [
         "Calculate 10 - 5",
@@ -55,12 +66,6 @@ def main():
             print(f"Result: {result}")
         except Exception as e:
             print(f"Error: {e}")
-    
-    # Show tool usage statistics
-    print("\nTool usage statistics:")
-    status = factory.get_status()
-    for tool_name, stats in status["tools"].items():
-        print(f"  {tool_name}: {stats['calls']}/{stats['limit']} calls")
 
 
 def calculate(operation: str, a: float, b: float) -> float:

@@ -126,7 +126,7 @@ def get_tool() -> Tool:
 # Example test case
 if __name__ == "__main__":
     # Test with agent-like invocation
-    test_query = "Process 'hello world example' with max 2 items"
+    test_query = "Create a tool that reverses input text and counts the number of characters."
     
     try:
         result = boilerplate_tool(
@@ -140,3 +140,8 @@ if __name__ == "__main__":
         
     except ToolError as e:
         print("Test failed:", str(e))
+
+    print("\nExecution Results:")
+    print("-" * 40)
+    final_result = execution_results.get('execution_results', {}).get('final_result', 'No output')
+    print("Final Result:", final_result)

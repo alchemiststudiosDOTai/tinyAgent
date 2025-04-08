@@ -26,6 +26,9 @@ def main():
     This example shows how the DynamicAgentFactory can create specialized
     agents tailored to different kinds of tasks.
     """
+
+
+
     # Create the dynamic agent factory
     factory = DynamicAgentFactory.get_instance()
     
@@ -88,8 +91,8 @@ def main():
     print("="*50)
     
     # Create a simpler agent with just the tools we need for our demo
-    demo_factory = AgentFactory.get_instance()
-    
+    demo_factory = AgentFactory()
+
     # Create the specific tools we need for our demo
     demo_factory.create_tool(
         name="count_words",
@@ -102,8 +105,6 @@ def main():
         description="Multiply two numbers",
         func=lambda a, b: a * b
     )
-    
-    demo_agent = Agent(factory=demo_factory)
     
     # Execute a specific task with our demo agent
     execution_task = "Count the words in 'The quick brown fox' and multiply by 2"

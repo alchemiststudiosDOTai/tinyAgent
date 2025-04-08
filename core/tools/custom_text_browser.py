@@ -924,8 +924,9 @@ def custom_text_browser_tool(**kwargs) -> Dict[str, Any]:
 # Create internal Tool instance
 _custom_text_browser_tool = Tool(
     name="custom_text_browser",
-    description="""Control a text-based browser to navigate, view, and search web content.
-    
+    description="""Control a text-based browser to interact with web content. 
+Primary actions: 'visit' (load a URL), 'search' (find text on page), 'links' (extract links), 'fetch_parallel' (load multiple URLs). Also supports pagination ('next_page', 'prev_page') and state retrieval ('state').
+
 Features:
 - Connection pooling with retry logic
 - Randomized headers with user agent rotation  
