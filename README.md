@@ -96,42 +96,6 @@ flowchart TD
 ```
 
 
-
-
----
-
-## Installation
-
-Here's how to install and set up **tinyAgent**:
-
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/your-repo/tinyAgent.git
-   cd tinyAgent
-   ```
-
-2. **Install Dependencies**:
-   - Requires Python 3.8+.
-   - Install packages:
-     ```bash
-     pip install -r requirements.txt
-     ```
-
-3. **Configure Settings**:
-   - Copy the example config:
-     ```bash
-     cp config.example.yaml config.yaml
-     ```
-   - Update `config.yaml` with your model details, API keys, etc.
-
-4. **Optional: Use a Virtual Environment**:
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-Check the [official docs](https://github.com/your-repo/tinyAgent/blob/main/docs/installation.md) for more details.
-
 ---
 
 ## Benefits
@@ -185,4 +149,5 @@ The aider tool integrated in TinyAgent is extremely powerful but requires proper
 **⚠️ We strongly recommend thoroughly learning aider before using it in any serious projects.** 
 
 Invest time in studying the documentation at https://aider.chat/ to understand its capabilities, configuration options, and best practices. This investment will pay off significantly in your development workflow.
+
 
