@@ -18,7 +18,7 @@ _/  |_|__| ____ ___.__. /  _  \    ____   ____   _____/  |_
  |  | |  |   |  \___  /    |    \/ /_/  >  ___/|   |  \  |  
  |__| |__|___|  / ____\____|__  /\___  / \___  >___|  /__|  
               \/\/            \//_____/      \/     \/      
- tinyAgent: 
+```
 
 ### Installation
 
@@ -55,26 +55,54 @@ cp .envexample .env
 cp exampleconfig.yml config.yml
 # Edit config.yml to customize your settings
 ```
+
 ---
 ## Philosophy
-### 1. Functions as Agents
-### 2. Hierarchical Orchestra of Specialized Agents
-### 3. Dynamic Capability Creation
 
-The **tinyAgent** framework is designed to simplify building and managing AI-driven agents that perform tasks and interact with tools. It provides three methods for creating agents—`Orchestrator`, `AgentFactory`, and `DynamicAgentFactory`—each tailored to different needs, from simple workflows to complex, dynamic setups. Agents can register tools, manage workflows, and maintain context, with key features like:
+1. **Functions as Agents**
+   - You can turn **any function** into a **tool** or **agent**.
+   - This makes it easy to add new capabilities.
 
-- **High-level Orchestrator**: Easy task management.
-- **AgentFactory**: Detailed control over agent setup and tools.
-- **DynamicAgentFactory**: On-the-fly creation of specialized agents.
-- **Tool Decorators**: Simple tool registration with `@tool`.
-- **Structured Results**: Consistent tool output handling.
-- **Error Handling and Logging**: Built-in for reliability.
+```mermaid
+flowchart LR
+    A["calculate_sum function"] --> B["Calculator Tool"]
+```
+
+2. **Hierarchical Orchestration**
+   - You can **combine many agents** together.
+   - A **top-level agent** or **orchestrator** can **delegate tasks** to **specialized agents**.
+   - This helps solve **complex problems** by breaking them into parts.
+
+```mermaid
+flowchart TD
+    O["Research Orchestrator"] --> A1["Web Search Agent"]
+    O --> A2["Summarizer Agent"]
+    O --> A3["Code Snippet Agent"]
+```
+
+3. **Elder Brain (Experimental)**
+   - You give it **one big prompt**.
+   - It **analyzes** the task, **plans** steps, **runs tools/agents**, and **combines results**.
+   - Acts like a **project manager** for complex workflows.
+   - **Highly experimental** and still in development.
+
+```mermaid
+flowchart TD
+    U["Research AI trends and generate report"] --> EB["Elder Brain"]
+    EB --> AN["Analyze task"]
+    EB --> PL["Plan steps"]
+    EB --> EX["Run tools & agents"]
+    EX --> R["Final Report"]
+```
+
+
+
 
 ---
 
 ## Installation
 
-Here’s how to install and set up **tinyAgent**:
+Here's how to install and set up **tinyAgent**:
 
 1. **Clone the Repository**:
    ```bash
@@ -130,27 +158,7 @@ Check the [official docs](https://github.com/your-repo/tinyAgent/blob/main/docs/
 
 
 ---
-## Roadmap of Improvements
 
-tinyAgent is actively evolving with several planned improvements:
-
-### Near-term (0-3 months)
-- ✅ **Configurable Security**: Enhanced security options for code execution (recently implemented)
-- 🔄 **Memory and Context Management**: Improved handling of conversation history and context
-- 🔄 **Multi-modal Support**: Better handling of images, audio, and other non-text inputs
-- 🔄 **Tool Chaining Improvements**: More robust tool chaining capabilities
-
-### Mid-term (3-6 months)
-- 📝 **Advanced Orchestration Patterns**: More sophisticated task routing and agent collaboration
-- 📝 **Expanded Model Provider Support**: Integration with more LLM providers and models
-- 📝 **Performance Optimization**: Caching, parallelization, and other performance improvements
-- 📝 **Test Framework**: Comprehensive test suite for agent behavior validation
-
-### Long-term (6+ months)
-- 🔮 **Web Interface/Dashboard**: Graphical interface for monitoring and managing agents
-- 🔮 **Tool Marketplace**: Community-contributed tools ecosystem
-- 🔮 **Multi-agent Collaboration**: Enhanced collaboration between specialized agents
-- 🔮 **Learning and Adaptation**: Agents that improve over time based on usage patterns
 
 ---
 ## Acknowledgments & Inspo
@@ -170,7 +178,7 @@ Contributions to tinyAgent are welcome! Whether you're fixing bugs, adding featu
 - **tinyAgent** is perfect for scalable AI projects needing structured agent and tool management.
 - It offers **extensibility**, **error handling**, and **logging**, but may be overkill for simple tasks.
 
-*Important Note on Tools**: 
+*Important Note on Tools*: 
 
 The aider tool integrated in TinyAgent is extremely powerful but requires proper understanding to use effectively. It's highly configurable with many advanced features that can dramatically enhance productivity when used correctly.
 
