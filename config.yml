@@ -3,7 +3,7 @@
 #base_url: "http://localhost:1234/v1"
 base_url: "https://openrouter.ai/api/v1"
 
-structured_outputs: True
+structured_outputs: false
 
 model:
   # Default model to use

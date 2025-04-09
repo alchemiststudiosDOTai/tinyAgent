@@ -761,7 +761,7 @@ class Agent:
 
                 api_key = os.getenv("OPENROUTER_API_KEY")
                 completion = make_openrouter_request(self.config, api_key, payload)
-                print(completion)
+                ## llm response
                 
                 if not get_choices(completion):
                     error_msg = f"Invalid response format - no choices returned"
