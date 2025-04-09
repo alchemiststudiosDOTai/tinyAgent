@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
-from core.agent import Agent
+from tinyagent.agent import Agent
 from ..schemas.models import ToolResult
-from core.tools import (
+from tinyagent.tools import (
     brave_web_search_tool,
     duckduckgo_web_search,
     anon_coder_tool,
@@ -12,10 +12,10 @@ from core.tools import (
     custom_text_browser_tool,
     final_answer_extractor
 )
-from core.mcp import ensure_mcp_server
+from tinyagent.mcp import ensure_mcp_server
 import logging
 import os
-from core import tool
+from tinyagent import tool
 
 @tool
 def clean_response_tool(messy_response: str) -> str:

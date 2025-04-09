@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException
 from typing import Annotated
-from core.factory.agent_factory import AgentFactory
-from core.config.config import load_config, get_config_value
+from tinyagent.factory.agent_factory import AgentFactory
+from tinyagent.config.config import load_config, get_config_value
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
@@ -14,7 +14,7 @@ def get_agent_factory():
         factory.config = load_config()
         # Ensure chat tool is registered
         if not factory.get_tool_metadata(get_config_value(factory.config, "api.chat_tool")):
-            from core.tools import chat_tool
+            from tinyagent.tools import chat_tool
             factory.register_tool(chat_tool)
     return factory
 

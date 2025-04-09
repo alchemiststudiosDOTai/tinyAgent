@@ -19,7 +19,7 @@ import json
 # Add parent directory to the path so we can import the core package
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.tools.enhanced_deepsearch import enhanced_deepsearch_tool
+from tinyagent.tools.enhanced_deepsearch import enhanced_deepsearch_tool
 
 
 def main():

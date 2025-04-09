@@ -3,7 +3,7 @@
 #base_url: "http://localhost:1234/v1"
 base_url: "https://openrouter.ai/api/v1"
 
-structured_outputs: false
+structured_outputs: True
 
 model:
   # Default model to use
@@ -44,7 +44,7 @@ elder_brain:
   # this is mostly for agents that need to handle complex tasks that may require multiple steps frequently
   default_enabled: false
   # Verbosity level for ElderBrain output (higher value = more detailed output)
-  verbosity: 2
+  verbosity: 0
   # Model to use for ElderBrain operations (defaults to model.default if not specified)
   model: null
 # Code execution security configuration
@@ -96,6 +96,6 @@ proxy:
   country: ${TINYAGENT_PROXY_COUNTRY}
   
 logging:
-  level: INFO    # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: CRITICAL   # DEBUG, INFO, WARNING, ERROR, CRITICAL
   format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
   handlers: ["console"] 

@@ -563,7 +563,7 @@ def run_interactive_mode(args: argparse.Namespace, tools_dict: Dict[str, Tool]) 
                         }
                     elif tool_name == "brave_web_search":
                         # Ensure MCP server is running
-                        from core.mcp import ensure_mcp_server
+                        from tinyagent.mcp import ensure_mcp_server
                         ensure_mcp_server()
                         
                         # Special handling for brave_web_search parameters

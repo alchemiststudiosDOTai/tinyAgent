@@ -60,7 +60,7 @@ class PromptManager:
             
         # Try package resources
         try:
-            with pkg_resources.path('tinyagent.core.prompts', template_path) as path:
+            with pkg_resources.path('tinyagent.prompts', template_path) as path:
                 if path.exists():
                     return str(path)
         except Exception:

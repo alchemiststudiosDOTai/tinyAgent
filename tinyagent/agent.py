@@ -6,19 +6,19 @@ tinyAgent framework. The Agent uses a language model to select and execute
 tools based on user queries.
 """
 import os
-import re
 import json
 import requests
-from core.utils.openrouter_request import build_openrouter_payload, make_openrouter_request
-from core.utils.structured_outputs import parse_strict_response
+from tinyagent.utils.openrouter_request import build_openrouter_payload, make_openrouter_request
+from tinyagent.utils.structured_outputs import parse_strict_response
 import time
-from typing import List, Dict, Any, Optional, Union, Callable, TypeVar, cast, Tuple
+from typing import List, Dict, Any, Optional, Union, Callable, TypeVar, cast, Tuple, Type
 from datetime import datetime, timedelta
 import hashlib
 import logging
 from openai import OpenAI
 from .exceptions import AgentRetryExceeded, ConfigurationError, ParsingError
 from .tool import Tool
+from .utils.type_converter import convert_to_expected_type
 
 
 def get_choices(completion):
@@ -154,7 +154,7 @@ class Agent:
         """
         # Store configuration
         if config is None:
-            from core.config import load_config
+            from tinyagent.config import load_config
             self.config = load_config()
         else:
             self.config = config
@@ -713,12 +713,10 @@ class Agent:
         
         return False
     
-    def run(self, query: str, template_path: Optional[str] = None, variables: Optional[Dict[str, Any]] = None) -> Any:
+    def run(self, query: str, template_path: Optional[str] = None, variables: Optional[Dict[str, Any]] = None, expected_type: Optional[type] = None) -> Any:
         """Run the Agent with enhanced retry mechanism."""
         logger.info("\n" + "="*50)
         logger.info("Agent Execution")
-        logger.info("="*50)
-        logger.info(f"Query: {query}")
         logger.info("="*50 + "\n")
         
         retry_history = []
@@ -763,6 +761,7 @@ class Agent:
 
                 api_key = os.getenv("OPENROUTER_API_KEY")
                 completion = make_openrouter_request(self.config, api_key, payload)
+                print(completion)
                 
                 if not get_choices(completion):
                     error_msg = f"Invalid response format - no choices returned"
@@ -788,12 +787,27 @@ class Agent:
                     # Handle orchestrator assessment format
                     if "assessment" in parsed:
                         logger.info(f"Successfully parsed assessment format: {parsed}")
-                        return parsed
+                        logger.info("\n" + "="*50)
+                        logger.info(f"Task completed. Final answer: {parsed}")
+                        logger.info("="*50 + "\n")
+
+                        # Apply type conversion using utility if requested
+                        if expected_type:
+                            logger.warning(f"Expected type '{expected_type.__name__}' requested for assessment result. Conversion not applied.")
+                        return parsed # Return original parsed dict for assessment
+
                     # Handle tool execution format
                     elif "tool" in parsed and "arguments" in parsed:
                         logger.info(f"Successfully parsed tool execution format: {parsed}")
                         tool_name, tool_args = parsed['tool'], parsed['arguments']
-                        return self.execute_tool_call(tool_name, tool_args)
+                        result = self.execute_tool_call(tool_name, tool_args)
+                        logger.info("\n" + "="*50)
+                        logger.info(f"Task completed. Final answer: {result}")
+                        logger.info("="*50 + "\n")
+
+                        # Apply type conversion using utility if requested
+                        final_result = convert_to_expected_type(result, expected_type, logger)
+                        return final_result
                     
                 # If we couldn't parse the response properly, but it's not empty
                 elif content and content.strip():
@@ -822,7 +836,14 @@ class Agent:
                         logger.info("Returning content as chat response")
                         # Ensure we pass a non-empty message
                         message = content.strip() if content.strip() else "I apologize, but I couldn't generate a proper response. Could you please rephrase your question?"
-                        return self.execute_tool_call("chat", {"message": message})
+                        result = self.execute_tool_call("chat", {"message": message})
+                        logger.info("\n" + "="*50)
+                        logger.info(f"Task completed. Final answer: {result}")
+                        logger.info("="*50 + "\n")
+
+                        # Apply type conversion using utility if requested
+                        final_result = convert_to_expected_type(result, expected_type, logger)
+                        return final_result
                 else:
                     # Only count as an error for retry if response is completely empty
                     error_msg = f"Invalid response format - {content[:100]}..."
@@ -853,7 +874,10 @@ class Agent:
             "message": "I couldn't understand how to process your request. Could you please rephrase it?"
         })
         
-        # Raise exception with enhanced retry history
+        # Apply type conversion using utility if requested (unlikely to succeed here)
+        final_result = convert_to_expected_type(fallback_result, expected_type, logger)
+        # Still raise the exception after processing fallback
+
         raise AgentRetryExceeded(
             f"Failed to get valid response after {self.retry_manager.current_attempt} attempts",
             history=retry_history
@@ -890,7 +914,7 @@ def get_llm(model: Optional[str] = None) -> Callable[[str], str]:
     
     # Get model and base_url from config
     try:
-        from core.config import load_config, get_config_value
+        from tinyagent.config import load_config, get_config_value
         config = load_config()
         if not config:
             raise ConfigurationError("config.yml not found")

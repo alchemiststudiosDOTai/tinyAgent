@@ -18,9 +18,9 @@ import sys
 # Add parent directory to the path so we can import the core package
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.agent import Agent
-from core.factory.agent_factory import AgentFactory
-from core.tools import file_manipulator_tool
+from tinyagent.agent import Agent
+from tinyagent.factory.agent_factory import AgentFactory
+from tinyagent.tools import file_manipulator_tool
 
 
 def main():

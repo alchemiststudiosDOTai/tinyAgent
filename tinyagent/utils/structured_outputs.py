@@ -112,8 +112,7 @@ def try_structured_parse(llm_call_func, messages: list, config: Dict[str, Any], 
 
     payload = inject_schema_in_request(messages, config, context)
     response_text = llm_call_func(payload)
-    print("\n[StructuredOutputs] LLM response text:")
-    print(response_text[:1000])  # Print first 1000 chars for brevity
+    print(response_text[:1000])  
 
     parsed = parse_strict_response(response_text)
     if parsed is not None:

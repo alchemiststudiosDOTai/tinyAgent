@@ -20,8 +20,8 @@ import json
 # Add parent directory to the path so we can import the core package
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.factory.orchestrator import Orchestrator
-from core.factory.elder_brain import ElderBrain
+from tinyagent.factory.orchestrator import Orchestrator
+from tinyagent.factory.elder_brain import ElderBrain
 
 def main():
     # Initialize orchestrator

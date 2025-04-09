@@ -10,7 +10,7 @@ all the core components of the framework through a clean, simple API.
 from dotenv import load_dotenv
 load_dotenv() 
 
-from core import (
+from tinyagent import (
     # Core components
     Agent, get_llm, Tool, ParamType, tool,
     
@@ -32,7 +32,7 @@ from core import (
 )
 
 # Built-in tools
-from core.tools import (
+from tinyagent.tools import (
     anon_coder_tool,
     llm_serializer_tool,
     brave_web_search_tool,

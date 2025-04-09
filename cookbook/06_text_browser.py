@@ -12,9 +12,9 @@ import os
 # Add project root to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.tools.custom_text_browser import get_tool
-from core.factory.agent_factory import AgentFactory
-from core.agent import Agent
+from tinyagent.tools.custom_text_browser import get_tool
+from tinyagent.factory.agent_factory import AgentFactory
+from tinyagent.agent import Agent
 
 
 def main():

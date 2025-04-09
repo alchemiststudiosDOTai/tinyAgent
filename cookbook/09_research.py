@@ -11,13 +11,13 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Now use absolute imports matching your working version
-from core.agent import get_llm
-from core.factory.agent_factory import AgentFactory
-from core.tools.duckduckgo_search import duckduckgo_search_tool
-from core.tools.custom_text_browser import get_tool as get_browser_tool
-from core.decorators import tool
-from core.exceptions import ToolError
-from core.logging import get_logger
+from tinyagent.agent import get_llm
+from tinyagent.factory.agent_factory import AgentFactory
+from tinyagent.tools.duckduckgo_search import duckduckgo_search_tool
+from tinyagent.tools.custom_text_browser import get_tool as get_browser_tool
+from tinyagent.decorators import tool
+from tinyagent.exceptions import ToolError
+from tinyagent.logging import get_logger
 
 # Rest of your imports
 import json

@@ -21,8 +21,8 @@ import logging
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.agent import Agent
-from core.config import load_config
+from tinyagent.agent import Agent
+from tinyagent.config import load_config
 
 def create_demo_config() -> Dict[str, Any]:
     """Create a demo configuration with retry settings."""

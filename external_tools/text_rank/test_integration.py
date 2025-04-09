@@ -11,7 +11,7 @@ import json
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 try:
-    from core.tools.external import load_external_tools
+    from tinyagent.tools.external import load_external_tools
     
     print("Loading external tools...")
     tools = load_external_tools()

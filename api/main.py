@@ -1,7 +1,7 @@
-from fastapi import FastAPI
+1from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from core.logging import get_logger
+from tinyagent.logging import get_logger
 from .routers import tools
 import os
 

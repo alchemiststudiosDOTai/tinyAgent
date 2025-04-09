@@ -1,4 +1,4 @@
-from core.config.config import load_config
+from tinyagent.config.config import load_config
 
 
 def get_api_config():
