@@ -1,0 +1,37 @@
+Using model: deepseek/deepseek-r1
+Max steps per research phase: 2
+Debug level: 0
+Configuration source: defaults
+
+Research phases:
+  - gathering: 2 steps
+  - analysis: 2 steps
+  - synthesis: 2 steps
+Initializing custom text browser...
+=== CONFIGURING PROXY ===
+Proxy disabled in configuration
+Proxy disabled for browser
+Initializing file manager...
+Research output directory: tinyAgent_output/research
+Initializing tools registry...
+Registered 8 gathering tools, 5 analysis tools, and 3 synthesis tools
+
+Initialization complete
+
+Using model: deepseek/deepseek-r1
+Max steps per research phase: 2
+Debug level: 0
+Rate limit delay: 2.0s
+Max retries: 3
+Retry delay: 1.0s
+Proxy configured: False
+Running agent with query: 'Calculate 5 + 3'
+
+[OpenRouterRequest] Structured outputs DISABLED. Building standard payload without schema.
+Generating code...
+Generated!          
+
+
+Result: STDOUT:
+8
+

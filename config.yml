@@ -3,6 +3,8 @@
 #base_url: "http://localhost:1234/v1"
 base_url: "https://openrouter.ai/api/v1"
 
+structured_outputs: false
+
 model:
   # Default model to use
   #default: "deepseek/deepseek-r1"
@@ -11,10 +13,9 @@ model:
   default: "deepseek/deepseek-chat"
   # use claude 3.7 for best resutls, v3 is best value while using tools but 3.7 is the SOTA to use if you can afford it, r1 is best for general use
   
-# Parsing configuration
 parsing:
   # When true, only strict JSON parsing is used
-  strict_json: false
+  strict_json: true
   # Fallback parsers (only used when strict_json is false)
   fallback_parsers:
     # Enable template-style parsing as first fallback
@@ -36,28 +37,6 @@ retries:
     enabled: true
     sequence:
       - "deepseek/deepseek-chat"      # Start with basic
-      - "anthropic/claude-3.5-sonnet"  # Escalate to better
-      - "anthropic/claude-3.7-sonnet"  # Final escalation to best
-
-# Rate limiting configuration
-rate_limits:
-  # Global rate limit (applies to all tools by default)
-  global: 2
-  # Tool-specific rate limits (override global)
-  tools:
-    file_hunter: 5
-    ripgrep: 10
-    chat: -1  # No limit for chat tool
-
-# Dynamic agent configuration
-dynamic_agents:
-  # Whether to allow creating new tools without asking
-  allow_new_tools_by_default: false
-  # Whether to use existing tools if possible before creating new ones
-  prioritize_existing_tools: true
-  # Maximum number of dynamic agents to keep in memory
-  max_agents: 10
-  # Model to use for dynamic agent operations (defaults to model.default if not specified)
   model: "deepseek/deepseek-chat"
 # ElderBrain configuration
 elder_brain:

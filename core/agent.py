@@ -8,6 +8,9 @@ tools based on user queries.
 import os
 import re
 import json
+import requests
+from core.utils.openrouter_request import build_openrouter_payload, make_openrouter_request
+from core.utils.structured_outputs import parse_strict_response
 import time
 from typing import List, Dict, Any, Optional, Union, Callable, TypeVar, cast, Tuple
 from datetime import datetime, timedelta
@@ -16,6 +19,13 @@ import logging
 from openai import OpenAI
 from .exceptions import AgentRetryExceeded, ConfigurationError, ParsingError
 from .tool import Tool
+
+
+def get_choices(completion):
+    if isinstance(completion, dict):
+        return completion.get("choices", [])
+    else:
+        return getattr(completion, "choices", [])
 from .logging import get_logger
 from .prompts.prompt_manager import PromptManager
 
@@ -489,6 +499,15 @@ class Agent:
         Returns:
             Dict containing parsed JSON or None if parsing fails
         """
+        # First, try schema-enforced parsing if enabled
+        if self.config.get("structured_outputs", False):
+            parsed = parse_strict_response(content)
+            if parsed is not None:
+                logger.info("Successfully parsed schema-enforced JSON response.")
+                return parsed
+            else:
+                logger.warning("Schema-enforced parsing failed, falling back to robust parser.")
+
         # Use the configured parser if available
         if self.parser:
             return self.parser.parse(content)
@@ -729,20 +748,23 @@ class Agent:
                     base_url=self.base_url,
                     api_key=self.api_key,
                 )
-                
-                completion = client.chat.completions.create(
-                    extra_headers={
-                        "HTTP-Referer": "https://tinyagent.xyz",
-                    },
+
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ]
+
+                payload = build_openrouter_payload(
+                    messages=messages,
+                    config=self.config,
                     model=current_model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
                     temperature=temperature
                 )
+
+                api_key = os.getenv("OPENROUTER_API_KEY")
+                completion = make_openrouter_request(self.config, api_key, payload)
                 
-                if not completion.choices:
+                if not get_choices(completion):
                     error_msg = f"Invalid response format - no choices returned"
                     logger.error(error_msg)
                     retry_history.append({
@@ -753,7 +775,8 @@ class Agent:
                     })
                     continue
                 
-                content = completion.choices[0].message.content
+                choices = get_choices(completion)
+                content = choices[0].message.content if hasattr(choices[0], "message") else choices[0]["message"]["content"]
                 parsed = self._parse_response(content)
                 
                 # Output debug information about the response

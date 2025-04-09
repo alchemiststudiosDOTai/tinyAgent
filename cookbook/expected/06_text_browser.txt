@@ -1,0 +1,59 @@
+Using model: deepseek/deepseek-r1
+Max steps per research phase: 2
+Debug level: 0
+Configuration source: defaults
+
+Research phases:
+  - gathering: 2 steps
+  - analysis: 2 steps
+  - synthesis: 2 steps
+Initializing custom text browser...
+=== CONFIGURING PROXY ===
+Proxy disabled in configuration
+Proxy disabled for browser
+Initializing file manager...
+Research output directory: tinyAgent_output/research
+Initializing tools registry...
+Registered 8 gathering tools, 5 analysis tools, and 3 synthesis tools
+
+Initialization complete
+
+Using model: deepseek/deepseek-r1
+Max steps per research phase: 2
+Debug level: 0
+Rate limit delay: 2.0s
+Max retries: 3
+Retry delay: 1.0s
+Proxy configured: False
+Custom Text Browser Example
+---------------------------
+This example demonstrates using the custom text browser tool to
+navigate web content through the agent framework.
+
+
+[OpenRouterRequest] Structured outputs DISABLED. Building standard payload without schema.
+
+Page Title: Hugging Face – Blog
+
+Content (first 500 chars):
+--------------------------------------------------
+# Hugging Face – Blog
+
+# Blog, Articles, and discussions
+
+## Hugging Face and Cloudflare Partner to Make Real-Time Speech and Video Seamless with FastRTC
+
+## Arabic Leaderboards: Introducing Arabic Instruction Following, Updating AraGen, and More
+
+## Welcome Llama 4 Maverick & Scout on Hugging Face!
+
+## Journey to 1 Million Gradio Users!
+
+## The NLP Course is becoming the LLM Course!
+
+## How Hugging Face Scaled Secrets Management for AI Infrastructure
+
+## Accelerating LLM Inference with TGI on I...
+--------------------------------------------------
+
+Viewport: Page 1 of 2

@@ -1,0 +1,75 @@
+Using model: deepseek/deepseek-r1
+Max steps per research phase: 2
+Debug level: 0
+Configuration source: defaults
+
+Research phases:
+  - gathering: 2 steps
+  - analysis: 2 steps
+  - synthesis: 2 steps
+Initializing custom text browser...
+=== CONFIGURING PROXY ===
+Proxy disabled in configuration
+Proxy disabled for browser
+Initializing file manager...
+Research output directory: tinyAgent_output/research
+Initializing tools registry...
+Registered 8 gathering tools, 5 analysis tools, and 3 synthesis tools
+
+Initialization complete
+
+Using model: deepseek/deepseek-r1
+Max steps per research phase: 2
+Debug level: 0
+Rate limit delay: 2.0s
+Max retries: 3
+Retry delay: 1.0s
+Proxy configured: False
+File Manipulator Example
+-----------------------
+This example demonstrates using the file manipulator tool to perform
+CRUD operations on files. Files are created relative to the current
+working directory unless configured otherwise.
+
+
+Running query: 'Create a file named 'tinyAgent_output/test.txt' with content 'Hello, World!''
+
+[OpenRouterRequest] Structured outputs DISABLED. Building standard payload without schema.
+Result: {'status': 'success', 'path': '/home/fabian/projects/tinyAgent/tinyAgent_output/test.txt'}
+
+Running query: 'Read the contents of 'tinyAgent_output/test.txt''
+
+[OpenRouterRequest] Structured outputs DISABLED. Building standard payload without schema.
+Result: {'status': 'success', 'content': 'Hello, World!'}
+
+Running query: 'Update 'tinyAgent_output/test.txt' with content 'Hello, tinyAgent!''
+
+[OpenRouterRequest] Structured outputs DISABLED. Building standard payload without schema.
+Result: {'status': 'success', 'path': '/home/fabian/projects/tinyAgent/tinyAgent_output/test.txt'}
+
+Running query: 'List all files in the 'tinyAgent_output' directory'
+
+[OpenRouterRequest] Structured outputs DISABLED. Building standard payload without schema.
+Result: {'status': 'success', 'items': [{'name': 'research', 'type': 'directory', 'size': None, 'permissions': '755'}, {'name': 'test.txt', 'type': 'file', 'size': 17, 'permissions': '644'}]}
+
+Directory contents:
+- research (directory)
+- test.txt (file)
+  Size: 17 bytes
+  Permissions: 644
+
+Running query: 'Delete the file 'tinyAgent_output/test.txt''
+
+[OpenRouterRequest] Structured outputs DISABLED. Building standard payload without schema.
+Result: {'status': 'success', 'path': '/home/fabian/projects/tinyAgent/tinyAgent_output/test.txt'}
+
+Running query: 'List all files in the 'tinyAgent_output' directory'
+
+[OpenRouterRequest] Structured outputs DISABLED. Building standard payload without schema.
+Result: {'status': 'success', 'items': [{'name': 'research', 'type': 'directory', 'size': None, 'permissions': '755'}, {'name': 'test.txt', 'type': 'file', 'size': 17, 'permissions': '644'}]}
+
+Directory contents:
+- research (directory)
+- test.txt (file)
+  Size: 17 bytes
+  Permissions: 644

@@ -7,6 +7,7 @@ result integration.
 """
 #this file is over 1000 lines, it is only this long for debugging purposes
 import json
+import pprint
 import time
 import re
 import os
@@ -800,6 +801,8 @@ class Orchestrator:
                 if json_match:
                     try:
                         parsed_result = json.loads(json_match.group(1))
+                        print("\n[Parsed JSON from regex extraction]:")
+                        pprint.pprint(parsed_result)
                         # Apply ElderBrain by default if configured and not a direct tool call
                         if self.elderbrain_default and not "tool" in parsed_result:
                             parsed_result["use_phased_flow"] = True
@@ -811,6 +814,8 @@ class Orchestrator:
                 # Strategy 2: Try parsing entire content as JSON
                 try:
                     parsed_result = json.loads(result)
+                    print("\n[Parsed JSON from direct parse]:")
+                    pprint.pprint(parsed_result)
                     # Apply ElderBrain by default if configured and not a direct tool call
                     if self.elderbrain_default and "tool" not in parsed_result:
                         parsed_result["use_phased_flow"] = True
