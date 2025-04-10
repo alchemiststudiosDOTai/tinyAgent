@@ -1,5 +1,10 @@
 # tinyAgent 🤖
 
+**License:** Business Source License 1.1 (BSL)  
+Free for individuals and small businesses (<$1M annual revenue).  
+Commercial use by larger businesses requires an enterprise license.  
+Contact: admin@alchemiststudios.ai
+
 A streamlined framework for building powerful LLM-powered agents that can solve complex tasks through tool execution, orchestration, and dynamic capability creation.
 
 **Made by (x) @tunahorse21 | A product of alchemiststudios.ai**
@@ -22,8 +27,11 @@ _/  |_|__| ____ ___.__. /  _  \    ____   ____   _____/  |_
 ### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/alchemiststudiosDOTai/tinyAgent.git
+# Install via pip (recommended)
+pip install tiny_agent_os
+
+# Or for development, clone the repository
+git clone https://github.com/alchemiststudiosai/tinyAgent.git
 
 cd tinyagent
 
@@ -54,6 +62,15 @@ cp .envexample .env
 cp exampleconfig.yml config.yml
 # Edit config.yml to customize your settings
 ```
+
+### Pip Installation
+
+```bash
+# Simple pip installation
+pip install tiny_agent_os
+```
+
+**Note:** The orchestrator component is currently being built and is in beta.
 
 ---
 
@@ -103,6 +120,12 @@ flowchart TD
     O --> A2["Summarizer Agent"]
     O --> A3["Code Snippet Agent"]
 ```
+
+> **⚠️ Orchestrator Beta Notice:**  
+> The orchestrator component is **in early beta** and **may not work fully out of the box**.  
+> You can **hack together your own tools and configs** to get it working for your needs,  
+> but expect some rough edges and double-check everything.  
+> Improvements are ongoing.
 
 ---
 

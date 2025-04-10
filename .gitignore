@@ -1,4 +1,5 @@
 # Environment and configuration
+.pypirc
 .aider*
 .env
 .env.*

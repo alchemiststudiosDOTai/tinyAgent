@@ -5,7 +5,7 @@ This package contains the core components of the tinyAgent framework, including
 the Agent class, Tool framework, configuration management, and utilities.
 """
 
-__version__ = "0.4.0"
+__version__ = "0.65"
 
 # Core components
 from .agent import Agent, get_llm
