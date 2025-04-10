@@ -4,10 +4,9 @@ A streamlined framework for building powerful LLM-powered agents that can solve 
 
 **Made by (x) @tunahorse21 | A product of alchemiststudios.ai**
 
-> **IMPORTANT**: tinyAgent is in EARLY BETA until V1. Use common sense when working with this tool.  
-> NOT RESPONSIBLE FOR ANY ISSUES that may arise from its use.
-> I made this becuase I wanted to, I work fulltime + business, bugs will be fixed asap but expect some issues until V1
-> Nerds, please don't get mad, instead show me how "cracked" you are and open an issue with a fix !
+> **Heads Up**: tinyAgent is in BETA until V1. It's super powerful but still evolving!  
+> While I can't guarantee it's 100% bug-free, I'm actively improving it whenever I can between my day job and business.
+> Found something that could be better? Show off your skills and open an issue with a fix - I'd genuinely appreciate it!
 
 ![tinyAgent Logo](tintAgentLogo.png)
 
@@ -105,21 +104,6 @@ flowchart TD
     O --> A3["Code Snippet Agent"]
 ```
 
-3. **Elder Brain (Experimental)**
-   - You give it **one big prompt**.
-   - It **analyzes** the task, **plans** steps, **runs tools/agents**, and **combines results**.
-   - Acts like a **project manager** for complex workflows.
-   - **Highly experimental** and still in development.
-
-```mermaid
-flowchart TD
-    U["Research AI trends and generate report"] --> EB["Elder Brain"]
-    EB --> AN["Analyze task"]
-    EB --> PL["Plan steps"]
-    EB --> EX["Run tools & agents"]
-    EX --> R["Final Report"]
-```
-
 ---
 
 ## Features
@@ -168,10 +152,6 @@ We'd like to thank the creators of these amazing projects that inspired TinyAgen
 - [RA.Aid](https://github.com/ai-christianson/RA.Aid)
 
 ---
-
-## Contributing
-
-## Contributions to tinyAgent are welcome! Whether you're fixing bugs, adding features, or improving documentation, your help is appreciated.
 
 ## Key Takeaways
 
