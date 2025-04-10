@@ -19,6 +19,7 @@ from .final_extractor_tool import final_answer_extractor
 from .enhanced_deepsearch import enhanced_deepsearch_tool, enhanced_deepsearch_tool_wrapper
 from .content_processor import process_content
 from .business_deepsearch import business_deepsearch_tool, business_deepsearch_tool_wrapper
+from .markdown_gen import markdown_gen_tool
 
 __all__ = [
     # Tool loading utilities
@@ -39,4 +40,5 @@ __all__ = [
     'process_content',
     'business_deepsearch_tool',
     'business_deepsearch_tool_wrapper',
+    'markdown_gen_tool',
 ]
