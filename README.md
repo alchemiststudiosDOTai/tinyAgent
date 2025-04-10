@@ -157,37 +157,6 @@ flowchart TD
 
 ---
 
-## Benefits
-
-1. **Modular Design**
-
-   - Tools are defined with `@tool` and easily integrated or swapped.
-
-2. **Flexible Agent Options**
-
-   - **Orchestrator**: Simple task execution.
-   - **AgentFactory**: Fine-tuned control.
-   - **DynamicAgentFactory**: Dynamic agent creation.
-
-3. **Centralized Setup**
-
-   - Factory pattern streamlines configuration and logging.
-
-4. **Robust Error Handling**
-
-   - Custom exceptions (e.g., `ToolError`) improve debugging.
-
-5. **Clean Code Structure**
-
-   - Agents handle logic; tools handle execution.
-
-6. **Versatile Interaction**
-   - Use `agent.execute_tool()` for precision or `agent.run()` for broader tasks.
-
----
-
----
-
 ## Acknowledgments & Inspo
 
 We'd like to thank the creators of these amazing projects that inspired TinyAgent:
