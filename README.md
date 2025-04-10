@@ -4,9 +4,9 @@ A streamlined framework for building powerful LLM-powered agents that can solve 
 
 **Made by (x) @tunahorse21 | A product of alchemiststudios.ai**
 
-> **Heads Up**: tinyAgent is in BETA until V1. It's super powerful but still evolving!  
+> **Heads Up**: tinyAgent is in BETA until V1. It's working but still evolving!  
 > While I can't guarantee it's 100% bug-free, I'm actively improving it whenever I can between my day job and business.
-> Found something that could be better? Show off your skills and open an issue with a fix - I'd genuinely appreciate it!
+> Found something that could be better? Show off your skills and open an issue with a fix: I'd genuinely appreciate it!
 
 ![tinyAgent Logo](tintAgentLogo.png)
 
