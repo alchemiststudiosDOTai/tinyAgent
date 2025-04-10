@@ -71,18 +71,6 @@ flowchart LR
     C --> D["Result"]
 ```
 
-2. **Hierarchical Orchestration**
-   - You can **combine many agents** together.
-   - A **top-level agent** or **orchestrator** can **delegate tasks** to **specialized agents**.
-   - This helps solve **complex problems** by breaking them into parts.
-
-```mermaid
-flowchart TD
-    O["Research Orchestrator"] --> A1["Web Search Agent"]
-    O --> A2["Summarizer Agent"]
-    O --> A3["Code Snippet Agent"]
-```
-
 ![Function to Agent Flow](static/images/func_agent.png)
 
 ```python
@@ -103,6 +91,18 @@ def main():
     result = agent.run(query, expected_type=int)
     print(f"Result: {result}")
     print(f"Result Type: {type(result)}")
+```
+
+2. **Hierarchical Orchestration**
+   - You can **combine many agents** together.
+   - A **top-level agent** or **orchestrator** can **delegate tasks** to **specialized agents**.
+   - This helps solve **complex problems** by breaking them into parts.
+
+```mermaid
+flowchart TD
+    O["Research Orchestrator"] --> A1["Web Search Agent"]
+    O --> A2["Summarizer Agent"]
+    O --> A3["Code Snippet Agent"]
 ```
 
 3. **Elder Brain (Experimental)**
