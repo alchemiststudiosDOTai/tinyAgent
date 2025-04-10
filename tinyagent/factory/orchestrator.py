@@ -20,7 +20,6 @@ from ..agent import Agent, get_llm
 from ..config import load_config, get_config_value
 from ..exceptions import OrchestratorError, AgentNotFoundError
 from .dynamic_agent_factory import DynamicAgentFactory
-from .elder_brain import ElderBrain
 
 # Set up logger with more detailed formatting
 logger = get_logger(__name__)
@@ -154,17 +153,8 @@ class Orchestrator:
         
         # Initialize the triage agent
         self._create_triage_agent()
-        
-        # Initialize the ElderBrain for phased task processing
-        self.elder_brain = ElderBrain(self, self.config)
-        
-        # Set ElderBrain as default based on config (default to True)
-        self.elderbrain_default = get_config_value(self.config, 'elder_brain.default_enabled', True)
-        
         logger.info("Orchestrator initialized")
-        if self.elderbrain_default:
-            logger.info("ElderBrain enabled by default for all tasks")
-    
+        
     def _create_triage_agent(self) -> None:
         """
         Create and register the triage agent.
@@ -365,70 +355,17 @@ class Orchestrator:
                     "reasoning": f"Triage failed: {str(triage_error)}, falling back to direct handling"
                 }
             
-            # Log the triage result before ElderBrain decision
-            log_section_header("ELDERBRAIN DECISION PROCESS")
             log_step(
                 step_number=6,
                 title="STEP 1: Initial Triage Analysis",
                 details={
                     "assessment": triage_result.get("assessment"),
-                    "use_phased_flow": triage_result.get("use_phased_flow", False),
                     "requires_new_agent": triage_result.get("requires_new_agent", False),
-                    "elderbrain_default": self.elderbrain_default,
                     "has_tool": "tool" in triage_result,
                     "has_arguments": "arguments" in triage_result
                 },
-                reasoning="Analyzing whether task requires ElderBrain processing"
+                reasoning="Analyzing initial triage results"
             )
-            
-            # Check if this task should use the phased approach
-            if triage_result.get("use_phased_flow", False) or triage_result.get("assessment") == "phased":
-                log_step(
-                    step_number=7,
-                    title="STEP 2: ElderBrain ACTIVATED",
-                    details={
-                        "use_phased_flow": triage_result.get("use_phased_flow", False),
-                        "assessment": triage_result.get("assessment"),
-                        "elderbrain_default": self.elderbrain_default,
-                        "reasoning": triage_result.get("reasoning", "No specific reasoning provided")
-                    },
-                    reasoning="Task complexity or configuration requires ElderBrain processing"
-                )
-                
-                # Process the task using the ElderBrain's three-phase approach
-                result = self.elder_brain.process_phased_task(task)
-                task.result = result
-                task.status = "completed" if result.get("success", False) else "failed"
-                
-                log_step(
-                    step_number=8,
-                    title="STEP 3: ElderBrain Results",
-                    details={
-                        "status": task.status,
-                        "success": result.get("success", False),
-                        "duration": time.time() - task.started_at,
-                        "phases_completed": list(result.get("phases", {}).keys())
-                    },
-                    reasoning=f"ElderBrain processing completed with {'success' if result.get('success', False) else 'failure'}"
-                )
-                
-                if not result.get("success", False):
-                    task.error = result.get("error", "Unknown error in phased processing")
-                task.completed_at = time.time()
-                return
-            else:
-                log_step(
-                    step_number=7,
-                    title="STEP 2: ElderBrain NOT ACTIVATED",
-                    details={
-                        "assessment": triage_result.get("assessment"),
-                        "use_phased_flow": triage_result.get("use_phased_flow", False),
-                        "elderbrain_default": self.elderbrain_default,
-                        "reasoning": triage_result.get("reasoning", "No specific reasoning provided"),
-                        "next_action": "Proceeding with direct handling"
-                    },
-                    reasoning="Task does not require ElderBrain processing - proceeding with direct handling"
-                )
             
             # Check if triage_result is actually a direct tool call
             if "tool" in triage_result and "arguments" in triage_result:
@@ -803,10 +740,6 @@ class Orchestrator:
                         parsed_result = json.loads(json_match.group(1))
                         print("\n[Parsed JSON from regex extraction]:")
                         pprint.pprint(parsed_result)
-                        # Apply ElderBrain by default if configured and not a direct tool call
-                        if self.elderbrain_default and not "tool" in parsed_result:
-                            parsed_result["use_phased_flow"] = True
-                            logger.info(f"Applied ElderBrain to task {task.task_id} based on default configuration")
                         return parsed_result
                     except json.JSONDecodeError:
                         pass
@@ -816,10 +749,6 @@ class Orchestrator:
                     parsed_result = json.loads(result)
                     print("\n[Parsed JSON from direct parse]:")
                     pprint.pprint(parsed_result)
-                    # Apply ElderBrain by default if configured and not a direct tool call
-                    if self.elderbrain_default and "tool" not in parsed_result:
-                        parsed_result["use_phased_flow"] = True
-                        logger.info(f"Applied ElderBrain to task {task.task_id} based on default configuration")
                     return parsed_result
                 except json.JSONDecodeError:
                     # Check if this looks like a chat response rather than a JSON response
@@ -827,9 +756,7 @@ class Orchestrator:
                         logger.warning(f"Triage returned chat response instead of JSON format: {result[:100]}...")
                         # Extract any assessment-like keywords to make a best guess
                         assessment = "direct"  # Default
-                        if re.search(r'\b(phased|multi-step|research|planning|implementation)\b', result, re.IGNORECASE):
-                            assessment = "phased"
-                        elif re.search(r'\b(new agent|specialized|create agent)\b', result, re.IGNORECASE):
+                        if re.search(r'\b(new agent|specialized|create agent)\b', result, re.IGNORECASE):
                             assessment = "create_new"
                             
                         default_result = {
@@ -846,11 +773,6 @@ class Orchestrator:
                             "requires_new_agent": False,
                             "reasoning": "Could not parse triage result, falling back to direct handling"
                         }
-                        
-                    # Apply ElderBrain by default if configured
-                    if self.elderbrain_default:
-                        default_result["use_phased_flow"] = True
-                        logger.info(f"Applied ElderBrain to task {task.task_id} based on default configuration")
                     return default_result
             else:
                 # If not a string, it's probably already a structured result
@@ -864,10 +786,6 @@ class Orchestrator:
                 "requires_new_agent": False,
                 "reasoning": f"Triage error: {str(e)}, falling back to direct handling"
             }
-            # Apply ElderBrain by default if configured
-            if self.elderbrain_default:
-                fallback_result["use_phased_flow"] = True
-                logger.info(f"Applied ElderBrain to task {task.task_id} based on default configuration (in fallback)")
             return fallback_result
     
     def _execute_with_agent(self, agent_id: str, task: TaskStatus) -> Any:

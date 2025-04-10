@@ -38,15 +38,11 @@ retries:
     sequence:
       - "deepseek/deepseek-chat" # Start with basic
   model: "deepseek/deepseek-chat"
-# ElderBrain configuration
-elder_brain:
-  # Enable ElderBrain by default for all tasks, this is a beta feature and may not work as expected
-  # this is mostly for agents that need to handle complex tasks that may require multiple steps frequently
-  default_enabled: false
-  # Verbosity level for ElderBrain output (higher value = more detailed output)
-  verbosity: 0
-  # Model to use for ElderBrain operations (defaults to model.default if not specified)
-  model: null
+
+# Enable dynamic tool creation
+dynamic_agents:
+  allow_new_tools_by_default: false
+
 # Code execution security configuration
 code_execution:
   # Allow potentially dangerous operations (file operations, etc)
@@ -56,6 +52,7 @@ code_execution:
     file_operations: true
     os_operations: false
     imports: ["os", "sys"] # Additional allowed imports beyond the defaults
+
 # File operations configuration
 file_operations:
   # Default output directory for file operations
@@ -74,6 +71,7 @@ file_operations:
   create_subdirs: true
   # Whether to allow overwriting existing files
   allow_overwrite: true
+
 # Proxy configuration
 proxy:
   # Master switch for proxy functionality
