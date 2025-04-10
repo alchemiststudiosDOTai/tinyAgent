@@ -70,6 +70,91 @@ cp exampleconfig.yml config.yml
 pip install tiny_agent_os
 ```
 
+### Example Usage after pip install
+
+This example works immediately after pip install (with your config and .env set up):
+
+```python
+#!/usr/bin/env python3
+"""
+Example 0: Functions as Agents
+
+This example demonstrates the fundamental philosophy of tinyAgent:
+turning any function into a tool or agent with minimal configuration.
+"""
+from tinyagent.decorators import tool
+from tinyagent.factory.agent_factory import AgentFactory
+
+# Define a simple calculator function and turn it into a tool
+@tool
+def calculate_sum(a: int, b: int) -> int:
+    """Calculate the sum of two integers."""
+    return a + b
+
+def main():
+    """Create a basic agent with a calculator tool."""
+    # One-liner: create agent with our tool directly
+    agent = AgentFactory.get_instance().create_agent(tools=[calculate_sum])
+    # Run the agent with a query
+    query = "calculate the sum of 5 and 3"
+    print(f"Running agent with query: '{query}'")
+    # you can also specify the expected type of the result
+    result = agent.run(query, expected_type=int)
+    print(f"Result: {result}")
+    print(f"Result Type: {type(result)}")
+
+if __name__ == "__main__":
+    main()
+```
+
+---
+
+### Post-Installation Configuration
+
+After installing via pip, you **must** provide your own configuration files:
+
+#### 1. Create `config.yml`
+
+- Copy the example if available:
+
+```bash
+cp exampleconfig.yml config.yml
+```
+
+- Or create a new `config.yml` in your project directory with at least:
+
+```yaml
+base_url: "https://openrouter.ai/api/v1"
+model:
+  default: "deepseek/deepseek-chat"
+# Add any other settings you need
+```
+
+#### 2. Create `.env`
+
+- In your project directory, create a `.env` file:
+
+```bash
+touch .env
+```
+
+- Add your API key:
+
+```
+OPENROUTER_API_KEY=your_api_key_here
+```
+
+#### 3. (Optional) Override config locations
+
+- You can set environment variables to override default paths:
+
+```bash
+export TINYAGENT_CONFIG=/path/to/your/config.yml
+export TINYAGENT_ENV=/path/to/your/.env
+```
+
+---
+
 **Note:** The orchestrator component is currently being built and is in beta.
 
 ---

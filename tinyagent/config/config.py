@@ -125,14 +125,24 @@ def load_config(config_path: Optional[str] = None) -> TinyAgentConfig:
     Raises:
         ConfigurationError: If there's an error with the configuration format
     """
-    # Always use project root directory
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    
-    if config_path is None:
-        config_path = os.path.join(project_root, 'config.yml')
-    elif not os.path.isabs(config_path):
-        # If relative path provided, make it relative to project root
-        config_path = os.path.join(project_root, config_path)
+    # 1. Check environment variable override
+    env_config = os.getenv("TINYAGENT_CONFIG")
+    if env_config and os.path.isfile(env_config):
+        config_path = env_config
+    else:
+        # 2. If no explicit path, check current working directory
+        if config_path is None:
+            cwd_config = os.path.join(os.getcwd(), 'config.yml')
+            if os.path.isfile(cwd_config):
+                config_path = cwd_config
+            else:
+                # 3. Fallback to package root
+                project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                config_path = os.path.join(project_root, 'config.yml')
+        elif not os.path.isabs(config_path):
+            # If relative path provided, make it relative to project root
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            config_path = os.path.join(project_root, config_path)
     
     config = cast(TinyAgentConfig, DEFAULT_CONFIG.copy())
     

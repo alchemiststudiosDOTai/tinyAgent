@@ -8,6 +8,7 @@ tools based on user queries.
 import os
 import json
 import requests
+import re
 from tinyagent.utils.openrouter_request import build_openrouter_payload, make_openrouter_request
 from tinyagent.utils.structured_outputs import parse_strict_response
 import time
@@ -160,11 +161,17 @@ class Agent:
             self.config = config
         
         # Try to load environment variables from project root
+        project_root = None
         try:
             from dotenv import load_dotenv
-            # Get project root directory
-            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            env_path = os.path.join(project_root, '.env')
+            env_path = os.getenv("TINYAGENT_ENV")
+            if not env_path:
+                cwd_env = os.path.join(os.getcwd(), '.env')
+                if os.path.isfile(cwd_env):
+                    env_path = cwd_env
+                else:
+                    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                    env_path = os.path.join(project_root, '.env')
             load_dotenv(env_path)
             logger.debug(f"Loaded environment variables from {env_path}")
         except ImportError:
@@ -900,9 +907,14 @@ def get_llm(model: Optional[str] = None) -> Callable[[str], str]:
     # Try to load environment variables from project root
     try:
         from dotenv import load_dotenv
-        # Get project root directory
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        env_path = os.path.join(project_root, '.env')
+        env_path = os.getenv("TINYAGENT_ENV")
+        if not env_path:
+            cwd_env = os.path.join(os.getcwd(), '.env')
+            if os.path.isfile(cwd_env):
+                env_path = cwd_env
+            else:
+                project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                env_path = os.path.join(project_root, '.env')
         load_dotenv(env_path)
         logger.debug(f"Loaded environment variables from {env_path}")
     except ImportError:
