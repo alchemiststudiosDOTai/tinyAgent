@@ -3,7 +3,7 @@
 #base_url: "http://localhost:1234/v1"
 base_url: "https://openrouter.ai/api/v1"
 
-structured_outputs: false
+structured_outputs: True
 
 model:
   # Default model to use
@@ -12,7 +12,7 @@ model:
   #default: "anthropic/claude-3.7-sonnet"
   default: "deepseek/deepseek-chat"
   # use claude 3.7 for best resutls, v3 is best value while using tools but 3.7 is the SOTA to use if you can afford it, r1 is best for general use
-  
+
 parsing:
   # When true, only strict JSON parsing is used
   strict_json: true
@@ -26,7 +26,7 @@ parsing:
 # Retry configuration with warming and escalation
 retries:
   # Maximum retry attempts
-  max_attempts: 3  
+  max_attempts: 3
   # Temperature control for creativity
   temperature:
     initial: 0.2
@@ -36,11 +36,11 @@ retries:
   model_escalation:
     enabled: true
     sequence:
-      - "deepseek/deepseek-chat"      # Start with basic
+      - "deepseek/deepseek-chat" # Start with basic
   model: "deepseek/deepseek-chat"
 # ElderBrain configuration
 elder_brain:
-  # Enable ElderBrain by default for all tasks, this is a beta feature and may not work as expected 
+  # Enable ElderBrain by default for all tasks, this is a beta feature and may not work as expected
   # this is mostly for agents that need to handle complex tasks that may require multiple steps frequently
   default_enabled: false
   # Verbosity level for ElderBrain output (higher value = more detailed output)
@@ -50,12 +50,12 @@ elder_brain:
 # Code execution security configuration
 code_execution:
   # Allow potentially dangerous operations (file operations, etc)
-  allow_dangerous_operations: true  # Set to false to enforce strict security
+  allow_dangerous_operations: true # Set to false to enforce strict security
   # Optional: more granular control
   allowed_operations:
     file_operations: true
     os_operations: false
-    imports: ["os", "sys"]  # Additional allowed imports beyond the defaults
+    imports: ["os", "sys"] # Additional allowed imports beyond the defaults
 # File operations configuration
 file_operations:
   # Default output directory for file operations
@@ -94,8 +94,8 @@ proxy:
   username: ${TINYAGENT_PROXY_USERNAME}
   password: ${TINYAGENT_PROXY_PASSWORD}
   country: ${TINYAGENT_PROXY_COUNTRY}
-  
+
 logging:
-  level: CRITICAL   # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: CRITICAL # DEBUG, INFO, WARNING, ERROR, CRITICAL
   format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-  handlers: ["console"] 
+  handlers: ["console"]
