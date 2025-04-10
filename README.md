@@ -65,23 +65,10 @@ cp exampleconfig.yml config.yml
    - This makes it easy to add new capabilities.
 
 ```mermaid
-sequenceDiagram
-    participant User
-    participant Agent
-    participant LLM
-    participant ToolFunction
-
-    User->>Agent: Natural language query
-    Agent->>Agent: Build system prompt with tool descriptions
-    Agent->>LLM: Send prompt + query
-    LLM-->>Agent: Response (plain answer or tool call JSON)
-    alt Tool call indicated
-        Agent->>ToolFunction: Execute function with extracted arguments
-        ToolFunction-->>Agent: Function result
-        Agent-->>User: Return function result
-    else Plain answer
-        Agent-->>User: Return plain answer
-    end
+flowchart LR
+    A["Python Function"] --> B["Tool"]
+    B --> C["Agent"]
+    C --> D["Result"]
 ```
 
 2. **Hierarchical Orchestration**
@@ -94,6 +81,28 @@ flowchart TD
     O["Research Orchestrator"] --> A1["Web Search Agent"]
     O --> A2["Summarizer Agent"]
     O --> A3["Code Snippet Agent"]
+```
+
+![Function to Agent Flow](static/images/func_agent.png)
+
+```python
+# Define a simple calculator function and turn it into a tool
+@tool
+def calculate_sum(a: int, b: int) -> int:
+    """Calculate the sum of two integers."""
+    return a + b
+
+def main():
+    """Create a basic agent with a calculator tool."""
+    # One-liner: create agent with our tool directly
+    agent = AgentFactory.get_instance().create_agent(tools=[calculate_sum])
+    # Run the agent with a query
+    query = "calculate the sum of 5 and 3"
+    print(f"Running agent with query: '{query}'")
+    # you can also specify the expected type of the result
+    result = agent.run(query, expected_type=int)
+    print(f"Result: {result}")
+    print(f"Result Type: {type(result)}")
 ```
 
 3. **Elder Brain (Experimental)**

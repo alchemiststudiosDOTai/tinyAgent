@@ -25,8 +25,8 @@ def main():
     # Run the agent with a query
     query = "calculate the sum of 5 and 3"
     print(f"Running agent with query: '{query}'")
+    # you can also specify the expected type of the result
     result = agent.run(query, expected_type=int)
-    
     print(f"Result: {result}")
     print(f"Result Type: {type(result)}")
 
