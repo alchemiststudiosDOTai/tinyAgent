@@ -13,7 +13,6 @@ secrets/
 # Project specific
 tinyAgent_output/
 downloads/
-mcp/
 **/node_modules/
 EVAL/
 uv.lock
