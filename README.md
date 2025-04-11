@@ -11,7 +11,7 @@ _/  |_|__| ____ ___.__. /  _  \    ____   ____   _____/  |_
               \/\/            \//_____/      \/     \/
 ```
 
-**Made by (x) [@tunahorse21](https://github.com/tunahorse21) | A product of [alchemiststudios.ai](https://alchemiststudios.ai)**
+**Made by (x) [@tunahorse21](https://x.com/tunahorse21) | A product of [alchemiststudios.ai](https://alchemiststudios.ai)**
 
 ---
 
