@@ -37,6 +37,49 @@ tinyAgent is a streamlined framework for building powerful, LLM-powered agents t
 ```bash
 pip install tiny_agent_os
 ```
+---
+
+##  Post-Installation Configuration for Pip Users
+
+After installing via `pip`, you’ll need to provide your own configuration files. For convenience, you can download the defaults directly:
+
+---
+
+###  Download the Configuration File (`config.yml`)
+
+**Using `wget`:**
+
+```bash
+wget https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/config.yml
+```
+
+**Or using `curl`:**
+
+```bash
+curl -O https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/config.yml
+```
+
+---
+
+###  Download the Environment File (`.env`)
+
+Download the example environment file and rename it to `.env`:
+
+**Using `wget`:**
+
+```bash
+wget https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/.envexample -O .env
+```
+
+**Or using `curl`:**
+
+```bash
+curl -o .env https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/.envexample
+```
+
+>  **Note:** Be sure to edit the `.env` file with your actual API keys and any other required variables.
+
+---
 
 ### Cloning for Development
 
