@@ -1,552 +1,564 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>tinyAgent - AGI made simple</title>
     <style>
-        :root {
-            --primary-color: #e6edf3;
-            --accent-color: #f56565;
-            --dark-bg: #0d1117;
-            --dark-card: #161b22;
-            --secondary-color: #58a6ff;
-            --code-bg: #1e2128;
-            --code-color: #f8f8f2;
-            --hover-accent: #e05252;
-            --code-shadow: rgba(0, 0, 0, 0.3);
-        }
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        body {
-            background-color: var(--dark-bg);
-            color: var(--primary-color);
-            line-height: 1.6;
-        }
-        
-        .container {
-            width: 90%;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem 1rem;
-        }
-        
-        header {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            padding: 2rem 0;
-            margin-bottom: 2rem;
-            border-bottom: 2px solid var(--accent-color);
-        }
-        
-        .logo-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-bottom: 0.5rem;
-        }
-        
-        .logo {
-            max-width: 200px;
-            height: auto;
-        }
-        
+      :root {
+        --primary-color: #e6edf3;
+        --accent-color: #f56565;
+        --dark-bg: #0d1117;
+        --dark-card: #161b22;
+        --secondary-color: #58a6ff;
+        --code-bg: #1e2128;
+        --code-color: #f8f8f2;
+        --hover-accent: #e05252;
+        --code-shadow: rgba(0, 0, 0, 0.3);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      body {
+        background-color: var(--dark-bg);
+        color: var(--primary-color);
+        line-height: 1.6;
+      }
+
+      .container {
+        width: 90%;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+      }
+
+      header {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        border-bottom: 2px solid var(--accent-color);
+      }
+
+      .logo-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 0.5rem;
+      }
+
+      .logo {
+        max-width: 200px;
+        height: auto;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        color: var(--primary-color);
+      }
+
+      h2 {
+        font-size: 1.8rem;
+        margin: 2rem 0 1rem;
+        color: var(--primary-color);
+        border-left: 4px solid var(--accent-color);
+        padding-left: 1rem;
+      }
+
+      h3 {
+        color: var(--primary-color);
+        margin: 0.5rem 0;
+      }
+
+      p {
+        margin-bottom: 1.5rem;
+      }
+
+      a {
+        color: var(--accent-color);
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      .highlight {
+        color: var(--accent-color);
+        font-weight: bold;
+      }
+
+      .framework-advantages {
+        list-style-type: none;
+        margin-bottom: 1.5rem;
+        text-align: center;
+      }
+
+      .framework-advantages li {
+        margin-bottom: 0.5rem;
+        position: relative;
+        padding-left: 1.5rem;
+        display: inline-block;
+        margin-right: 1rem;
+      }
+
+      .framework-advantages li:before {
+        content: "✓";
+        color: var(--accent-color);
+        position: absolute;
+        left: 0;
+        font-weight: bold;
+      }
+
+      .card {
+        background-color: var(--dark-card);
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        transition: transform 0.3s ease;
+      }
+
+      .card:hover {
+        transform: translateY(-5px);
+      }
+
+      .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin: 2rem 0;
+      }
+
+      .feature {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        background-color: rgba(30, 30, 30, 0.6);
+        padding: 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        transition: transform 0.3s ease;
+      }
+
+      .feature:hover {
+        transform: translateY(-5px);
+      }
+
+      .feature-icon {
+        font-size: 2rem;
+        color: var(--accent-color);
+        margin-bottom: 1rem;
+      }
+
+      .cta-button {
+        display: inline-block;
+        background-color: var(--accent-color);
+        color: white;
+        padding: 1rem 2rem;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: bold;
+        transition: all 0.3s ease;
+        margin-top: 1.5rem;
+        box-shadow: 0 4px 12px rgba(229, 62, 62, 0.3);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-size: 0.9rem;
+        border: none;
+        cursor: pointer;
+      }
+
+      .cta-button:hover {
+        background-color: var(--hover-accent);
+        text-decoration: none;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(229, 62, 62, 0.4);
+      }
+
+      .code-block {
+        background-color: var(--code-bg);
+        color: var(--code-color);
+        padding: 1.5rem;
+        border-radius: 8px;
+        font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace;
+        margin: 1.5rem 0;
+        overflow-x: auto;
+        font-size: 0.9rem;
+        line-height: 1.6;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        border-left: 4px solid var(--accent-color);
+        position: relative;
+        white-space: pre-wrap;
+      }
+
+      .code-block::before {
+        content: "tinyAgent";
+        position: absolute;
+        top: 0;
+        right: 0;
+        background-color: var(--accent-color);
+        color: white;
+        padding: 0.2rem 0.8rem;
+        font-size: 0.75rem;
+        border-radius: 0 8px 0 8px;
+        font-family: "Segoe UI", Arial, sans-serif;
+        font-weight: bold;
+      }
+
+      .code-comment {
+        color: #6a9955;
+        font-style: italic;
+      }
+
+      .code-keyword {
+        color: #569cd6;
+        font-weight: bold;
+      }
+
+      .code-string {
+        color: #ce9178;
+      }
+
+      .code-function {
+        color: #dcdcaa;
+      }
+
+      .code-decorator {
+        color: #c586c0;
+        font-weight: bold;
+      }
+
+      footer {
+        text-align: center;
+        padding: 2rem 0;
+        margin-top: 3rem;
+        border-top: 1px solid #333;
+        color: #888;
+      }
+
+      .asciiart {
+        font-family: "Courier New", Courier, monospace;
+        white-space: pre;
+        line-height: 1.2;
+        font-size: 0.8rem;
+        margin: 0.5rem 0 1.5rem 0;
+        overflow-x: auto;
+        color: var(--primary-color);
+        text-align: center;
+      }
+
+      .asciiart .smaller {
+        font-size: 0.6rem;
+        vertical-align: super;
+      }
+
+      .asciiart .larger {
+        font-size: 1.6rem;
+        vertical-align: middle;
+        font-weight: bold;
+      }
+
+      @media (max-width: 768px) {
         h1 {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-            color: var(--primary-color);
+          font-size: 2rem;
         }
-        
+
         h2 {
-            font-size: 1.8rem;
-            margin: 2rem 0 1rem;
-            color: var(--primary-color);
-            border-left: 4px solid var(--accent-color);
-            padding-left: 1rem;
+          font-size: 1.5rem;
         }
-        
-        h3 {
-            color: var(--primary-color);
-            margin: 0.5rem 0;
-        }
-        
-        p {
-            margin-bottom: 1.5rem;
-        }
-        
-        a {
-            color: var(--accent-color);
-            text-decoration: none;
-        }
-        
-        a:hover {
-            text-decoration: underline;
-        }
-        
-        .highlight {
-            color: var(--accent-color);
-            font-weight: bold;
-        }
-        
-        .framework-advantages {
-            list-style-type: none;
-            margin-bottom: 1.5rem;
-            text-align: center;
-        }
-        
-        .framework-advantages li {
-            margin-bottom: 0.5rem;
-            position: relative;
-            padding-left: 1.5rem;
-            display: inline-block;
-            margin-right: 1rem;
-        }
-        
-        .framework-advantages li:before {
-            content: "✓";
-            color: var(--accent-color);
-            position: absolute;
-            left: 0;
-            font-weight: bold;
-        }
-        
-        .card {
-            background-color: var(--dark-card);
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-            padding: 2rem;
-            margin-bottom: 2rem;
-            transition: transform 0.3s ease;
-        }
-        
-        .card:hover {
-            transform: translateY(-5px);
-        }
-        
+
         .feature-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-            margin: 2rem 0;
+          grid-template-columns: 1fr;
         }
-        
-        .feature {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            background-color: rgba(30, 30, 30, 0.6);
-            padding: 1.5rem;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-            transition: transform 0.3s ease;
-        }
-        
-        .feature:hover {
-            transform: translateY(-5px);
-        }
-        
-        .feature-icon {
-            font-size: 2rem;
-            color: var(--accent-color);
-            margin-bottom: 1rem;
-        }
-        
-        .cta-button {
-            display: inline-block;
-            background-color: var(--accent-color);
-            color: white;
-            padding: 1rem 2rem;
-            border-radius: 6px;
-            text-decoration: none;
-            font-weight: bold;
-            transition: all 0.3s ease;
-            margin-top: 1.5rem;
-            box-shadow: 0 4px 12px rgba(229, 62, 62, 0.3);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-size: 0.9rem;
-            border: none;
-            cursor: pointer;
-        }
-        
-        .cta-button:hover {
-            background-color: var(--hover-accent);
-            text-decoration: none;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(229, 62, 62, 0.4);
-        }
-        
-        .code-block {
-            background-color: var(--code-bg);
-            color: var(--code-color);
-            padding: 1.5rem;
-            border-radius: 8px;
-            font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
-            margin: 1.5rem 0;
-            overflow-x: auto;
-            font-size: 0.9rem;
-            line-height: 1.6;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-            border-left: 4px solid var(--accent-color);
-            position: relative;
-            white-space: pre-wrap;
-        }
-        
-        .code-block::before {
-            content: 'tinyAgent';
-            position: absolute;
-            top: 0;
-            right: 0;
-            background-color: var(--accent-color);
-            color: white;
-            padding: 0.2rem 0.8rem;
-            font-size: 0.75rem;
-            border-radius: 0 8px 0 8px;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            font-weight: bold;
-        }
-        
-        .code-comment {
-            color: #6a9955;
-            font-style: italic;
-        }
-        
-        .code-keyword {
-            color: #569cd6;
-            font-weight: bold;
-        }
-        
-        .code-string {
-            color: #ce9178;
-        }
-        
-        .code-function {
-            color: #dcdcaa;
-        }
-        
-        .code-decorator {
-            color: #c586c0;
-            font-weight: bold;
-        }
-        
-        footer {
-            text-align: center;
-            padding: 2rem 0;
-            margin-top: 3rem;
-            border-top: 1px solid #333;
-            color: #888;
-        }
-        
+
         .asciiart {
-            font-family: 'Courier New', Courier, monospace;
-            white-space: pre;
-            line-height: 1.2;
-            font-size: 0.8rem;
-            margin: 0.5rem 0 1.5rem 0;
-            overflow-x: auto;
-            color: var(--primary-color);
-            text-align: center;
+          font-size: 0.6rem;
+          margin: 0.3rem 0 1rem 0;
         }
-        
-        .asciiart .smaller {
-            font-size: 0.6rem;
-            vertical-align: super;
-        }
-        
-        .asciiart .larger {
-            font-size: 1.6rem;
-            vertical-align: middle;
-            font-weight: bold;
-        }
-        
-        @media (max-width: 768px) {
-            h1 {
-                font-size: 2rem;
-            }
-            
-            h2 {
-                font-size: 1.5rem;
-            }
-            
-            .feature-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .asciiart {
-                font-size: 0.6rem;
-                margin: 0.3rem 0 1rem 0;
-            }
-        }
+      }
+
+      .feature-list,
+      .acknowledgments-list {
+        list-style-type: none;
+        padding-left: 0;
+      }
+
+      .feature-list li,
+      .acknowledgments-list li {
+        margin-bottom: 1rem;
+        padding-left: 1.5rem;
+        position: relative;
+      }
+
+      .feature-list li:before {
+        content: "✓";
+        color: var(--accent-color);
+        position: absolute;
+        left: 0;
+      }
+
+      .feature-image {
+        max-width: 100%;
+        height: auto;
+        margin: 1.5rem 0;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px var(--code-shadow);
+      }
+
+      .acknowledgments-list li:before {
+        content: "★";
+        color: var(--accent-color);
+        position: absolute;
+        left: 0;
+      }
+
+      .mermaid-diagram {
+        text-align: center;
+        margin: 2rem 0;
+        padding: 1rem;
+        background: var(--dark-card);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px var(--code-shadow);
+      }
+
+      .mermaid-diagram img {
+        max-width: 100%;
+        height: auto;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <header>
-            <div class="logo-container">
-                <img src="tintAgentLogo.png" alt="tinyAgent Logo" class="logo">
-            </div>
-            <div class="asciiart">
-   __  .__                _____                         __   
-_/  |_|__| ____ ___.__. /  _  \    ____   ____   _____/  |_ 
-\   __\  |/    <   |  |/  /_\  \  / ___\_/ __ \ /    \   __\
- |  | |  |   |  \___  /    |    \/ /_/  >  ___/|   |  \  |  
- |__| |__|___|  / ____\____|__  /\___  / \___  >___|  /__|  
-              \/\/            \//_____/      \/     \/<span class="larger">.xyz</span>
-            </div>
-            <h1>tiny<span class="highlight">Agent</span>.xyz</h1>
-            <ul class="framework-advantages">
-                <li><strong>Turn any function into an AI tool</strong> with a simple decorator</li>
-                <li><strong>Combine agents</strong> to solve complex problems</li>
-                <li><strong>Experimental meta-agent</strong> that plans and executes from a single prompt</li>
-            </ul>
-            </header>
-            
-            <div class="card">
-                <h2>tinyAgent Philosophy</h2>
-                <ol style="margin-left:1.5rem;">
-                    <li><strong>Functions as Agents:</strong>
-                        Turn any Python function into a tool or agent with <code>@tool</code>.
-                    </li>
-                    <li><strong>Hierarchical Orchestration:</strong>
-                        Combine many agents. Top-level agents delegate tasks to specialists.
-                    </li>
-                    <li><strong>Elder Brain (Experimental):</strong>
-                        Pass one big prompt. Elder Brain analyzes, plans, runs tools, and combines results.
-                    </li>
-                </ol>
-                <p style="margin-top:1rem;"><em>Elder Brain is highly experimental and under active development.</em></p>
-                <div>
-                    <a href="https://github.com/alchemiststudiosDOTai/tinyAgent" class="cta-button">Get Started</a>
-                </div>
-            </div>
-            
-            <h2>Key Concepts</h2>
-            <div class="feature-grid">
-                <div class="feature">
-                    <div class="feature-icon">🧩</div>
-                    <h3>Functions as Agents</h3>
-                    <p>Example: Turn <code>calculate_sum</code> into a Calculator Tool.</p>
-                </div>
-                
-                <div class="feature">
-                    <div class="feature-icon">🔄</div>
-                    <h3>Hierarchical Orchestration</h3>
-                    <p>Example: A Research Orchestrator delegates to Web Search, Summarizer, and Code Snippet agents.</p>
-                </div>
-                
-                <div class="feature">
-                    <div class="feature-icon">🧠</div>
-                    <h3>Elder Brain (Experimental)</h3>
-                    <p>Example: "Research AI trends and generate report" → Elder Brain analyzes, plans, runs tools, and produces a final report.</p>
-                </div>
-            </div>
-        
-        <div class="card">
-            <h2>📚 Installation</h2>
-            <p>Get started with tinyAgent in minutes:</p>
-            <div class="code-block">
-<span class="code-comment"># Complete Installation Process</span>
+      <header>
+        <div class="logo-container">
+          <img
+            src="static/images/tintAgentLogo.png"
+            alt="tinyAgent Logo"
+            class="logo"
+          />
+        </div>
+        <div class="asciiart">
+          __ .__ _____ __ _/ |_|__| ____ ___.__. / _ \ ____ ____ _____/ |_ \ __\
+          |/ < | |/ /_\ \ / ___\_/ __ \ / \ __\ | | | | | \___ / | \/ /_/ >
+          ___/| | \ | |__| |__|___| / ____\____|__ /\___ / \___ >___| /__| \/\/
+          \//_____/ \/ \/<span class="larger">.xyz</span>
+        </div>
+        <h1>tiny<span class="highlight">Agent</span>.xyz</h1>
+        <ul class="framework-advantages">
+          <li>
+            <strong>Turn any function into an AI tool</strong> with a simple
+            decorator
+          </li>
+          <li><strong>Combine agents</strong> to solve complex problems</li>
+          <li>
+            <strong>Experimental meta-agent</strong> that plans and executes
+            from a single prompt
+          </li>
+        </ul>
+      </header>
 
-<span class="code-comment"># 1. Clone the repository</span>
-git clone https://github.com/alchemiststudiosDOTai/tinyAgent.git
-cd tinyagent
+      <div class="card">
+        <h2>⚠️ Heads Up</h2>
+        <p>
+          tinyAgent is in <strong>BETA</strong> until V1. It's working but still
+          evolving! I can't guarantee it's 100% bug-free, but I'm actively
+          improving it whenever I can between my day job and business.
+        </p>
+        <p>
+          Found something that could be better? Show off your skills and open an
+          issue with a fix: I'd genuinely appreciate it!
+        </p>
+      </div>
 
-<span class="code-comment"># Option 1: For Linux users, run the installation script</span>
-chmod +x install/linuxInstall.sh && ./install/linuxInstall.sh
+      <div class="card">
+        <h2>Overview</h2>
+        <p>
+          tinyAgent is a streamlined framework for building powerful,
+          LLM-powered agents that solve complex tasks through tool execution,
+          orchestration, and dynamic capability creation. Convert any Python
+          function into a useful tool and then into an agent with minimal
+          configuration, unlocking a world of scalable, modular possibilities.
+        </p>
+      </div>
 
-<span class="code-comment"># Option 2: Manual installation</span>
-<span class="code-comment"># Create a virtual environment (recommended)</span>
-python3 -m venv .venv
+      <div class="card">
+        <h2>📚 Installation</h2>
+        <p>Get started with tinyAgent in minutes:</p>
+        <div class="code-block">
+          <span class="code-comment"># Install via pip (Recommended)</span>
+          pip install tiny_agent_os
 
-<span class="code-comment"># 3. Activate the virtual environment</span>
-<span class="code-comment"># On macOS/Linux</span>
-source .venv/bin/activate
-<span class="code-comment"># On Windows</span>
-.\venv\Scripts\activate
+          <span class="code-comment"
+            ># Download the Configuration File (config.yml)</span
+          >
+          wget
+          https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/config.yml
 
-<span class="code-comment"># 4. Install dependencies</span>
-<span class="code-comment"># Option 1: Using UV (recommended - see INSTALL.md)</span>
-<span class="code-comment"># Option 2: Using pip</span>
-pip install -r requirements.txt
+          <span class="code-comment"
+            ># Download the Environment File (.env)</span
+          >
+          wget
+          https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/.envexample
+          -O .env
 
-<span class="code-comment"># 5. Set up required configuration files</span>
-<span class="code-comment"># A. Environment variables file</span>
-cp .envexample .env  <span class="code-comment"># Edit .env with your API keys</span>
+          <span class="code-comment"># Edit .env with your API keys</span>
+          <span class="code-comment"
+            ># Required: OpenRouter API key (https://openrouter.ai)</span
+          >
+        </div>
+        <p>
+          Both the config.yml and env work out of the box with an openrouter
+          API. You can use any OpenAI API, and the config has an example of a
+          local LLM.
+        </p>
+      </div>
 
-<span class="code-comment"># B. Configuration file</span>
-cp exampleconfig.yml config.yml  <span class="code-comment"># Edit config.yml with your settings</span>
-            </div>
-            
-            <h3>Required API Keys</h3>
-            <p>Before running tinyAgent, you need to obtain API keys for:</p>
-            <ul style="list-style-type: none; margin-bottom: 1.5rem;">
-                <li>🔑 <strong>OpenRouter API</strong>: Get your key from <a href="https://openrouter.ai/" target="_blank">openrouter.ai</a> (you can also use any OpenAI-compatible API)</li>
-                <li>🔍 <strong>Brave Search API</strong>: For MCP Brave search, run <code>npm install</code> AND <code>npm run build</code> in MCP directory, get key from <a href="https://brave.com/search/api/" target="_blank">Brave Search</a>, and add to .env as <code>BRAVE=your_key</code></li>
-            </ul>
-            <p>For detailed installation instructions including UV support, see <a href="INSTALL.md">INSTALL.md</a></p>
+      <div class="card">
+        <h2>🛠️ Tools and the @tool Decorator</h2>
+        <p>
+          In tinyAgent, <strong>any Python function</strong> can be transformed
+          into a usable "tool" by simply decorating it with <code>@tool</code>.
+          This makes it discoverable by your agents, allowing them to execute
+          that function in response to natural-language queries.
+        </p>
+        <div class="code-block">
+          <span class="code-keyword">from</span> tinyagent.decorators
+          <span class="code-keyword">import</span> tool
+
+          <span class="code-decorator">@tool</span>
+          <span class="code-keyword">def</span>
+          <span class="code-function">greet_person</span>(name:
+          <span class="code-keyword">str</span>) ->
+          <span class="code-keyword">str</span>:
+          <span class="code-string">"""Return a friendly greeting."""</span>
+          <span class="code-keyword">return</span>
+          <span class="code-string">f"Hello, {name}!"</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Philosophy</h2>
+        <p>tinyAgent is built on two core ideas:</p>
+        <h3>1. Functions as Agents</h3>
+        <p>
+          Any Python function can be turned into a tool—and then seamlessly
+          integrated into an agent. This approach makes extending and innovating
+          simple.
+        </p>
+        <div class="mermaid-diagram">
+          <img
+            src="static/images/func_agent.png"
+            alt="Function to Agent Flow"
+            class="feature-image"
+          />
         </div>
 
-        <div class="card">
-            <h2>🛠️ Basic Usage: Create Tools with Decorators</h2>
-            <p>Turn any Python function into an AI tool with a simple decorator:</p>
-            <div class="code-block">
-<span class="code-comment"># Basic Usage: Create Tools with Decorators</span>
-<span class="code-keyword">from</span> core.decorators <span class="code-keyword">import</span> tool
-<span class="code-keyword">from</span> core.agent <span class="code-keyword">import</span> Agent
+        <h3>2. Hierarchical Orchestration</h3>
+        <p>
+          For more complex tasks, multiple agents can collaborate. A master
+          orchestrator delegates specialized tasks—like searching, summarizing,
+          or coding—to the relevant agents.
+        </p>
+        <p><em>NOTE: This is beta</em></p>
+      </div>
 
-<span class="code-comment"># 1. Define a tool with the @tool decorator</span>
-<span class="code-decorator">@tool</span>
-<span class="code-keyword">def</span> <span class="code-function">format_text</span>(text: <span class="code-keyword">str</span>) -> <span class="code-keyword">str</span>:
-    <span class="code-string">"""Format text to be properly capitalized with punctuation."""</span>
-    result = text.strip().capitalize()
-    <span class="code-keyword">if</span> not result.endswith((".", "!", "?")):  result += "."
-    <span class="code-keyword">return</span> result
+      <div class="card">
+        <h2>Example Usage</h2>
+        <div class="code-block">
+          <span class="code-comment">#!/usr/bin/env python3</span>
+          <span class="code-comment">"""Example: Functions as Agents"""</span>
+          <span class="code-keyword">from</span> tinyagent.decorators
+          <span class="code-keyword">import</span> tool
+          <span class="code-keyword">from</span> tinyagent.factory.agent_factory
+          <span class="code-keyword">import</span> AgentFactory
 
-<span class="code-comment"># 2. Create an agent with your tools</span>
-agent = Agent(tools=[format_text, get_weather])
+          <span class="code-decorator">@tool</span>
+          <span class="code-keyword">def</span>
+          <span class="code-function">calculate_sum</span>(a:
+          <span class="code-keyword">int</span>, b:
+          <span class="code-keyword">int</span>) ->
+          <span class="code-keyword">int</span>:
+          <span class="code-string"
+            >"""Calculate the sum of two integers."""</span
+          >
+          <span class="code-keyword">return</span> a + b
 
-<span class="code-comment"># 3. Run natural language queries</span>
-result = agent.run(<span class="code-string">"Format this text: hello world"</span>)
-print(result)  <span class="code-comment"># Output: Hello world.</span>
-            </div>
+          <span class="code-keyword">def</span>
+          <span class="code-function">main</span>(): agent =
+          AgentFactory.get_instance().create_agent(tools=[calculate_sum]) query
+          =
+          <span class="code-string">"calculate the sum of 5 and 3"</span>
+          print(<span class="code-string">f"Query: '{query}'"</span>) result =
+          agent.run(query, expected_type=<span class="code-keyword">int</span>)
+          print(<span class="code-string">f"Result: {result}"</span>)
+
+          <span class="code-keyword">if</span> __name__ ==
+          <span class="code-string">"__main__"</span>: main()
         </div>
-        
-        <div class="card">
-            <h2>🔒 Rate Limiting for API Protection</h2>
-            <p>Protect your external API usage with built-in rate limiting:</p>
-            <div class="code-block">
-<span class="code-comment"># Rate Limiting for API Protection</span>
-<span class="code-keyword">from</span> core.decorators <span class="code-keyword">import</span> tool
-<span class="code-keyword">import</span> requests
+      </div>
 
-<span class="code-comment"># 1. Add rate limiting to your tool decorator</span>
-<span class="code-decorator">@tool</span>(rate_limit=10, description=<span class="code-string">"Search the web"</span>)
-<span class="code-keyword">def</span> <span class="code-function">search_web</span>(query: <span class="code-keyword">str</span>) -> <span class="code-keyword">str</span>:
-    <span class="code-string">"""Search the web for the given query."""</span>
-    response = requests.get(<span class="code-string">"https://api.searchapi.com/search"</span>,
-                           params={<span class="code-string">"q"</span>: query},
-                           headers={<span class="code-string">"Authorization"</span>: <span class="code-string">"Bearer $SEARCH_API_KEY"</span>})
-    <span class="code-keyword">return</span> response.json()[<span class="code-string">"results"</span>]
+      <div class="card">
+        <h2>Features</h2>
+        <ul class="feature-list">
+          <li>
+            <strong>Modular Design:</strong> Easily convert any function into a
+            tool.
+          </li>
+          <li>
+            <strong>Flexible Agent Options:</strong> Use the simple orchestrator
+            or advanced AgentFactory.
+          </li>
+          <li>
+            <strong>Robust Error Handling:</strong> Improved debugging with
+            custom exceptions.
+          </li>
+          <li>
+            <strong>Structured Output:</strong> Enforce JSON formats for
+            consistent outputs.
+          </li>
+        </ul>
+      </div>
 
-<span class="code-comment"># 2. The tool automatically enforces the rate limit</span>
-<span class="code-comment"># 3. Raises RateLimitExceeded if the limit is exceeded</span>
-            </div>
+      <div class="card">
+        <h2>Get Started Now</h2>
+        <p>
+          tinyAgent is in EARLY BETA until V1. Use common sense when working
+          with this tool.
+        </p>
+        <p>
+          Made by <a href="https://twitter.com/tunahorse21">@tunahorse21</a> | A
+          product of
+          <a href="https://alchemiststudios.ai">alchemiststudios.ai</a>
+        </p>
+        <p>
+          Need AI development consulting? Contact
+          <a href="mailto:info@alchemiststudios.ai">info@alchemiststudios.ai</a>
+        </p>
+        <div>
+          <a
+            href="https://github.com/alchemiststudiosDOTai/tinyAgent"
+            class="cta-button"
+            >View on GitHub</a
+          >
         </div>
+      </div>
 
-        <div class="card">
-            <h2>💡 Hierarchical Orchestration</h2>
-            <p>Scale to complex tasks with specialized agents working together:</p>
-            <div class="code-block">
-<span class="code-comment"># Hierarchical orchestration for specialized agents</span>
-<span class="code-keyword">from</span> core.factory.orchestrator <span class="code-keyword">import</span> Orchestrator
-<span class="code-keyword">from</span> core.decorators <span class="code-keyword">import</span> tool
-
-<span class="code-comment"># 1. Define specialized tools</span>
-<span class="code-decorator">@tool</span>
-<span class="code-keyword">def</span> <span class="code-function">search_medical_database</span>(query: <span class="code-keyword">str</span>) -> <span class="code-keyword">str</span>:
-    <span class="code-string">"""Search medical research papers."""</span>
-    <span class="code-keyword">return</span> <span class="code-string">f"Found 5 relevant papers about {query}"</span>
-
-<span class="code-comment"># 2. Create the orchestrator and specialized agents</span>
-orchestrator = Orchestrator.get_instance()
-medical_research = orchestrator.create_specialized_agent(
-    name=<span class="code-string">"medical_research"</span>,
-    tools=[search_medical_database]
-)
-
-<span class="code-comment"># 3. Process complex tasks with specialized agents</span>
-result = orchestrator.process_task(<span class="code-string">"Research AI in cancer detection"</span>)
-            </div>
-        </div>
-        
-        <div class="card">
-            <h2>🧠 ElderBrain: Multi-Phase Problem Solving</h2>
-            <p>Handle complex tasks with a systematic three-phase approach:</p>
-            <div class="code-block">
-<span class="code-comment"># ElderBrain: Multi-Phase Problem Solving</span>
-<span class="code-keyword">from</span> core.factory.orchestrator <span class="code-keyword">import</span> Orchestrator
-
-<span class="code-comment"># 1. Get orchestrator with ElderBrain capabilities</span>
-orchestrator = Orchestrator.get_instance()
-
-<span class="code-comment"># 2. Process complex task with three automatic phases</span>
-result = orchestrator.process_task(
-    query=<span class="code-string">"Build a data pipeline for customer feedback"</span>,
-    use_elder_brain=<span class="code-keyword">True</span>,
-    verbosity=2
-) <span class="code-comment"># Phases: Research → Planning → Execution</span>
-
-<span class="code-comment"># 3. Get final comprehensive response</span>
-print(result.final_response)
-            </div>
-        </div>
-
-        <div class="card">
-            <h2>📈 Advanced Decorator Use Cases</h2>
-            <p>Examples from real-world agent implementations:</p>
-            <div class="code-block">
-<span class="code-comment"># Advanced Decorator Use Cases</span>
-<span class="code-keyword">from</span> core.decorators <span class="code-keyword">import</span> tool
-
-<span class="code-comment"># Example 1: Complex type hints with documentation</span>
-<span class="code-decorator">@tool</span>
-<span class="code-keyword">def</span> <span class="code-function">analyze_financial_data</span>(
-    data_path: <span class="code-keyword">str</span>,
-    metrics: <span class="code-keyword">list</span>[<span class="code-keyword">str</span>],
-    timeframe: <span class="code-keyword">str</span> = <span class="code-string">"monthly"</span>
-) -> <span class="code-keyword">dict</span>:
-    <span class="code-string">"""Analyze financial data from a CSV file."""</span>
-    <span class="code-keyword">return</span> {metric: [<span class="code-string">"calculated value"</span>] <span class="code-keyword">for</span> metric <span class="code-keyword">in</span> metrics}
-
-<span class="code-comment"># Example 2: Class methods as tools</span>
-<span class="code-keyword">class</span> <span class="code-function">DataProcessor</span>:
-    <span class="code-decorator">@tool</span>(description=<span class="code-string">"Normalize datasets"</span>)
-    <span class="code-keyword">def</span> <span class="code-function">normalize_data</span>(self, dataset_name: <span class="code-keyword">str</span>):
-        <span class="code-keyword">return</span> <span class="code-string">f"Dataset {dataset_name} has been normalized"</span>
-            </div>
-        </div>
-
-        <div class="card">
-            <h2>⚙️ Configuration Options</h2>
-            <p>tinyAgent provides extensive configuration options through config.yml:</p>
-            <div class="code-block">
-<span class="code-comment"># Configuration Example (config.yml)</span>
-
-<span class="code-comment"># 1. Rate limiting configuration</span>
-<span class="code-keyword">rate_limits</span>:
-  <span class="code-keyword">global</span>: <span class="code-function">2</span>  <span class="code-comment"># Default limit for all tools</span>
-  <span class="code-keyword">tools</span>:
-    <span class="code-keyword">ripgrep</span>: <span class="code-function">10</span>  <span class="code-comment"># Override for specific tools</span>
-    <span class="code-keyword">chat</span>: <span class="code-function">-1</span>  <span class="code-comment"># No limit (-1)</span>
-
-<span class="code-comment"># 2. ElderBrain configuration</span>
-<span class="code-keyword">elder_brain</span>:
-  <span class="code-keyword">default_enabled</span>: <span class="code-function">true</span>  <span class="code-comment"># Auto-enable for all tasks</span>
-  <span class="code-keyword">verbosity</span>: <span class="code-function">2</span>  <span class="code-comment"># Detailed output level</span>
-            </div>
-        </div>
-
-        <div class="card">
-            <h2>Get Started Now</h2>
-            <p>tinyAgent is in EARLY BETA until V1. Use common sense when working with this tool.</p>
-            <p>Made by <a href="https://twitter.com/tunahorse21">@tunahorse21</a> | A product of <a href="https://alchemiststudios.ai">alchemiststudios.ai</a></p>
-            <p>Need AI development consulting? Contact <a href="mailto:info@alchemiststudios.ai">info@alchemiststudios.ai</a></p>
-            <div>
-                <a href="https://github.com/alchemiststudiosDOTai/tinyAgent" class="cta-button">View on GitHub</a>
-            </div>
-        </div>
-        
-        <footer>
-            <p>&copy; 2025 tinyAgent. All rights reserved. | Agent framework and site created by <a href="https://alchemiststudios.ai">alchemiststudios.ai</a></p>
-        </footer>
+      <footer>
+        <p>
+          &copy; 2025 tinyAgent. All rights reserved. | Agent framework and site
+          created by
+          <a href="https://alchemiststudios.ai">alchemiststudios.ai</a>
+        </p>
+      </footer>
     </div>
-</body>
+  </body>
 </html>
