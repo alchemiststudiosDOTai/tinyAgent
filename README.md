@@ -1,18 +1,5 @@
 # tinyAgent 🤖
 
-**License:** Business Source License 1.1 (BSL)  
-Free for individuals and small businesses (<$1M annual revenue).  
-Commercial use by larger businesses requires an enterprise license.  
-Contact: admin@alchemiststudios.ai
-
-A streamlined framework for building powerful LLM-powered agents that can solve complex tasks through tool execution, orchestration, and dynamic capability creation.
-
-**Made by (x) @tunahorse21 | A product of alchemiststudios.ai**
-
-> **Heads Up**: tinyAgent is in BETA until V1. It's working but still evolving!  
-> While I can't guarantee it's 100% bug-free, I'm actively improving it whenever I can between my day job and business.
-> Found something that could be better? Show off your skills and open an issue with a fix: I'd genuinely appreciate it!
-
 ![tinyAgent Logo](tintAgentLogo.png)
 
 ```
@@ -24,63 +11,149 @@ _/  |_|__| ____ ___.__. /  _  \    ____   ____   _____/  |_
               \/\/            \//_____/      \/     \/
 ```
 
-### Installation
+**Made by (x) [@tunahorse21](https://github.com/tunahorse21) | A product of [alchemiststudios.ai](https://alchemiststudios.ai)**
+
+---
+
+## Heads Up
+
+tinyAgent is in **BETA** until V1. It's working but still evolving! I can't guarantee it's 100% bug-free, but I'm actively improving it whenever I can between my day job and business.  
+Found something that could be better? Show off your skills and open an issue with a fix: I’d genuinely appreciate it!
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Installation](#installation)
+  - [Via pip (Recommended)](#via-pip-recommended)
+  - [Cloning for Development](#cloning-for-development)
+  - [Post-Installation Configuration for Pip Users](#post-installation-configuration-for-pip-users)
+- [Example Usage](#example-usage)
+- [Philosophy](#philosophy)
+  - [Functions as Agents](#functions-as-agents)
+  - [Hierarchical Orchestration](#hierarchical-orchestration)
+- [Features](#features)
+- [Acknowledgments & Inspirations](#acknowledgments--inspirations)
+- [Contact](#contact)
+
+---
+
+## Overview
+
+tinyAgent is a streamlined framework for building powerful, LLM-powered agents that solve complex tasks through tool execution, orchestration, and dynamic capability creation. Convert any Python function into a useful tool and then into an agent with minimal configuration, which opens up a world of scalable, modular possibilities for your projects.
+
+---
+
+## Installation
+
+### Via pip (Recommended)
+
+Install tinyAgent easily with a single command:
 
 ```bash
-# Install via pip (recommended)
 pip install tiny_agent_os
+```
 
-# Or for development, clone the repository
-git clone https://github.com/alchemiststudiosai/tinyAgent.git
+### Cloning for Development
 
-cd tinyagent
+To clone the repository and contribute or experiment directly:
 
-# Option 1: For Linux users, run the installation script
+```bash
+git clone https://github.com/alchemiststudiosDOTai/tinyAgent.git
+cd tinyAgent
+```
+
+#### For Linux Users
+
+Run the provided installation script:
+
+```bash
 chmod +x install/linuxInstall.sh && ./install/linuxInstall.sh
-
-# Option 2: Manual installation
-# Create a virtual environment (recommended)
-python3 -m venv .venv
-
-# Activate the virtual environment
-# On macOS/Linux
-source .venv/bin/activate
-# On Windows
-.\.venv\Scripts\activate
-
-# Install dependencies
-# Option 1: Using UV (recommended - see INSTALL.md for details)
-# Option 2: Using pip
-pip install -r requirements.txt
-
-# Set up required configuration files
-# 1. Environment variables
-cp .envexample .env
-# Edit .env to add your API keys (especially OpenRouter)
-
-# 2. Configuration file
-cp exampleconfig.yml config.yml
-# Edit config.yml to customize your settings
 ```
 
-### Pip Installation
+#### Manual Installation
 
+1. **Create a Virtual Environment (Recommended):**
+
+   ```bash
+   python3 -m venv .venv
+   ```
+
+2. **Activate the Virtual Environment:**
+
+   - On macOS/Linux:
+     ```bash
+     source .venv/bin/activate
+     ```
+   - On Windows:
+     ```bash
+     .\.venv\Scripts\activate
+     ```
+
+3. **Install Dependencies:**
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Set Up Required Configuration Files:**
+
+   Copy the example configuration files:
+   
+   ```bash
+   cp exampleconfig.yml config.yml
+   cp .envexample .env
+   ```
+
+   Then, edit **config.yml** and **.env** to customize your settings and add your API keys (especially for OpenRouter).
+
+---
+
+## Post Installation Configuration for Pip Users
+
+After installing via pip, you need to provide your own configuration files. For convenience, download them directly:
+
+### Download the Configuration File (`config.yml`)
+
+Using **wget**:
 ```bash
-# Simple pip installation
-pip install tiny_agent_os
+wget https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/config.yml
 ```
 
-### Example Usage after pip install
+Or using **curl**:
+```bash
+curl -O https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/config.yml
+```
 
-This example works immediately after pip install (with your config and .env set up):
+### Download the Environment File (`.env`)
+
+Download the example environment file (renaming it to `.env` is required):
+
+Using **wget**:
+```bash
+wget https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/.envexample -O .env
+```
+
+Or using **curl**:
+```bash
+curl -o .env https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/.envexample
+```
+
+> **Note:** Be sure to edit the `.env` file with your actual API keys and any other necessary variables.
+
+---
+
+## Example Usage
+
+The following example demonstrates the heart of tinyAgent: turning a simple function into a fully capable agent.
 
 ```python
 #!/usr/bin/env python3
 """
-Example 0: Functions as Agents
+Example: Functions as Agents
 
-This example demonstrates the fundamental philosophy of tinyAgent:
-turning any function into a tool or agent with minimal configuration.
+This example shows how to convert a simple function into a tool with tinyAgent.
 """
 from tinyagent.decorators import tool
 from tinyagent.factory.agent_factory import AgentFactory
@@ -92,14 +165,12 @@ def calculate_sum(a: int, b: int) -> int:
     return a + b
 
 def main():
-    """Create a basic agent with a calculator tool."""
-    # One-liner: create agent with our tool directly
+    """Create a basic agent with the calculator tool."""
+    # Create an agent with our tool
     agent = AgentFactory.get_instance().create_agent(tools=[calculate_sum])
-    # Run the agent with a query
     query = "calculate the sum of 5 and 3"
     print(f"Running agent with query: '{query}'")
-    # you can also specify the expected type of the result
-    result = agent.run(query, expected_type=int)
+    result = agent.run(query, expected_type=int)  # Expect an integer result
     print(f"Result: {result}")
     print(f"Result Type: {type(result)}")
 
@@ -109,61 +180,13 @@ if __name__ == "__main__":
 
 ---
 
-### Post-Installation Configuration
-
-After installing via pip, you **must** provide your own configuration files:
-
-#### 1. Create `config.yml`
-
-- Copy the example if available:
-
-```bash
-cp exampleconfig.yml config.yml
-```
-
-- Or create a new `config.yml` in your project directory with at least:
-
-```yaml
-base_url: "https://openrouter.ai/api/v1"
-model:
-  default: "deepseek/deepseek-chat"
-# Add any other settings you need
-```
-
-#### 2. Create `.env`
-
-- In your project directory, create a `.env` file:
-
-```bash
-touch .env
-```
-
-- Add your API key:
-
-```
-OPENROUTER_API_KEY=your_api_key_here
-```
-
-#### 3. (Optional) Override config locations
-
-- You can set environment variables to override default paths:
-
-```bash
-export TINYAGENT_CONFIG=/path/to/your/config.yml
-export TINYAGENT_ENV=/path/to/your/.env
-```
-
----
-
-**Note:** The orchestrator component is currently being built and is in beta.
-
----
-
 ## Philosophy
 
-1. **Functions as Agents**
-   - You can turn **any function** into a **tool** or **agent**.
-   - This makes it easy to add new capabilities.
+tinyAgent is built on two core ideas:
+
+### Functions as Agents
+
+Any Python function can be transformed into a tool—and then seamlessly integrated into an agent. This approach makes extending and innovating simple. Just tag your functions with the `@tool` decorator and let tinyAgent do the rest.
 
 ```mermaid
 flowchart LR
@@ -174,30 +197,9 @@ flowchart LR
 
 ![Function to Agent Flow](static/images/func_agent.png)
 
-```python
-# Define a simple calculator function and turn it into a tool
-@tool
-def calculate_sum(a: int, b: int) -> int:
-    """Calculate the sum of two integers."""
-    return a + b
+### Hierarchical Orchestration
 
-def main():
-    """Create a basic agent with a calculator tool."""
-    # One-liner: create agent with our tool directly
-    agent = AgentFactory.get_instance().create_agent(tools=[calculate_sum])
-    # Run the agent with a query
-    query = "calculate the sum of 5 and 3"
-    print(f"Running agent with query: '{query}'")
-    # you can also specify the expected type of the result
-    result = agent.run(query, expected_type=int)
-    print(f"Result: {result}")
-    print(f"Result Type: {type(result)}")
-```
-
-2. **Hierarchical Orchestration**
-   - You can **combine many agents** together.
-   - A **top-level agent** or **orchestrator** can **delegate tasks** to **specialized agents**.
-   - This helps solve **complex problems** by breaking them into parts.
+For more complex tasks, tinyAgent allows multiple agents to work together. A master orchestrator can delegate work to specialized agents—such as web search, summarization, or code snippet agents—to solve problems step-by-step.
 
 ```mermaid
 flowchart TD
@@ -206,70 +208,36 @@ flowchart TD
     O --> A3["Code Snippet Agent"]
 ```
 
-> **⚠️ Orchestrator Beta Notice:**  
-> The orchestrator component is **in early beta** and **may not work fully out of the box**.  
-> You can **hack together your own tools and configs** to get it working for your needs,  
-> but expect some rough edges and double-check everything.  
-> Improvements are ongoing.
-
 ---
 
 ## Features
 
-1. **Modular Design**
-
-   - Tools are defined with `@tool` and easily integrated or swapped.
-
-2. **Flexible Agent Options**
-
-   - **Orchestrator**: Simple task execution.
-   - **AgentFactory**: Fine-tuned control.
-   - **DynamicAgentFactory**: Dynamic agent creation.
-
-3. **Centralized Setup**
-
-   - Factory pattern streamlines configuration and logging.
-
-4. **Robust Error Handling**
-
-   - Custom exceptions (e.g., `ToolError`) improve debugging.
-
-5. **Clean Code Structure**
-
-   - Agents handle logic; tools handle execution.
-
-6. **Versatile Interaction**
-
-   - Use `agent.execute_tool()` for precision or `agent.run()` for broader tasks.
-
-7. **Structured Output**
-   - Enforce JSON structure on LLM responses for consistent parsing
-   - Enable with `output.structured: true` in config.yml
-   - Compatible with OpenRouter's JSON schema validation
+- **Modular Design:** Easily convert any function into a tool using the `@tool` decorator.
+- **Flexible Agent Options:** Leverage simple orchestrators, fine-tuned control with AgentFactory, or dynamic agent creation.
+- **Centralized Setup:** Configure the framework using environment variables and configuration files.
+- **Robust Error Handling:** Benefit from improved debugging with custom exceptions (e.g., `ToolError`).
+- **Versatile Interaction:** Choose precise tool execution via `agent.execute_tool()` or broader command execution with `agent.run()`.
+- **Structured Output:** Optionally enforce JSON formatting for consistent, structured responses.
 
 ---
 
-## Acknowledgments & Inspo
+## Acknowledgments & Inspirations
 
-We'd like to thank the creators of these amazing projects that inspired TinyAgent:
-
-- My Wife
+A big thank you goes out to everyone who has inspired and contributed to tinyAgent. 
+- **My Wife** 
 - [HuggingFace SmoLAgents](https://github.com/huggingface/smolagents)
 - [Aider-AI](https://github.com/Aider-AI/aider)
 - [Kyon-eth](https://github.com/kyon-eth)
 - [RA.Aid](https://github.com/ai-christianson/RA.Aid)
 
+
 ---
 
-## Key Takeaways
+## License
 
-- **tinyAgent** is perfect for scalable AI projects needing structured agent and tool management.
-- It offers **extensibility**, **error handling**, and **logging**, but may be overkill for simple tasks.
+**Business Source License 1.1 (BSL)**  
+This project is licensed under the Business Source License 1.1. It is **free for individuals and small businesses** (with annual revenues under $1M).  
+For commercial use by larger businesses, an enterprise license is required.  
+For licensing or usage inquiries, please contact: [info@alchemiststudios.ai](mailto:info@alchemiststudios.ai).
 
-_Important Note on Tools_:
-
-The aider tool integrated in TinyAgent is extremely powerful but requires proper understanding to use effectively. It's highly configurable with many advanced features that can dramatically enhance productivity when used correctly.
-
-**⚠️ We strongly recommend thoroughly learning aider before using it in any serious projects.**
-
-Invest time in studying the documentation at https://aider.chat/ to understand its capabilities, configuration options, and best practices. This investment will pay off significantly in your development workflow.
+---
