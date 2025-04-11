@@ -92,7 +92,10 @@ cd tinyAgent
 
 ## Post-Installation Configuration
 
-After installing (either via pip or from source), remember to configure your environment and `.env` files with relevant API keys.
+After installing (either via pip or from source), remember to configure your environment and `.env` files with relevant API keys from https://openrouter.ai
+
+Both the config.yml and env work out of the box with a openrouter API, you can use any openai API, and the config has an example of a local LLM. 
+The /documentation folder has more details and is being updated. 
 
 ---
 ## Tools and the `@tool` Decorator
