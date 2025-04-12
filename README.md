@@ -2,7 +2,7 @@
 
 # tinyAgent 🤖
 
-![tinyAgent Logo](tintAgentLogo.png)
+![tinyAgent Logo](tinyAgent_logo_v2.png)
 
 ```
    __  .__                _____                         __
@@ -37,15 +37,16 @@ tinyAgent is a streamlined framework for building powerful, LLM-powered agents t
 ```bash
 pip install tiny_agent_os
 ```
+
 ---
 
-##  Post-Installation Configuration for Pip Users
+## Post-Installation Configuration for Pip Users
 
 After installing via `pip`, you’ll need to provide your own configuration files. For convenience, you can download the defaults directly:
 
 ---
 
-###  Download the Configuration File (`config.yml`)
+### Download the Configuration File (`config.yml`)
 
 **Using `wget`:**
 
@@ -61,7 +62,7 @@ curl -O https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/
 
 ---
 
-###  Download the Environment File (`.env`)
+### Download the Environment File (`.env`)
 
 Download the example environment file and rename it to `.env`:
 
@@ -77,7 +78,7 @@ wget https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/.en
 curl -o .env https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/.envexample
 ```
 
->  **Note:** Be sure to edit the `.env` file with your actual API keys and any other required variables.
+> **Note:** Be sure to edit the `.env` file with your actual API keys and any other required variables.
 
 ---
 
@@ -94,10 +95,11 @@ cd tinyAgent
 
 After installing (either via pip or from source), remember to configure your environment and `.env` files with relevant API keys from https://openrouter.ai
 
-Both the config.yml and env work out of the box with a openrouter API, you can use any openai API, and the config has an example of a local LLM. 
-The /documentation folder has more details and is being updated. 
+Both the config.yml and env work out of the box with a openrouter API, you can use any openai API, and the config has an example of a local LLM.
+The /documentation folder has more details and is being updated.
 
 ---
+
 ## Tools and the `@tool` Decorator
 
 In tinyAgent, **any Python function** can be transformed into a usable "tool" by simply decorating it with `@tool`. This makes it discoverable by your agents, allowing them to execute that function in response to natural-language queries.
@@ -131,6 +133,7 @@ flowchart LR
     B --> C["Agent"]
     C --> D["Result"]
 ```
+
 ## Example Usage
 
 ```python
@@ -168,9 +171,9 @@ NOTE: This is beta
 
 ## Features
 
-- **Modular Design:** Easily convert any function into a tool.  
-- **Flexible Agent Options:** Use the simple orchestrator or advanced `AgentFactory`.  
-- **Robust Error Handling:** Improved debugging with custom exceptions.  
+- **Modular Design:** Easily convert any function into a tool.
+- **Flexible Agent Options:** Use the simple orchestrator or advanced `AgentFactory`.
+- **Robust Error Handling:** Improved debugging with custom exceptions.
 - **Structured Output:** Enforce JSON formats for consistent outputs.
 
 ---
@@ -178,8 +181,8 @@ NOTE: This is beta
 ## Acknowledgments & Inspirations
 
 - **my wife**
-- [HuggingFace SmoLAgents](https://github.com/huggingface/smolagents)  
-- [Aider-AI](https://github.com/Aider-AI/aider)  
+- [HuggingFace SmoLAgents](https://github.com/huggingface/smolagents)
+- [Aider-AI](https://github.com/Aider-AI/aider)
 - And many other open-source contributors!
 
 ---
@@ -187,8 +190,9 @@ NOTE: This is beta
 ## Contact
 
 For questions, suggestions, or business inquiries:
-- **Email**: [info@alchemiststudios.ai](mailto:info@alchemiststudios.ai)  
-- **X**: [@tunahorse21](https://x.com/tunahorse21)  
+
+- **Email**: [info@alchemiststudios.ai](mailto:info@alchemiststudios.ai)
+- **X**: [@tunahorse21](https://x.com/tunahorse21)
 - **Website**: [alchemiststudios.ai](https://alchemiststudios.ai)
 
 ---
