@@ -2,7 +2,7 @@
 
 # tinyAgent 🤖
 
-![tinyAgent Logo](tinyAgent_logo_v2.png)
+![tinyAgent Logo](static/images/tinyAgent_logo_v2.png)
 
 ```
    __  .__                _____                         __
@@ -20,7 +20,7 @@ _/  |_|__| ____ ___.__. /  _  \    ____   ____   _____/  |_
 ## Heads Up
 
 tinyAgent is in **BETA** until V1. It's working but still evolving! I can't guarantee it's 100% bug-free, but I'm actively improving it whenever I can between my day job and business.  
-Found something that could be better? Show off your skills and open an issue with a fix: I’d genuinely appreciate it!
+Found something that could be better? Show off your skills and open an issue with a fix: I'd genuinely appreciate it!
 
 ---
 
@@ -42,7 +42,7 @@ pip install tiny_agent_os
 
 ## Post-Installation Configuration for Pip Users
 
-After installing via `pip`, you’ll need to provide your own configuration files. For convenience, you can download the defaults directly:
+After installing via `pip`, you'll need to provide your own configuration files. For convenience, you can download the defaults directly:
 
 ---
 
