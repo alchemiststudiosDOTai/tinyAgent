@@ -164,7 +164,7 @@ if __name__ == "__main__":
 
 ### 2. Hierarchical Orchestration
 
-For more complex tasks, multiple agents can collaborate. A master orchestrator delegates specialized tasks—like searching, summarizing, or coding—to the relevant agents.
+Multiple agents can collaborate on more complex tasks. A master orchestrator delegates specialized tasks—like searching, summarizing, or coding to the relevant agents.
 NOTE: This is beta
 
 ---
