@@ -142,7 +142,6 @@ def load_tools() -> List[Tool]:
             file_manipulator_tool,
             custom_text_browser_tool,
             final_answer_extractor,
-            enhanced_deepsearch_tool
         ]
         
         # Try to ensure MCP server is running, but don't fail if it doesn't start

@@ -6,6 +6,9 @@ including schema-enforced structured outputs if enabled in config.
 """
 
 from typing import List, Dict, Any, Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 def build_openrouter_payload(
     messages: List[Dict[str, str]],
@@ -51,7 +54,7 @@ def build_openrouter_payload(
 
     # Inject response_format with schema if enabled
     if config.get("structured_outputs", False):
-        print("\n[OpenRouterRequest] Structured outputs ENABLED. Adding response_format schema to payload.")
+        logger.info("\n[OpenRouterRequest] Structured outputs ENABLED. Adding response_format schema to payload.")
         schema = {
             "type": "object",
             "properties": {
@@ -71,7 +74,7 @@ def build_openrouter_payload(
         }
         payload["provider"] = {"require_parameters": True}
     else:
-        print("\n[OpenRouterRequest] Structured outputs DISABLED. Building standard payload without schema.")
+        logger.info("\n[OpenRouterRequest] Structured outputs DISABLED. Building standard payload without schema.")
 
     return payload
 

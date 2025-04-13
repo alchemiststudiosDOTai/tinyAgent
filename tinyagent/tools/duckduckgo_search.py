@@ -44,14 +44,14 @@ def perform_duckduckgo_search(
     Returns:
         List of dictionaries with title, url, and snippet keys
     """
-    print(f"\n=== PERFORM_DUCKDUCKGO_SEARCH DEBUG ===")
-    print(f"Search parameters: keywords={keywords}, max_results={max_results}, region={region}, safesearch={safesearch}, timelimit={timelimit}, backend={backend}")
+    logger.info("=== PERFORM_DUCKDUCKGO_SEARCH DEBUG ===")
+    logger.info(f"Search parameters: keywords={keywords}, max_results={max_results}, region={region}, safesearch={safesearch}, timelimit={timelimit}, backend={backend}")
     
     # Import here to avoid requiring the package at module level
     try:
         from duckduckgo_search import DDGS
     except ImportError:
-        print("ERROR: duckduckgo_search package not installed")
+        logger.error("duckduckgo_search package not installed")
         return [{"error": "The duckduckgo_search package is not installed. Please install it with: pip install duckduckgo-search"}]
     
     try:
@@ -66,15 +66,15 @@ def perform_duckduckgo_search(
             try:
                 proxy_url = f'http://customer-{username}-cc-{country}:{password}@pr.oxylabs.io:7777'
                 masked_url = proxy_url.replace(password, "********")
-                print(f"Using proxy: {masked_url}")
+                logger.info(f"Using proxy: {masked_url}")
                 proxies = {
                     "http": proxy_url,
                     "https": proxy_url
                 }
             except Exception as exc:
-                print(f"Error configuring proxy: {str(exc)}")
+                logger.error(f"Error configuring proxy: {str(exc)}")
         else:
-            print("No proxy credentials found in environment, skipping proxy")
+            logger.info("No proxy credentials found in environment, skipping proxy")
         
         # Create DDGS instance with proxy if configured
         ddgs = DDGS(proxies=proxies)
@@ -106,16 +106,16 @@ def perform_duckduckgo_search(
                 "body": result.get("body", "")   # Changed from 'snippet'
             })
         
-        print(f"Found {len(formatted_results)} results")
-        print("=== END PERFORM_DUCKDUCKGO_SEARCH DEBUG ===\n")
+        logger.info(f"Found {len(formatted_results)} results")
+        logger.info("=== END PERFORM_DUCKDUCKGO_SEARCH DEBUG ===")
         
         return formatted_results
     
     except Exception as e:
         error_msg = f"Error during search: {str(e)}"
         logger.error(error_msg)
-        print(f"ERROR: {error_msg}")
-        print("=== END PERFORM_DUCKDUCKGO_SEARCH DEBUG ===\n")
+        logger.error(f"ERROR: {error_msg}")
+        logger.info("=== END PERFORM_DUCKDUCKGO_SEARCH DEBUG ===")
         return [{"error": error_msg}]
 
 # Create the tool instance directly with standard naming

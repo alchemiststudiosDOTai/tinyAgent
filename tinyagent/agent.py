@@ -237,20 +237,9 @@ class Agent:
         self.parser = None
         if config and "parsing" in config:
             try:
-                # First try local import
-                try:
-                    from utility.parser_factory import create_parser
-                    self.parser = create_parser(config, self._tools)
-                    logger.debug("Parser initialized from utility.parser_factory")
-                except (ImportError, ModuleNotFoundError):
-                    # Try core-relative import as fallback
-                    try:
-                        from .utils.parser import create_parser
-                        self.parser = create_parser(config, self._tools)
-                        logger.debug("Parser initialized from core.utils.parser")
-                    except (ImportError, ModuleNotFoundError):
-                        # No parser available
-                        logger.warning("Parser module not available, using default parsing")
+                from .utils.json_parser import create_parser
+                self.parser = create_parser(config, self._tools)
+                logger.debug("Parser initialized from core.utils.parser")
             except Exception as e:
                 logger.warning(f"Failed to initialize parser: {str(e)}")
                 logger.warning("Using default parsing behavior")
@@ -317,7 +306,7 @@ class Agent:
             return default
             
         try:
-            from utility.config_loader import get_config_value
+            from tinyagent.config import get_config_value
             return get_config_value(self.config, key_path, default)
         except ImportError:
             # Manual implementation if config_loader is not available
@@ -442,8 +431,6 @@ class Agent:
             
         except Exception as e:
             logger.error("\n" + "="*50)
-            logger.error("Execution Error")
-            logger.error("="*50)
             logger.error(f"Tool: {tool_name}")
             logger.error(f"Arguments: {arguments}")
             logger.error(f"Error: {str(e)}")

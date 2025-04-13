@@ -54,12 +54,6 @@ After installing via `pip`, you'll need to provide your own configuration files.
 wget https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/config.yml
 ```
 
-**Or using `curl`:**
-
-```bash
-curl -O https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/config.yml
-```
-
 ---
 
 ### Download the Environment File (`.env`)
@@ -70,12 +64,6 @@ Download the example environment file and rename it to `.env`:
 
 ```bash
 wget https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/.envexample -O .env
-```
-
-**Or using `curl`:**
-
-```bash
-curl -o .env https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/.envexample
 ```
 
 > **Note:** Be sure to edit the `.env` file with your actual API keys and any other required variables.
@@ -132,6 +120,59 @@ flowchart LR
     A["Python Function"] --> B["Tool"]
     B --> C["Agent"]
     C --> D["Result"]
+```
+
+### 2. tiny_chain Orchestration
+
+Complex tasks are handled through an intelligent chain of tools that automatically:
+
+- Selects appropriate tools
+- Maintains context between steps
+- Processes results in sequence
+
+```mermaid
+flowchart LR
+    A["Task"] --> B["tiny_chain"]
+    B --> C["Search Tool"]
+    B --> D["Browser Tool"]
+    B --> E["Summarize Tool"]
+    C --> F["Context"]
+    D --> F
+    E --> F
+    F --> G["Result"]
+
+    style B fill:#f9f,stroke:#333,stroke-width:2px
+    style F fill:#bbf,stroke:#333,stroke-width:2px
+```
+
+```python
+from tinyagent.factory.tiny_chain import tiny_chain
+from tinyagent.tools.duckduckgo_search import get_search_tool
+from tinyagent.tools.custom_text_browser import get_browser_tool
+from tinyagent.decorators import tool
+
+@tool(name="summarize")
+def summarize_text(text: str) -> str:
+    """Summarize the provided text."""
+    return llm_summarize(text)  # Your LLM summarization logic
+
+# Create chain with tools
+chain = tiny_chain.get_instance(tools=[
+    get_search_tool(),      # Search the web
+    get_browser_tool(),     # Visit and extract content
+    summarize_text._tool    # Summarize findings
+])
+
+# Execute complex task
+task_id = chain.submit_task(
+    "research latest AI developments and summarize key points"
+)
+
+# Get results
+status = chain.get_task_status(task_id)
+if status.result:
+    for step in status.result['steps']:
+        print(f"Step {step['tool']}: {step['result']}")
 ```
 
 ## Example Usage
