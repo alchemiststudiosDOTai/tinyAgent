@@ -40,7 +40,16 @@ graph TD
     D -->|No| E[Try Fallback]
     D -->|Yes| F[Return Result]
     E --> F
+
+    style A fill:#d4eaff,stroke:#333,stroke-width:2px
+    style B fill:#ffe7d4,stroke:#333,stroke-width:2px
+    style C fill:#d4ffea,stroke:#333,stroke-width:2px
+    style D fill:#ffd4e5,stroke:#333,stroke-width:2px
+    style E fill:#e7d4ff,stroke:#333,stroke-width:2px
+    style F fill:#fff3d4,stroke:#333,stroke-width:2px
 ```
+
+> **Note**: TinyChain is currently in beta. The implementation and interface may change in future versions.
 
 ### 3. Tool Execution Chain
 

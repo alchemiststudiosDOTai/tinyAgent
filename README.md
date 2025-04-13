@@ -122,6 +122,32 @@ flowchart LR
     C --> D["Result"]
 ```
 
+![Function to Agent Flow](static/images/func_agent.png)
+
+```python
+#!/usr/bin/env python3
+"""
+Example: Functions as Agents
+"""
+from tinyagent.decorators import tool
+from tinyagent.factory.agent_factory import AgentFactory
+
+@tool
+def calculate_sum(a: int, b: int) -> int:
+    """Calculate the sum of two integers."""
+    return a + b
+
+def main():
+    agent = AgentFactory.get_instance().create_agent(tools=[calculate_sum])
+    query = "calculate the sum of 5 and 3"
+    print(f"Query: '{query}'")
+    result = agent.run(query, expected_type=int)
+    print(f"Result: {result}")
+
+if __name__ == "__main__":
+    main()
+```
+
 ### 2. tiny_chain Orchestration
 
 Complex tasks are handled through an intelligent chain of tools that automatically:
@@ -174,39 +200,6 @@ if status.result:
     for step in status.result['steps']:
         print(f"Step {step['tool']}: {step['result']}")
 ```
-
-## Example Usage
-
-```python
-#!/usr/bin/env python3
-"""
-Example: Functions as Agents
-"""
-from tinyagent.decorators import tool
-from tinyagent.factory.agent_factory import AgentFactory
-
-@tool
-def calculate_sum(a: int, b: int) -> int:
-    """Calculate the sum of two integers."""
-    return a + b
-
-def main():
-    agent = AgentFactory.get_instance().create_agent(tools=[calculate_sum])
-    query = "calculate the sum of 5 and 3"
-    print(f"Query: '{query}'")
-    result = agent.run(query, expected_type=int)
-    print(f"Result: {result}")
-
-if __name__ == "__main__":
-    main()
-```
-
-![Function to Agent Flow](static/images/func_agent.png)
-
-### 2. Hierarchical Orchestration
-
-Multiple agents can collaborate on more complex tasks. A master orchestrator delegates specialized tasks—like searching, summarizing, or coding to the relevant agents.
-NOTE: This is beta
 
 ---
 
