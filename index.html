@@ -1,377 +1,412 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>tinyAgent - AGI made simple</title>
-    <style>
-      :root {
-        --primary-color: #e6edf3;
-        --accent-color: #f56565;
-        --dark-bg: #0d1117;
-        --dark-card: #161b22;
-        --secondary-color: #58a6ff;
-        --code-bg: #1e2128;
-        --code-color: #f8f8f2;
-        --hover-accent: #e05252;
-        --code-shadow: rgba(0, 0, 0, 0.3);
-      }
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+          <title>tinyAgent - AGI made simple</title>
+          <style>
+            /* 
+              ============
+              MOBILE FIRST
+              ============
+              Use a mobile-first approach and progressively enhance styles 
+              for larger breakpoints. This typically results in simpler code 
+              and more predictable behavior on smaller screens.
+            */
 
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      }
+            :root {
+              --primary-color: #e6edf3;
+              --accent-color: #f56565;
+              --dark-bg: #0d1117;
+              --dark-card: #161b22;
+              --secondary-color: #58a6ff;
+              --code-bg: #1e2128;
+              --code-color: #f8f8f2;
+              --hover-accent: #e05252;
+              --code-shadow: rgba(0, 0, 0, 0.3);
+            }
 
-      body {
-        background-color: var(--dark-bg);
-        color: var(--primary-color);
-        line-height: 1.6;
-      }
+            /* GLOBAL RESETS & BASE */
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+              font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            }
 
-      .container {
-        width: 90%;
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 2rem 1rem;
-      }
+            body {
+              background-color: var(--dark-bg);
+              color: var(--primary-color);
+              line-height: 1.6;
+            }
 
-      header {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        padding: 2rem 0;
-        margin-bottom: 2rem;
-        border-bottom: 2px solid var(--accent-color);
-      }
+            a {
+              color: var(--accent-color);
+              text-decoration: none;
+            }
 
-      .logo-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin-bottom: 0.5rem;
-      }
+            a:hover {
+              text-decoration: underline;
+            }
 
-      .logo {
-        max-width: 200px;
-        height: auto;
-      }
+            .highlight {
+              color: var(--accent-color);
+              font-weight: bold;
+            }
 
-      h1 {
-        font-size: 2.5rem;
-        margin-bottom: 1rem;
-        color: var(--primary-color);
-      }
+            /* CONTAINER */
+            .container {
+              width: 90%;
+              max-width: 1200px;
+              margin: 0 auto;
+              padding: 2rem 1rem;
+            }
 
-      h2 {
-        font-size: 1.8rem;
-        margin: 2rem 0 1rem;
-        color: var(--primary-color);
-        border-left: 4px solid var(--accent-color);
-        padding-left: 1rem;
-      }
+            /* HEADERS & TEXT */
+            header {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              text-align: center;
+              padding: 2rem 0;
+              margin-bottom: 2rem;
+              border-bottom: 2px solid var(--accent-color);
+            }
 
-      h3 {
-        color: var(--primary-color);
-        margin: 0.5rem 0;
-      }
+            .logo-container {
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              margin-bottom: 0.5rem;
+            }
 
-      p {
-        margin-bottom: 1.5rem;
-      }
+            .logo {
+              max-width: 200px;
+              height: auto;
+            }
 
-      a {
-        color: var(--accent-color);
-        text-decoration: none;
-      }
+            h1 {
+              font-size: 2rem; /* Smaller base for mobile */
+              margin-bottom: 1rem;
+              color: var(--primary-color);
+            }
 
-      a:hover {
-        text-decoration: underline;
-      }
+            h2 {
+              font-size: 1.5rem; /* Base for mobile, can increase for larger screens */
+              margin: 2rem 0 1rem;
+              color: var(--primary-color);
+              border-left: 4px solid var(--accent-color);
+              padding-left: 1rem;
+            }
 
-      .highlight {
-        color: var(--accent-color);
-        font-weight: bold;
-      }
+            h3 {
+              color: var(--primary-color);
+              margin: 0.5rem 0;
+            }
 
-      .framework-advantages {
-        list-style-type: none;
-        margin-bottom: 1.5rem;
-        text-align: center;
-      }
+            p {
+              margin-bottom: 1.5rem;
+            }
 
-      .framework-advantages li {
-        margin-bottom: 0.5rem;
-        position: relative;
-        padding-left: 1.5rem;
-        display: inline-block;
-        margin-right: 1rem;
-      }
+            /* LISTS */
+            .framework-advantages {
+              list-style-type: none;
+              margin-bottom: 1.5rem;
+              text-align: center;
+            }
 
-      .framework-advantages li:before {
-        content: "✓";
-        color: var(--accent-color);
-        position: absolute;
-        left: 0;
-        font-weight: bold;
-      }
+            .framework-advantages li {
+              display: inline-block;
+              margin-right: 1rem;
+              margin-bottom: 0.5rem;
+              position: relative;
+              padding-left: 1.5rem;
+            }
 
-      .card {
-        background-color: var(--dark-card);
-        border-radius: 8px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-        padding: 2rem;
-        margin-bottom: 2rem;
-        transition: transform 0.3s ease;
-      }
+            .framework-advantages li:before {
+              content: "✓";
+              color: var(--accent-color);
+              position: absolute;
+              left: 0;
+              font-weight: bold;
+            }
 
-      .card:hover {
-        transform: translateY(-5px);
-      }
+            .feature-list,
+            .acknowledgments-list {
+              list-style-type: none;
+              padding-left: 0;
+            }
 
-      .feature-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 2rem;
-        margin: 2rem 0;
-      }
+            .feature-list li,
+            .acknowledgments-list li {
+              margin-bottom: 1rem;
+              padding-left: 1.5rem;
+              position: relative;
+            }
 
-      .feature {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        background-color: rgba(30, 30, 30, 0.6);
-        padding: 1.5rem;
-        border-radius: 8px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-        transition: transform 0.3s ease;
-      }
+            .feature-list li:before {
+              content: "✓";
+              color: var(--accent-color);
+              position: absolute;
+              left: 0;
+            }
 
-      .feature:hover {
-        transform: translateY(-5px);
-      }
+            .acknowledgments-list li:before {
+              content: "★";
+              color: var(--accent-color);
+              position: absolute;
+              left: 0;
+            }
 
-      .feature-icon {
-        font-size: 2rem;
-        color: var(--accent-color);
-        margin-bottom: 1rem;
-      }
+            /* CARDS */
+            .card {
+              background-color: var(--dark-card);
+              border-radius: 8px;
+              box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+              padding: 1.5rem; /* slightly smaller padding for mobile */
+              margin-bottom: 2rem;
+              transition: transform 0.3s ease;
+            }
 
-      .cta-button {
-        display: inline-block;
-        background-color: var(--accent-color);
-        color: white;
-        padding: 1rem 2rem;
-        border-radius: 6px;
-        text-decoration: none;
-        font-weight: bold;
-        transition: all 0.3s ease;
-        margin-top: 1.5rem;
-        box-shadow: 0 4px 12px rgba(229, 62, 62, 0.3);
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        font-size: 0.9rem;
-        border: none;
-        cursor: pointer;
-      }
+            .card:hover {
+              transform: translateY(-5px);
+            }
 
-      .cta-button:hover {
-        background-color: var(--hover-accent);
-        text-decoration: none;
-        transform: translateY(-2px);
-        box-shadow: 0 6px 15px rgba(229, 62, 62, 0.4);
-      }
+            /* GRID */
+            .feature-grid {
+              display: grid;
+              grid-template-columns: 1fr; /* single column by default (mobile-first) */
+              gap: 2rem;
+              margin: 2rem 0;
+            }
 
-      .code-block {
-        background-color: var(--code-bg);
-        color: var(--code-color);
-        padding: 1.5rem;
-        border-radius: 8px;
-        font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace;
-        margin: 1.5rem 0;
-        overflow-x: auto;
-        font-size: 0.9rem;
-        line-height: 1.6;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-        border-left: 4px solid var(--accent-color);
-        position: relative;
-        white-space: pre-wrap;
-      }
+            .feature {
+              display: flex;
+              flex-direction: column;
+              align-items: flex-start;
+              background-color: rgba(30, 30, 30, 0.6);
+              padding: 1.5rem;
+              border-radius: 8px;
+              box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+              transition: transform 0.3s ease;
+            }
 
-      .code-block::before {
-        content: "tinyAgent";
-        position: absolute;
-        top: 0;
-        right: 0;
-        background-color: var(--accent-color);
-        color: white;
-        padding: 0.2rem 0.8rem;
-        font-size: 0.75rem;
-        border-radius: 0 8px 0 8px;
-        font-family: "Segoe UI", Arial, sans-serif;
-        font-weight: bold;
-      }
+            .feature:hover {
+              transform: translateY(-5px);
+            }
 
-      .code-comment {
-        color: #6a9955;
-        font-style: italic;
-      }
+            .feature-icon {
+              font-size: 2rem;
+              color: var(--accent-color);
+              margin-bottom: 1rem;
+            }
 
-      .code-keyword {
-        color: #569cd6;
-        font-weight: bold;
-      }
+            /* CALL TO ACTION BUTTON */
+            .cta-button {
+              display: inline-block;
+              background-color: var(--accent-color);
+              color: white;
+              padding: 1rem 2rem;
+              border-radius: 6px;
+              text-decoration: none;
+              font-weight: bold;
+              transition: all 0.3s ease;
+              margin-top: 1.5rem;
+              box-shadow: 0 4px 12px rgba(229, 62, 62, 0.3);
+              text-transform: uppercase;
+              letter-spacing: 1px;
+              font-size: 0.9rem;
+              border: none;
+              cursor: pointer;
+            }
 
-      .code-string {
-        color: #ce9178;
-      }
+            .cta-button:hover {
+              background-color: var(--hover-accent);
+              transform: translateY(-2px);
+              box-shadow: 0 6px 15px rgba(229, 62, 62, 0.4);
+            }
 
-      .code-function {
-        color: #dcdcaa;
-      }
+            /* CODE BLOCKS */
+            .code-block {
+              position: relative;
+              background-color: var(--code-bg);
+              color: var(--code-color);
+              padding: 1rem; /* Unified padding for all screens */
+              margin: 1.5rem 0;
+              border-radius: 8px;
+              font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace;
+              font-size: 0.9rem; 
+              line-height: 1.5;
+              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+              border-left: 4px solid var(--accent-color);
+              white-space: pre; /* Keep code spacing intact */
+              overflow-x: auto; /* Horizontal scroll if needed */
+            }
 
-      .code-decorator {
-        color: #c586c0;
-        font-weight: bold;
-      }
+            /* Label in code block corner */
+            .code-block::before {
+              content: "tinyAgent";
+              position: absolute;
+              top: 0;
+              left: 0;
+              background-color: var(--accent-color);
+              color: white;
+              padding: 0.2rem 0.8rem;
+              font-size: 0.75rem;
+              border-radius: 8px 0 8px 0;
+              font-family: "Segoe UI", Arial, sans-serif;
+              font-weight: bold;
+              z-index: 1;
+            }
 
-      footer {
-        text-align: center;
-        padding: 2rem 0;
-        margin-top: 3rem;
-        border-top: 1px solid #333;
-        color: #888;
-      }
+            /* Copy button inside code block */
+            .copy-code-button {
+              position: absolute;
+              top: 0;
+              right: 0;
+              background-color: var(--secondary-color);
+              color: white;
+              border: none;
+              padding: 0.2rem 0.8rem;
+              font-size: 0.75rem;
+              border-radius: 0 8px 0 8px;
+              cursor: pointer;
+              font-family: "Segoe UI", Arial, sans-serif;
+              font-weight: bold;
+              z-index: 2;
+              transition: background-color 0.2s ease;
+            }
 
-      .asciiart {
-        font-family: "Courier New", Courier, monospace;
-        white-space: pre;
-        line-height: 1.2;
-        font-size: 0.8rem;
-        margin: 0.5rem 0 1.5rem 0;
-        overflow-x: auto;
-        color: var(--primary-color);
-        text-align: center;
-      }
+            .copy-code-button:hover {
+              background-color: #4a91e2;
+            }
 
-      .asciiart .smaller {
-        font-size: 0.6rem;
-        vertical-align: super;
-      }
+            /*
+              OPTIONAL: syntax coloring classes. 
+              If you use a syntax highlighter, 
+              you'd typically let the library do this, 
+              but it's okay to keep these example classes:
+            */
+            .code-comment {
+              color: #6a9955;
+              font-style: italic;
+            }
 
-      .asciiart .larger {
-        font-size: 1.6rem;
-        vertical-align: middle;
-        font-weight: bold;
-      }
+            .code-keyword {
+              color: #569cd6;
+              font-weight: bold;
+            }
 
-      @media (max-width: 768px) {
-        h1 {
-          font-size: 2rem;
-        }
+            .code-string {
+              color: #ce9178;
+            }
 
-        h2 {
-          font-size: 1.5rem;
-        }
+            .code-function {
+              color: #dcdcaa;
+            }
 
-        .feature-grid {
-          grid-template-columns: 1fr;
-        }
+            .code-decorator {
+              color: #c586c0;
+              font-weight: bold;
+            }
 
-        .asciiart {
-          font-size: 0.6rem;
-          margin: 0.3rem 0 1rem 0;
-        }
-      }
+            .code-command {
+              color: #dcdcaa;
+              font-weight: bold;
+            }
 
-      .feature-list,
-      .acknowledgments-list {
-        list-style-type: none;
-        padding-left: 0;
-      }
+            .code-url {
+              color: #ce9178;
+              word-break: break-all;
+              display: inline-block;
+            }
 
-      .feature-list li,
-      .acknowledgments-list li {
-        margin-bottom: 1rem;
-        padding-left: 1.5rem;
-        position: relative;
-      }
+            /* IMAGES */
+            .feature-image {
+              max-width: 100%;
+              height: auto;
+              margin: 1.5rem 0;
+              border-radius: 8px;
+              box-shadow: 0 4px 12px var(--code-shadow);
+            }
 
-      .feature-list li:before {
-        content: "✓";
-        color: var(--accent-color);
-        position: absolute;
-        left: 0;
-      }
+            /* MERMAID / DIAGRAM SECTION */
+            .mermaid-diagram {
+              text-align: center;
+              margin: 2rem 0;
+              padding: 1rem;
+              background: var(--dark-card);
+              border-radius: 8px;
+              box-shadow: 0 4px 12px var(--code-shadow);
+            }
 
-      .feature-image {
-        max-width: 100%;
-        height: auto;
-        margin: 1.5rem 0;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px var(--code-shadow);
-      }
+            .mermaid-diagram img {
+              max-width: 100%;
+              height: auto;
+            }
 
-      .acknowledgments-list li:before {
-        content: "★";
-        color: var(--accent-color);
-        position: absolute;
-        left: 0;
-      }
+            /* FOOTER */
+            footer {
+              text-align: center;
+              padding: 2rem 0;
+              margin-top: 3rem;
+              border-top: 1px solid #333;
+              color: #888;
+            }
 
-      .mermaid-diagram {
-        text-align: center;
-        margin: 2rem 0;
-        padding: 1rem;
-        background: var(--dark-card);
-        border-radius: 8px;
-        box-shadow: 0 4px 12px var(--code-shadow);
-      }
 
-      .mermaid-diagram img {
-        max-width: 100%;
-        height: auto;
-      }
-      /* Responsive code blocks for mobile */
-      @media (max-width: 600px) {
-        .code-block {
-          font-size: 0.95em;
-          padding: 1em 0.5em;
-          border-radius: 6px;
-          margin: 1em 0;
-          white-space: pre;
-          overflow-x: auto;
-          max-width: 100vw;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <header>
-        <div class="logo-container">
-          <img
-            src="static/images/tinyAgent_logo_v2.png"
-            alt="tinyAgent Logo"
-            class="logo"
-          />
-        </div>
+            /* 
+              ================
+              LARGER SCREENS
+              ================
+              Only override or enhance what's needed for screens above a certain width.
+            */
 
-        <h1>tiny<span class="highlight">Agent</span>.xyz</h1>
-        <ul class="framework-advantages">
-          <li>
-            <strong>Turn any function into an AI tool</strong> with a simple
-            decorator
-          </li>
-          <li><strong>Combine agents</strong> to solve complex problems</li>
-          <li>
-            <strong>Experimental meta-agent</strong> that plans and executes
-            from a single prompt
-          </li>
-        </ul>
-      </header>
+            @media (min-width: 600px) {
+              h1 {
+                font-size: 2.2rem; /* scale up heading for tablets */
+              }
+              h2 {
+                font-size: 1.7rem;
+              }
+            }
+
+            @media (min-width: 768px) {
+              h1 {
+                font-size: 2.5rem;
+              }
+              h2 {
+                font-size: 2rem;
+              }
+              .feature-grid {
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+              }
+            }
+
+            @media (min-width: 992px) {
+              .card {
+                padding: 2rem;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <header>
+              <div class="logo-container">
+                <img
+                  src="static/images/tinyAgent_logo_v2.png"
+                  alt="tinyAgent Logo"
+                  class="logo"
+                />
+              </div>
+              <h1>tiny<span class="highlight">Agent</span>.xyz</h1>
+              <ul class="framework-advantages">
+                <li><strong>Turn any function into an AI tool</strong> with a simple decorator</li>
+                <li><strong>Combine agents</strong> to solve complex problems</li>
+                <li><strong>Experimental meta-agent</strong> that plans and executes from a single prompt</li>
+              </ul>
+            </header>
 
       <div class="card">
         <h2>⚠️ Heads Up</h2>
@@ -400,22 +435,23 @@
       <div class="card">
         <h2>📚 Installation</h2>
         <p>Get started with tinyAgent in minutes:</p>
-        <div class="code-block">
+        <div class="code-block installation-code">
+          <button class="copy-code-button">Copy</button>
           <span class="code-comment"># Install via pip (Recommended)</span>
           pip install tiny_agent_os
 
           <span class="code-comment"
             ># Download the Configuration File (config.yml)</span
           >
-          wget
-          https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/config.yml
+          <span class="code-command">wget</span>
+          <span class="code-url">https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/config.yml</span>
 
           <span class="code-comment"
             ># Download the Environment File (.env)</span
           >
-          wget
-          https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/.envexample
-          -O .env
+          <span class="code-command">wget</span>
+          <span class="code-url">https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/.envexample</span>
+          <span class="code-command">-O .env</span>
 
           <span class="code-comment"># Edit .env with your API keys</span>
           <span class="code-comment"
@@ -438,17 +474,13 @@
           that function in response to natural-language queries.
         </p>
         <div class="code-block">
-          <span class="code-keyword">from</span> tinyagent.decorators
-          <span class="code-keyword">import</span> tool
+          <button class="copy-code-button">Copy</button>
+          <span class="code-keyword">from</span> tinyagent.decorators <span class="code-keyword">import</span> tool
 
           <span class="code-decorator">@tool</span>
-          <span class="code-keyword">def</span>
-          <span class="code-function">greet_person</span>(name:
-          <span class="code-keyword">str</span>) ->
-          <span class="code-keyword">str</span>:
-          <span class="code-string">"""Return a friendly greeting."""</span>
-          <span class="code-keyword">return</span>
-          <span class="code-string">f"Hello, {name}!"</span>
+          <span class="code-keyword">def</span> <span class="code-function">greet_person</span>(name: <span class="code-keyword">str</span>) -> <span class="code-keyword">str</span>:
+              <span class="code-string">"""Return a friendly greeting."""</span>
+              <span class="code-keyword">return</span> <span class="code-string">f"Hello, {name}!"</span>
         </div>
       </div>
 
@@ -481,35 +513,26 @@
       <div class="card">
         <h2>Example Usage</h2>
         <div class="code-block">
+          <button class="copy-code-button">Copy</button>
           <span class="code-comment">#!/usr/bin/env python3</span>
           <span class="code-comment">"""Example: Functions as Agents"""</span>
-          <span class="code-keyword">from</span> tinyagent.decorators
-          <span class="code-keyword">import</span> tool
-          <span class="code-keyword">from</span> tinyagent.factory.agent_factory
-          <span class="code-keyword">import</span> AgentFactory
+          <span class="code-keyword">from</span> tinyagent.decorators <span class="code-keyword">import</span> tool
+          <span class="code-keyword">from</span> tinyagent.factory.agent_factory <span class="code-keyword">import</span> AgentFactory
 
           <span class="code-decorator">@tool</span>
-          <span class="code-keyword">def</span>
-          <span class="code-function">calculate_sum</span>(a:
-          <span class="code-keyword">int</span>, b:
-          <span class="code-keyword">int</span>) ->
-          <span class="code-keyword">int</span>:
-          <span class="code-string"
-            >"""Calculate the sum of two integers."""</span
-          >
-          <span class="code-keyword">return</span> a + b
+          <span class="code-keyword">def</span> <span class="code-function">calculate_sum</span>(a: <span class="code-keyword">int</span>, b: <span class="code-keyword">int</span>) -> <span class="code-keyword">int</span>:
+              <span class="code-string">"""Calculate the sum of two integers."""</span>
+              <span class="code-keyword">return</span> a + b
 
-          <span class="code-keyword">def</span>
-          <span class="code-function">main</span>(): agent =
-          AgentFactory.get_instance().create_agent(tools=[calculate_sum]) query
-          =
-          <span class="code-string">"calculate the sum of 5 and 3"</span>
-          print(<span class="code-string">f"Query: '{query}'"</span>) result =
-          agent.run(query, expected_type=<span class="code-keyword">int</span>)
-          print(<span class="code-string">f"Result: {result}"</span>)
+          <span class="code-keyword">def</span> <span class="code-function">main</span>():
+              agent = AgentFactory.get_instance().create_agent(tools=[calculate_sum])
+              query = <span class="code-string">"calculate the sum of 5 and 3"</span>
+              print(<span class="code-string">f"Query: '{query}'"</span>)
+              result = agent.run(query, expected_type=<span class="code-keyword">int</span>)
+              print(<span class="code-string">f"Result: {result}"</span>)
 
-          <span class="code-keyword">if</span> __name__ ==
-          <span class="code-string">"__main__"</span>: main()
+          <span class="code-keyword">if</span> __name__ == <span class="code-string">"__main__"</span>:
+              main()
         </div>
       </div>
 
@@ -559,13 +582,46 @@
         </div>
       </div>
 
+
       <footer>
-        <p>
-          &copy; 2025 tinyAgent. All rights reserved. | Agent framework & site
-          created by
-          <a href="https://alchemiststudios.ai">alchemiststudios.ai</a>
-        </p>
+        <p>&copy; 2025 tinyAgent. All rights reserved. | Agent framework & site
+        created by <a href="https://alchemiststudios.ai">alchemiststudios.ai</a></p>
       </footer>
     </div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const copyButtons = document.querySelectorAll('.copy-code-button');
+
+        copyButtons.forEach(button => {
+          button.addEventListener('click', () => {
+            const codeBlock = button.closest('.code-block');
+            // Clone the code block to manipulate text without the button
+            const codeClone = codeBlock.cloneNode(true);
+            codeClone.querySelector('.copy-code-button').remove();
+            const codeToCopy = codeClone.innerText || codeClone.textContent;
+
+            navigator.clipboard.writeText(codeToCopy.trim()).then(() => {
+              const originalText = button.textContent;
+              button.textContent = 'Copied!';
+              button.style.backgroundColor = '#28a745'; // Green for success
+              setTimeout(() => {
+                button.textContent = originalText;
+                button.style.backgroundColor = '';
+              }, 2000);
+            }).catch(err => {
+              console.error('Failed to copy code: ', err);
+              const originalText = button.textContent;
+              button.textContent = 'Failed!';
+              button.style.backgroundColor = '#dc3545'; // Red for error
+              setTimeout(() => {
+                button.textContent = originalText;
+                button.style.backgroundColor = '';
+              }, 2000);
+            });
+          });
+        });
+      });
+    </script>
   </body>
 </html>
