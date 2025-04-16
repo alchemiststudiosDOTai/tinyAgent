@@ -511,6 +511,106 @@
       </div>
 
       <div class="card">
+        <h2>Orchestration: tiny_chain</h2>
+        <p>
+          <strong>tiny_chain</strong> is the main engine of tinyAgent's
+          orchestration. It lets your agent solve complex tasks by chaining
+          together multiple tools, using an LLM-powered "triage agent" to plan
+          the best sequence. If the plan fails, tiny_chain falls back to running
+          all tools in sequence, ensuring robustness and reliability.
+        </p>
+        <ul class="feature-list">
+          <li>
+            <strong>Simple:</strong> Describe your task in natural language.
+            tiny_chain figures out which tools to use and in what order.
+          </li>
+          <li>
+            <strong>Smart:</strong> The triage agent (an LLM) analyzes your
+            query and suggests a plan—sometimes a single tool, sometimes a
+            multi-step chain.
+          </li>
+          <li>
+            <strong>Robust:</strong> If the triage agent can't make a good plan,
+            tiny_chain just tries all tools, so you always get an answer.
+          </li>
+          <li>
+            <strong>Extensible:</strong> Add new tools or improve the triage
+            agent to handle more complex workflows.
+          </li>
+        </ul>
+        <div class="code-block">
+          <span class="code-keyword">from</span> tinyagent.factory.tiny_chain
+          <span class="code-keyword">import</span> tiny_chain
+          <br />
+          <span class="code-keyword">from</span>
+          tinyagent.tools.duckduckgo_search
+          <span class="code-keyword">import</span> get_search_tool
+          <br />
+          <span class="code-keyword">from</span>
+          tinyagent.tools.custom_text_browser
+          <span class="code-keyword">import</span> get_browser_tool
+          <br />
+          <span class="code-keyword">from</span> tinyagent.decorators
+          <span class="code-keyword">import</span> tool <br /><br />
+          <span class="code-decorator">@tool(name="summarize")</span>
+          <br />
+          <span class="code-keyword">def</span>
+          <span class="code-function">summarize_text</span>(text:
+          <span class="code-keyword">str</span>) ->
+          <span class="code-keyword">str</span>:
+          <br />
+          &nbsp;&nbsp;<span class="code-string"
+            >"""Summarize the provided text."""</span
+          >
+          <br />
+          &nbsp;&nbsp;<span class="code-keyword">return</span>
+          llm_summarize(text)
+          <span class="code-comment"># Your LLM summarization logic</span>
+          <br /><br />
+          <span class="code-comment"># Create chain with tools</span>
+          <br />
+          chain = tiny_chain.get_instance(tools=[
+          <br />
+          &nbsp;&nbsp;get_search_tool(),
+          <span class="code-comment"># Search the web</span>
+          <br />
+          &nbsp;&nbsp;get_browser_tool(),
+          <span class="code-comment"># Visit and extract content</span>
+          <br />
+          &nbsp;&nbsp;summarize_text._tool
+          <span class="code-comment"># Summarize findings</span>
+          <br />
+          ])
+          <br /><br />
+          <span class="code-comment"># Execute complex task</span>
+          <br />
+          task_id = chain.submit_task(
+          <br />
+          &nbsp;&nbsp;"research latest AI developments and summarize key points"
+          <br />
+          )
+          <br /><br />
+          <span class="code-comment"># Get results</span>
+          <br />
+          status = chain.get_task_status(task_id)
+          <br />
+          <span class="code-keyword">if</span> status.result:
+          <br />
+          &nbsp;&nbsp;<span class="code-keyword">for</span> step
+          <span class="code-keyword">in</span> status.result['steps']:
+          <br />
+          &nbsp;&nbsp;&nbsp;&nbsp;print(f"Step {step['tool']}:
+          {step['result']}")
+        </div>
+        <p>
+          <span class="highlight"
+            >See a full, runnable example of tiny_chain orchestration in
+            <code>cookbook/tiny_agent_chain.py</code>.</span
+          >
+        </p>
+      </div>
+
+      <div class="card">
         <h2>Example Usage</h2>
         <div class="code-block">
           <button class="copy-code-button">Copy</button>
