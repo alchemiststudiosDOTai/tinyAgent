@@ -7,10 +7,9 @@ search and browser tools for researching tariff information.
 """
 
 import os
-import sys
 import json
+import sys
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from tinyagent.factory.tiny_chain import tiny_chain
 from tinyagent.tools.duckduckgo_search import get_tool as get_search_tool
 from tinyagent.tools.custom_text_browser import get_tool as get_browser_tool
@@ -84,7 +83,7 @@ def main() -> None:
 
     # Define research queries
     queries = [
-        "Find current US import tariffs and ise the browser to visit official trade websites to get details",
+        "Find current US import tariffs and use the browser to visit official trade websites to get details",
     ]
 
     # Print header

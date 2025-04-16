@@ -1,3 +1,5 @@
+    # you need pip install duckduckgo-search for internal search, but you can use any
+
 import time
 from typing import Dict, Any, Optional, Union, List
 from dataclasses import dataclass, field
@@ -176,6 +178,7 @@ class tiny_chain:
             try:
                 # Call the agent without the timeout parameter
                 raw_response = triage_agent.run(enhanced_description)
+                print(f"[Triage Attempt {attempts}] Raw response: {repr(raw_response)}")  # Debug print
 
                 # If the LLM already gave us a dict, just return it
                 if isinstance(raw_response, dict):
@@ -185,8 +188,10 @@ class tiny_chain:
                 parsed = robust_json_parse(raw_response)
                 if parsed is not None:
                     return parsed
+                else:
+                    print(f"[Triage Attempt {attempts}] Failed to parse response: {repr(raw_response)}")  # Debug print
             except Exception as e:
-                print(f"[Triage Attempt {attempts}] Error: {e}")
+                print(f"[Triage Attempt {attempts}] Exception: {e}")  # Debug print
                 # Continue to next attempt
 
             time.sleep(1)

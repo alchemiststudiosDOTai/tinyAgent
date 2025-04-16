@@ -729,12 +729,7 @@ class Agent:
             temperature, current_model = self.retry_manager.next_attempt()
             
             try:
-                logger.info("\n" + "="*50)
-                logger.info(f"Attempt {self.retry_manager.current_attempt}")
-                logger.info(f"Model: {current_model}")
-                logger.info(f"Temperature: {temperature}")
-                logger.info("="*50)
-                
+                print(f"[Agent.run] Attempt {self.retry_manager.current_attempt} with model {current_model} and temperature {temperature}")  # Debug print
                 # Initialize OpenAI client with configuration
                 client = OpenAI(
                     base_url=self.base_url,
@@ -756,9 +751,11 @@ class Agent:
                 api_key = os.getenv("OPENROUTER_API_KEY")
                 completion = make_openrouter_request(self.config, api_key, payload)
                 ## llm response
+                print(f"[Agent.run] Raw completion: {repr(completion)}")  # Debug print
                 
                 if not get_choices(completion):
                     error_msg = f"Invalid response format - no choices returned"
+                    print(f"[Agent.run] {error_msg}")  # Debug print
                     logger.error(error_msg)
                     retry_history.append({
                         "attempt": self.retry_manager.current_attempt,
@@ -770,7 +767,9 @@ class Agent:
                 
                 choices = get_choices(completion)
                 content = choices[0].message.content if hasattr(choices[0], "message") else choices[0]["message"]["content"]
+                print(f"[Agent.run] Raw LLM content: {repr(content)}")  # Debug print
                 parsed = self._parse_response(content)
+                print(f"[Agent.run] Parsed response: {repr(parsed)}")  # Debug print
                 
                 # Output debug information about the response
                 logger.info(f"Raw LLM response: {content[:500]}")
@@ -841,6 +840,7 @@ class Agent:
                 else:
                     # Only count as an error for retry if response is completely empty
                     error_msg = f"Invalid response format - {content[:100]}..."
+                    print(f"[Agent.run] {error_msg}")  # Debug print
                     logger.error(error_msg)
                     retry_history.append({
                         "attempt": self.retry_manager.current_attempt,
@@ -855,6 +855,7 @@ class Agent:
                 
             except Exception as e:
                 error_msg = f"Attempt failed: {str(e)}"
+                print(f"[Agent.run] Exception: {error_msg}")  # Debug print
                 logger.error(error_msg)
                 retry_history.append({
                     "attempt": self.retry_manager.current_attempt,

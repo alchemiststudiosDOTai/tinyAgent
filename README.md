@@ -148,16 +148,60 @@ if __name__ == "__main__":
     main()
 ```
 
-### 2. tiny_chain Orchestration
+### 2. tiny_chain Orchesration
 
-Complex tasks are handled through an intelligent chain of tools that automatically:
+- IN BETA
 
-- Selects appropriate tools
-- Maintains context between steps
-- Processes results in sequence
+tiny_chain is the main engine of tinyAgent's orchestration. It lets your agent solve complex tasks by chaining together multiple tools, using an LLM-powered "triage agent" to plan the best sequence. If the plan fails, tiny_chain falls back to running all tools in sequence, ensuring robustness and reliability.
 
-- IN BETA 
+- **Simple:** You describe your task in natural language. tiny_chain figures out which tools to use and in what order.
+- **Smart:** The triage agent (an LLM) analyzes your query and suggests a plan—sometimes a single tool, sometimes a multi-step chain.
+- **Robust:** If the triage agent can't make a good plan, tiny_chain just tries all tools, so you always get an answer.
+- **Extensible:** Add new tools or improve the triage agent to handle more complex workflows.
 
+**How it works (technical overview):**
+
+- When you submit a task, tiny_chain asks the triage agent for a plan (JSON: single tool or sequence).
+- If the plan is valid, tiny_chain executes the tools in order, passing results between them.
+- If the plan is invalid or fails, tiny_chain runs all tools as a fallback.
+- All errors are caught and logged, so you always get feedback.
+
+  style B fill:#f9f,stroke:#333,stroke-width:2px
+  style F fill:#bbf,stroke:#333,stroke-width:2px
+
+````
+
+```python
+from tinyagent.factory.tiny_chain import tiny_chain
+from tinyagent.tools.duckduckgo_search import get_search_tool
+from tinyagent.tools.custom_text_browser import get_browser_tool
+from tinyagent.decorators import tool
+
+@tool(name="summarize")
+def summarize_text(text: str) -> str:
+    """Summarize the provided text."""
+    return llm_summarize(text)  # Your LLM summarization logic
+
+# Create chain with tools
+chain = tiny_chain.get_instance(tools=[
+    # you need pip install duckduckgo-search for internal search, but you can use any
+    get_search_tool(),      # Search the web
+    get_browser_tool(),     # Visit and extract content
+    summarize_text._tool    # Summarize findings
+])
+
+# Execute complex task
+task_id = chain.submit_task(
+    "research latest AI developments and summarize key points"
+)
+
+# Get results
+status = chain.get_task_status(task_id)
+if status.result:
+    for step in status.result['steps']:
+        print(f"Step {step['tool']}: {step['result']}")
+
+👉 **See a full, runnable example of tiny_chain orchestration in [`cookbook/tiny_agent_chain.py`](cookbook/tiny_agent_chain.py).**
 
 ---
 
@@ -191,7 +235,8 @@ For questions, suggestions, or business inquiries:
 
 ## License
 
-**Business Source License 1.1 (BSL)**  
-This project is licensed under the Business Source License 1.1. It is **free for individuals and small businesses** (with annual revenues under $1M).  
-For commercial use by larger businesses, an enterprise license is required.  
+**Business Source License 1.1 (BSL)**
+This project is licensed under the Business Source License 1.1. It is **free for individuals and small businesses** (with annual revenues under $1M).
+For commercial use by larger businesses, an enterprise license is required.
 For licensing or usage inquiries, please contact: [info@alchemiststudios.ai](mailto:info@alchemiststudios.ai)
+````
