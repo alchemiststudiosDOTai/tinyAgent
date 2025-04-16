@@ -166,10 +166,15 @@ tiny_chain is the main engine of tinyAgent's orchestration. It lets your agent s
 - If the plan is invalid or fails, tiny_chain runs all tools as a fallback.
 - All errors are caught and logged, so you always get feedback.
 
-  style B fill:#f9f,stroke:#333,stroke-width:2px
-  style F fill:#bbf,stroke:#333,stroke-width:2px
+```mermaid
+flowchart LR
+    A["Python Function"] --> B["Tool"]
+    B --> C["Agent"]
+    C --> D["Result"]
 
-````
+    style B fill:#f9f,stroke:#333,stroke-width:2px
+    style F fill:#bbf,stroke:#333,stroke-width:2px
+```
 
 ```python
 from tinyagent.factory.tiny_chain import tiny_chain
@@ -200,6 +205,7 @@ status = chain.get_task_status(task_id)
 if status.result:
     for step in status.result['steps']:
         print(f"Step {step['tool']}: {step['result']}")
+```
 
 👉 **See a full, runnable example of tiny_chain orchestration in [`cookbook/tiny_agent_chain.py`](cookbook/tiny_agent_chain.py).**
 
@@ -239,4 +245,3 @@ For questions, suggestions, or business inquiries:
 This project is licensed under the Business Source License 1.1. It is **free for individuals and small businesses** (with annual revenues under $1M).
 For commercial use by larger businesses, an enterprise license is required.
 For licensing or usage inquiries, please contact: [info@alchemiststudios.ai](mailto:info@alchemiststudios.ai)
-````
