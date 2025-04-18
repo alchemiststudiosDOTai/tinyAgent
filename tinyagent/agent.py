@@ -729,7 +729,7 @@ class Agent:
             temperature, current_model = self.retry_manager.next_attempt()
             
             try:
-                print(f"[Agent.run] Attempt {self.retry_manager.current_attempt} with model {current_model} and temperature {temperature}")  # Debug print
+                logger.debug(f"[Agent.run] Attempt {self.retry_manager.current_attempt} with model {current_model} and temperature {temperature}")
                 # Initialize OpenAI client with configuration
                 client = OpenAI(
                     base_url=self.base_url,
@@ -750,13 +750,11 @@ class Agent:
 
                 api_key = os.getenv("OPENROUTER_API_KEY")
                 completion = make_openrouter_request(self.config, api_key, payload)
-                ## llm response
-                print(f"[Agent.run] Raw completion: {repr(completion)}")  # Debug print
+                logger.debug(f"[Agent.run] Raw completion: {repr(completion)}")
                 
                 if not get_choices(completion):
                     error_msg = f"Invalid response format - no choices returned"
-                    print(f"[Agent.run] {error_msg}")  # Debug print
-                    logger.error(error_msg)
+                    logger.debug(f"[Agent.run] {error_msg}")
                     retry_history.append({
                         "attempt": self.retry_manager.current_attempt,
                         "model": current_model,
@@ -767,9 +765,9 @@ class Agent:
                 
                 choices = get_choices(completion)
                 content = choices[0].message.content if hasattr(choices[0], "message") else choices[0]["message"]["content"]
-                print(f"[Agent.run] Raw LLM content: {repr(content)}")  # Debug print
+                logger.debug(f"[Agent.run] Raw LLM content: {repr(content)}")
                 parsed = self._parse_response(content)
-                print(f"[Agent.run] Parsed response: {repr(parsed)}")  # Debug print
+                logger.debug(f"[Agent.run] Parsed response: {repr(parsed)}")
                 
                 # Output debug information about the response
                 logger.info(f"Raw LLM response: {content[:500]}")
@@ -840,8 +838,7 @@ class Agent:
                 else:
                     # Only count as an error for retry if response is completely empty
                     error_msg = f"Invalid response format - {content[:100]}..."
-                    print(f"[Agent.run] {error_msg}")  # Debug print
-                    logger.error(error_msg)
+                    logger.debug(f"[Agent.run] {error_msg}")
                     retry_history.append({
                         "attempt": self.retry_manager.current_attempt,
                         "model": current_model,
@@ -855,8 +852,7 @@ class Agent:
                 
             except Exception as e:
                 error_msg = f"Attempt failed: {str(e)}"
-                print(f"[Agent.run] Exception: {error_msg}")  # Debug print
-                logger.error(error_msg)
+                logger.debug(f"[Agent.run] Exception: {error_msg}")
                 retry_history.append({
                     "attempt": self.retry_manager.current_attempt,
                     "model": current_model,
@@ -952,3 +948,10 @@ def get_llm(model: Optional[str] = None) -> Callable[[str], str]:
             return f"Error: {str(e)}"
     
     return llm_call
+
+def tiny_agent(tools=None, model=None):
+    """
+    Simplified alias to create an Agent using AgentFactory with given tools and optional model.
+    """
+    from .factory.agent_factory import AgentFactory
+    return AgentFactory.get_instance().create_agent(tools=tools, model=model)

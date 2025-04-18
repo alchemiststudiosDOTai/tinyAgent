@@ -105,6 +105,34 @@ def greet_person(name: str) -> str:
 
 That's it! Once decorated, `greet_person` can be included in an agent's list of tools, letting your LLM-driven agent call it as needed.
 
+### Example – `calculate_sum` Tool
+
+Turn a plain Python function into a natural-language skill with `@tool` and `tiny_agent`.
+
+```python
+from tinyagent.decorators import tool
+from tinyagent.agent import tiny_agent
+
+@tool
+def calculate_sum(a: int, b: int) -> int:
+    """Return the sum of two integers."""
+    return a + b
+
+if __name__ == "__main__":
+    agent = tiny_agent(tools=[calculate_sum])
+    query = "calculate the sum of 5 and 3"
+    result = agent.run(query, expected_type=int)
+    print(f"Query: '{query}' -> Result: {result}")
+```
+
+Console output:
+
+```
+Validating args for tool: calculate_sum
+Arguments provided: {'a': 5, 'b': 3}
+Query: 'calculate the sum of 5 and 3' -> Result: 8
+```
+
 ---
 
 ## Philosophy
@@ -130,19 +158,21 @@ flowchart LR
 Example: Functions as Agents
 """
 from tinyagent.decorators import tool
-from tinyagent.factory.agent_factory import AgentFactory
+from tinyagent.agent import tiny_agent
 
 @tool
 def calculate_sum(a: int, b: int) -> int:
     """Calculate the sum of two integers."""
     return a + b
 
+
 def main():
-    agent = AgentFactory.get_instance().create_agent(tools=[calculate_sum])
+    # Create an agent with the calculate_sum tool
+    agent = tiny_agent(tools=[calculate_sum])
     query = "calculate the sum of 5 and 3"
-    print(f"Query: '{query}'")
     result = agent.run(query, expected_type=int)
-    print(f"Result: {result}")
+    print(f"Query: '{query}' -> Result: {result}")
+
 
 if __name__ == "__main__":
     main()
@@ -176,38 +206,50 @@ flowchart LR
     style F fill:#bbf,stroke:#333,stroke-width:2px
 ```
 
+### tiny_chain Example – "Tariff Research Tool"
+
+Use this snippet (or drop-in file) anywhere in your docs to show **exactly how tiny_chain works** end-to-end.
+
 ```python
+#!/usr/bin/env python3
+"""
+tiny_chain example: automatically find and summarise U.S. import-tariff data
+"""
 from tinyagent.factory.tiny_chain import tiny_chain
-from tinyagent.tools.duckduckgo_search import get_search_tool
-from tinyagent.tools.custom_text_browser import get_browser_tool
+from tinyagent.tools.duckduckgo_search import get_tool as search_tool
+from tinyagent.tools.custom_text_browser import get_tool as browser_tool
 from tinyagent.decorators import tool
+from tinyagent.agent import get_llm
 
-@tool(name="summarize")
-def summarize_text(text: str) -> str:
-    """Summarize the provided text."""
-    return llm_summarize(text)  # Your LLM summarization logic
+@tool(name="summarize", description="Summarize input text with the LLM")
+def summarize(text: str) -> str:
+    prompt = f"Summarize the following text:\n\n{text}\n\nSummary:"
+    return get_llm()(prompt).strip()
 
-# Create chain with tools
-chain = tiny_chain.get_instance(tools=[
-    # you need pip install duckduckgo-search for internal search, but you can use any
-    get_search_tool(),      # Search the web
-    get_browser_tool(),     # Visit and extract content
-    summarize_text._tool    # Summarize findings
-])
-
-# Execute complex task
-task_id = chain.submit_task(
-    "research latest AI developments and summarize key points"
+# 1 – build the chain
+chain = tiny_chain.get_instance(
+    tools=[search_tool(), browser_tool(), summarize._tool]
 )
 
-# Get results
-status = chain.get_task_status(task_id)
-if status.result:
-    for step in status.result['steps']:
-        print(f"Step {step['tool']}: {step['result']}")
+# 2 – submit any natural-language task
+task_id = chain.submit_task(
+    "Find current US import tariffs and visit official trade websites for details"
+)
+
+# 3 – get structured results
+print(chain.get_task_status(task_id).result)
 ```
 
-👉 **See a full, runnable example of tiny_chain orchestration in [`cookbook/tiny_agent_chain.py`](cookbook/tiny_agent_chain.py).**
+**What it demonstrates**
+
+| tiny_chain feature                        | Visible in run                                     |
+| ----------------------------------------- | -------------------------------------------------- |
+| 🔗 Automatic tool planning (triage agent) | Picks _search → browse → summarize_                |
+| 🛠 Pluggable tools                         | DuckDuckGo search + custom browser + any `@tool`   |
+| 📝 Structured trace                       | `steps`, `tools_used`, errors if any               |
+| 🤖 LLM-powered step                       | `summarize` converts page content → concise answer |
+
+Copy-paste, run, and you have a minimal yet complete example of tiny_chain orchestrating multiple tools to solve a real research task.
 
 ---
 

@@ -9,6 +9,7 @@ search and browser tools for researching tariff information.
 import os
 import json
 import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tinyagent.factory.tiny_chain import tiny_chain
 from tinyagent.tools.duckduckgo_search import get_tool as get_search_tool

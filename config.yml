@@ -77,7 +77,7 @@ proxy:
   # Master switch for proxy functionality
   # When false, all proxy features are disabled regardless of other settings
   # When true, the proxy will be used according to the configuration below
-  enabled: False
+  enabled: True
 
   # Proxy URL template with placeholders
   # Format: http://customer-{username}-cc-{country}:{password}@pr.oxylabs.io:7777

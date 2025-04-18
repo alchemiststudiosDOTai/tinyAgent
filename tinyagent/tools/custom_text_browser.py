@@ -79,9 +79,16 @@ class CustomTextBrowser:
     ):
         # Load config first
         config = load_config()
-        self._use_proxy = use_proxy if use_proxy is not None else get_config_value(
-            config, "tools.browser.use_proxy", True
-        )
+        
+        # Check global proxy setting first
+        proxy_enabled = get_config_value(config, "proxy.enabled", False)
+        
+        # Only check specific browser proxy setting if global proxy is enabled
+        browser_proxy = get_config_value(config, "tools.browser.use_proxy", False) if proxy_enabled else False
+        
+        # Final proxy setting: explicit parameter > browser config > global config > False
+        self._use_proxy = use_proxy if use_proxy is not None else browser_proxy
+        
         self._max_retries = max_retries if max_retries is not None else get_config_value(
             config, "tools.browser.max_retries", 3
         )
@@ -768,7 +775,7 @@ def custom_text_browser_function(**kwargs):
             raise ValueError("url parameter is required for non-parallel actions")
         
     # Initialize browser with configuration
-    use_proxy = kwargs.get('use_proxy', True)
+    use_proxy = kwargs.get('use_proxy', False)  # Default to False instead of True
     random_delay = kwargs.get('random_delay', True)
     random_delay_range = (0.5, 2.0) if random_delay else None
     max_retries = kwargs.get('max_retries', 3)
