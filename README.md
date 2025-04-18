@@ -184,6 +184,20 @@ if __name__ == "__main__":
 
 tiny_chain is the main engine of tinyAgent's orchestration. It lets your agent solve complex tasks by chaining together multiple tools, using an LLM-powered "triage agent" to plan the best sequence. If the plan fails, tiny_chain falls back to running all tools in sequence, ensuring robustness and reliability.
 
+```mermaid
+flowchart LR
+    A["User Query"] --> B["Triage Agent"]
+    B --> C["Tool Planning"]
+    C --> D["Tool Execution"]
+    D --> E["Search"] --> F["Browser"] --> G["Summarize"]
+    G --> H["Final Result"]
+
+    style B fill:#f9f,stroke:#333,stroke-width:2px
+    style E fill:#bbf,stroke:#333,stroke-width:2px
+    style F fill:#bbf,stroke:#333,stroke-width:2px
+    style G fill:#bbf,stroke:#333,stroke-width:2px
+```
+
 - **Simple:** You describe your task in natural language. tiny_chain figures out which tools to use and in what order.
 - **Smart:** The triage agent (an LLM) analyzes your query and suggests a plan—sometimes a single tool, sometimes a multi-step chain.
 - **Robust:** If the triage agent can't make a good plan, tiny_chain just tries all tools, so you always get an answer.
@@ -195,16 +209,6 @@ tiny_chain is the main engine of tinyAgent's orchestration. It lets your agent s
 - If the plan is valid, tiny_chain executes the tools in order, passing results between them.
 - If the plan is invalid or fails, tiny_chain runs all tools as a fallback.
 - All errors are caught and logged, so you always get feedback.
-
-```mermaid
-flowchart LR
-    A["Python Function"] --> B["Tool"]
-    B --> C["Agent"]
-    C --> D["Result"]
-
-    style B fill:#f9f,stroke:#333,stroke-width:2px
-    style F fill:#bbf,stroke:#333,stroke-width:2px
-```
 
 ### tiny_chain Example – "Tariff Research Tool"
 
@@ -244,8 +248,62 @@ print(chain.get_task_status(task_id).result)
 
 | tiny_chain feature                        | Visible in run                                     |
 | ----------------------------------------- | -------------------------------------------------- |
-| 🔗 Automatic tool planning (triage agent) | Picks _search → browse → summarize_                |
-| 🛠 Pluggable tools                         | DuckDuckGo search + custom browser + any `@tool`   |
+| 🔗 Automatic tool planning (triage agent) | Picks _search → browser → summarize_               |
+| 🛠 Pluggable tools                         | Search + browser + summarize tools in sequence     |
+| 📝 Structured trace                       | `steps`, `tools_used`, errors if any               |
+| 🤖 LLM-powered step                       | `summarize` converts page content → concise answer |
+
+Copy-paste, run, and you have a minimal yet complete example of tiny_chain orchestrating multiple tools to solve a real research task.
+
+### Key links
+
+- **Harmonized Tariff Schedule (USITC)**  
+  <https://hts.usitc.gov/>
+
+- **FTA Tariff Tool (International Trade Administration)**  
+  <https://www.trade.gov/fta-tariff-tool-home>
+
+- **CBP – Determining Duty Rates**  
+  <https://www.cbp.gov/trade/programs-administration/determining-duty-rates>
+
+### Console Output
+
+```text
+============================================================
+Tariff Research Tool
+============================================================
+
+Researching: 'Find current US import tariffs and use the browser to visit official trade websites to get details'
+------------------------------------------------------------
+
+Tool Chain Steps:
+
+=== Step 1 ===
+Tool: search
+Top hit → Harmonized Tariff Schedule (hts.usitc.gov)
+
+=== Step 2 ===
+Tool: browser
+Visited title → Harmonized Tariff Schedule
+
+=== Step 3 ===
+Tool: summarize
+Result →
+To find current US import tariffs, consult the **Harmonized Tariff Schedule (HTS)**
+on the USITC website.
+For Free‑Trade Agreement rates, use the **FTA Tariff Tool** on trade.gov.
+CBP also provides duty‑rate guidance.
+
+------------------------------------------------------------
+Tools used: search → browser → summarize
+```
+
+**What it demonstrates**
+
+| tiny_chain feature                        | Visible in run                                     |
+| ----------------------------------------- | -------------------------------------------------- |
+| 🔗 Automatic tool planning (triage agent) | Picks _search → browser → summarize_               |
+| 🛠 Pluggable tools                         | Search + browser + summarize tools in sequence     |
 | 📝 Structured trace                       | `steps`, `tools_used`, errors if any               |
 | 🤖 LLM-powered step                       | `summarize` converts page content → concise answer |
 
