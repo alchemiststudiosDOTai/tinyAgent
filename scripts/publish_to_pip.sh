@@ -1,139 +1,75 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# publish_to_pip.sh  —  build & upload with **automatic patch‑increment**
+# -----------------------------------------------------------------------------
+# 1. Find highest version among:
+#       • the latest Git tag   (vX.Y.Z)
+#       • the latest on PyPI   (tiny-agent-os)
+# 2. Increment patch → X.Y.(Z+1)
+# 3. Tag, build, upload to **real** PyPI — no questions asked.
+# -----------------------------------------------------------------------------
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+set -euo pipefail
 
-# Function to print colored messages
-print_message() {
-    echo -e "${GREEN}==>${NC} $1"
-}
+PKG="tiny-agent-os"           # PyPI package name
 
-print_warning() {
-    echo -e "${YELLOW}WARNING:${NC} $1"
-}
+# ── repo root ────────────────────────────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/.."
 
-print_error() {
-    echo -e "${RED}ERROR:${NC} $1"
-}
+# ── emoji‑free logging helpers ─────────────────────────────────────────────
+GREEN=$'\033[0;32m'; RED=$'\033[0;31m'; NC=$'\033[0m'
+log(){ printf "%b\n" "${GREEN}==>${NC} $*"; }
+die(){ printf "%b\n" "${RED}ERROR:${NC} $*" >&2; exit 1; }
 
-# Function to increment version
-increment_version() {
-    local version=$1
-    local increment_type=$2
-    
-    # Split version into major, minor, and patch
-    IFS='.' read -r major minor patch <<< "$version"
-    
-    case $increment_type in
-        "major")
-            major=$((major + 1))
-            minor=0
-            patch=0
-            ;;
-        "minor")
-            minor=$((minor + 1))
-            patch=0
-            ;;
-        "patch")
-            patch=$((patch + 1))
-            ;;
-    esac
-    
-    echo "$major.$minor.$patch"
-}
+# ── prerequisites -----------------------------------------------------------
+for cmd in python3 pip git twine; do command -v $cmd >/dev/null || die "$cmd missing"; done
+[[ -f ~/.pypirc ]] || die "~/.pypirc missing (should contain real‑PyPI token)"
 
-# Check if virtual environment is activated
-if [[ -z "${VIRTUAL_ENV}" ]]; then
-    print_warning "Virtual environment not activated. It's recommended to use a virtual environment."
-    read -p "Continue anyway? (y/N) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        exit 1
-    fi
-fi
+pip -q install build twine setuptools_scm packaging >/dev/null
 
-# Check for required tools
-if ! command -v python3 &> /dev/null; then
-    print_error "python3 is required but not installed."
-    exit 1
-fi
+# ── cleanup -----------------------------------------------------------------
+rm -rf dist build *.egg-info
 
-if ! command -v pip &> /dev/null; then
-    print_error "pip is required but not installed."
-    exit 1
-fi
+# ── fetch latest PyPI version ----------------------------------------------
+remote=$(python3 - "$PKG" <<'PY'
+import json, sys, ssl, urllib.request, packaging.version as V
+pkg=sys.argv[1]
+try:
+    data=json.load(urllib.request.urlopen(f'https://pypi.org/pypi/{pkg}/json', context=ssl.create_default_context()))
+    print(max(data['releases'], key=V.Version))
+except Exception:
+    print('0.0.0')
+PY
+)
+log "Latest on PyPI  : $remote"
 
-# Install required build tools if not present
-print_message "Checking/Installing build requirements..."
-pip install --quiet build twine
+# ── fetch latest Git tag -----------------------------------------------------
+git fetch --tags -q
+local=$(git tag --sort=-v:refname | head -n1 | sed 's/^v//')
+[[ -z $local ]] && local="0.0.0"
+log "Latest Git tag  : $local"
 
-# Clean previous builds
-print_message "Cleaning previous builds..."
-rm -rf dist/ build/ *.egg-info/
+# ── choose max(remote, local) & bump patch ----------------------------------
+base=$(python3 - "$remote" "$local" <<'PY'
+import sys, packaging.version as V
+r,l=sys.argv[1:]
+print(r if V.Version(r)>=V.Version(l) else l)
+PY
+)
+IFS=. read -r MAJ MIN PAT <<<"$base"
+VERSION="$MAJ.$MIN.$((PAT+1))"
+log "Next version    : $VERSION"
 
-# Version handling
-print_message "Current version in pyproject.toml:"
-current_version=$(grep "version = " pyproject.toml | cut -d'"' -f2)
-echo "Current version: $current_version"
+export SETUPTOOLS_SCM_PRETEND_VERSION="$VERSION"
 
-echo
-echo "Choose version increment type:"
-echo "1) Patch (${current_version} -> $(increment_version $current_version patch))"
-echo "2) Minor (${current_version} -> $(increment_version $current_version minor))"
-echo "3) Major (${current_version} -> $(increment_version $current_version major))"
-echo "4) Manual version entry"
-echo "5) Keep current version"
-read -p "Select option (1-5): " version_choice
+# ── tag & push --------------------------------------------------------------
+git tag -m "Release v$VERSION" "v$VERSION"
+git push --tags
 
-case $version_choice in
-    1)
-        new_version=$(increment_version $current_version patch)
-        ;;
-    2)
-        new_version=$(increment_version $current_version minor)
-        ;;
-    3)
-        new_version=$(increment_version $current_version major)
-        ;;
-    4)
-        read -p "Enter new version number: " new_version
-        ;;
-    5)
-        new_version=$current_version
-        ;;
-    *)
-        print_error "Invalid option"
-        exit 1
-        ;;
-esac
+# ── build -------------------------------------------------------------------
+log "Building wheel/sdist"; python3 -m build
 
-if [ "$new_version" != "$current_version" ]; then
-    print_message "Updating to version $new_version"
-    sed -i "s/version = \"$current_version\"/version = \"$new_version\"/" pyproject.toml
-fi
+# ── upload ------------------------------------------------------------------
+log "Uploading to PyPI"; python3 -m twine upload -r pypi dist/*
 
-# Build package
-print_message "Building package..."
-if ! python3 -m build; then
-    print_error "Build failed!"
-    exit 1
-fi
-
-# Verify .pypirc exists
-if [ ! -f ~/.pypirc ]; then
-    print_error ".pypirc file not found in home directory!"
-    print_message "Please create ~/.pypirc with your PyPI token first."
-    exit 1
-fi
-
-# Upload to PyPI
-print_message "Uploading to PyPI..."
-if ! python3 -m twine upload dist/*; then
-    print_error "Upload failed!"
-    exit 1
-fi
-
-print_message "Package successfully published to PyPI! 🎉" 
+log "🎉  $PKG $VERSION published on PyPI"

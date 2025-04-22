@@ -10,8 +10,52 @@ _/  |_|__| ____ ___.__. /  _  \    ____   ____   _____/  |_
 \   __\  |/    <   |  |/  /_\  \  / ___\_/ __ \ /    \   __\
  |  | |  |   |  \___  /    |    \/ /_/  >  ___/|   |  \  |
  |__| |__|___|  / ____\____|__  /\___  / \___  >___|  /__|
-              \/\/            \//_____/      \/     \/
+              \/\/            \/\/_____/      \/     \/
 ```
+
+# Why tinyAgent?
+
+Turn any Python function into an AI‑powered agent in three lines:
+
+```python
+from tinyagent.decorators import tool
+from tinyagent.agent import tiny_agent
+
+@tool                  # 1️⃣  function → tool
+def add(a: int, b: int) -> int:
+    return a + b
+
+agent = tiny_agent(tools=[add])             # 2️⃣  tool → agent
+print(agent.run("add 40 and 2"))           # 3️⃣  natural‑language call
+# → 42
+```
+
+- **Zero boilerplate** – just a decorator.
+- **Built‑in LLM orchestration** – validation, JSON I/O, retry, fallback.
+- **Scales as you grow** – add more tools or plug into tiny_chain without rewrites.
+
+# Why tiny_chain?
+
+Handle multi‑step questions with automatic tool planning in <10 lines.
+
+```python
+from tinyagent.factory.tiny_chain import tiny_chain
+from tinyagent.tools.duckduckgo_search import get_tool as search
+from tinyagent.tools.custom_text_browser import get_tool as browser
+from tinyagent.decorators import tool
+
+@tool
+def summarize(text: str) -> str:            # simple LLM summariser
+    return "TL;DR → " + text[:200]
+
+chain = tiny_chain.get_instance(tools=[search(), browser(), summarize._tool])
+print(chain.run("Find current US import tariffs and summarise"))
+# → bullet‑point answer pulled from official sources
+```
+
+- **One entry point** – submit a natural‑language task, get JSON results.
+- **LLM triage agent** – chooses the best tool chain (search → browser → summarise).
+- **Robust fallback** – if planning fails, it just tries every tool once.
 
 **Made by (x) [@tunahorse21](https://x.com/tunahorse21) | A product of [alchemiststudios.ai](https://alchemiststudios.ai)**
 
