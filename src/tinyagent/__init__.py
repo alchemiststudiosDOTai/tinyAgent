@@ -5,10 +5,14 @@ This package contains the core components of the tinyAgent framework, including
 the Agent class, Tool framework, configuration management, and utilities.
 """
 
-__version__ = "0.65"
+try:
+    from ._version import __version__
+except ImportError:
+    # This happens during development or if setuptools_scm is not installed
+    __version__ = "0.0.0.dev0"  # Default or placeholder version
 
 # Core components
-from .agent import Agent, get_llm
+from .agent import Agent, get_llm, tiny_agent
 from .tool import Tool, ParamType
 from .decorators import tool
 from .exceptions import (
