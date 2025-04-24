@@ -1,0 +1,11 @@
+# Task ID: 9
+# Title: Implement CLI Interface
+# Status: done
+# Dependencies: 4, 6
+# Priority: low
+# Description: Create a command-line interface for interacting with tiny_agent and tiny_chain.
+# Details:
+Create CLI commands for 'tinyagent run' and 'tinychain submit'. Implement colorized console output for better readability. Support loading tools from specified Python modules. Add interactive mode for multi-turn conversations. Include help documentation and examples. Create a config initialization command. Support output formatting options (JSON, YAML, table). Implement verbose logging options.
+
+# Test Strategy:
+Test CLI with various commands and options. Verify proper handling of command-line arguments. Test interactive mode with multi-turn conversations. Ensure clear and helpful error messages for users.

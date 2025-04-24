@@ -1,0 +1,11 @@
+# Task ID: 2
+# Title: Develop Config & Environment Loader
+# Status: done
+# Dependencies: None
+# Priority: high
+# Description: Create a central configuration system that loads settings from YAML files and environment variables.
+# Details:
+Implement a config manager that reads from config.yml and .env files. Support hierarchical configuration with defaults. Include settings for LLM providers, API keys, retry policies, and model preferences. Use a library like pydantic for schema validation of the config. Implement environment variable overrides following a consistent naming pattern (e.g., TINYAGENT_LLM_PROVIDER). Create helper functions to access config values throughout the codebase.
+
+# Test Strategy:
+Test with various config files and environment variable combinations. Verify proper precedence (env vars override YAML). Test invalid configurations to ensure proper error messages. Mock filesystem access for unit testing.

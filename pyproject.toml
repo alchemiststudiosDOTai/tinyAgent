@@ -5,7 +5,6 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "tiny_agent_os"
 dynamic = ["version"]
-# version = "0.72.4"  # Removed: Version managed by setuptools_scm
 description = "A streamlined framework for building powerful LLM-powered agents that can solve complex tasks through tool execution, orchestration, and dynamic capability creation."
 requires-python = ">=3.8"
 authors = [{name = "(x) @tunahorse21", email = "info@alchemiststudios.ai"}]
@@ -58,3 +57,9 @@ include = ["tinyagent*"]
 version_file = "src/tinyagent/_version.py"
 # Provide a fallback version if git info is unavailable
 fallback_version = "0.1.0"
+
+[project.optional-dependencies]
+rag = [
+    "chromadb>=0.4.22",
+    "sentence-transformers>=2.2.2"
+]

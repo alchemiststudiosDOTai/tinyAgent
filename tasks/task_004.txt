@@ -1,0 +1,11 @@
+# Task ID: 4
+# Title: Build tiny_agent Runtime
+# Status: done
+# Dependencies: 1, 2, 3
+# Priority: high
+# Description: Develop the core agent runtime that can execute a user query against available tools.
+# Details:
+Implement agent.py with the tiny_agent class that takes a list of tools and executes queries. Create the run() method that uses an LLM to parse intent, map to appropriate tools, validate inputs, execute the tool, and return structured results. Implement JSON I/O enforcement with schema validation. Include proper error handling and retries. Support both synchronous and asynchronous execution modes. Ensure the agent can explain its reasoning when requested.
+
+# Test Strategy:
+Test with simple tools like calculator functions. Verify correct tool selection based on query intent. Test error handling when tools fail or when LLM makes incorrect selections. Benchmark performance with various query complexities.

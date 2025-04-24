@@ -1,0 +1,11 @@
+# Task ID: 1
+# Title: Implement @tool Decorator and Tool Registry
+# Status: done
+# Dependencies: None
+# Priority: high
+# Description: Create the core @tool decorator that converts Python functions into discoverable tools and develop the registry system to track these tools.
+# Details:
+Create decorators.py with the @tool decorator that captures function metadata (name, signature, docstring). Implement registry.py to maintain a global registry of tools. The decorator should wrap functions, extract schema information, and register the tool. Include validation for arguments and results. Use Python's inspect module to capture function signatures and docstrings. Ensure proper type hinting support.
+
+# Test Strategy:
+Write unit tests to verify decorator functionality with various function signatures. Test registration of multiple tools and validation of input/output schemas. Ensure proper error handling when invalid functions are decorated.

@@ -1,0 +1,11 @@
+# Task ID: 8
+# Title: Create Built-in Tool Plugins
+# Status: done
+# Dependencies: 1, 4, 5
+# Priority: low
+# Description: Develop a set of built-in tools for common tasks like search, web browsing, and summarization.
+# Details:
+Implement search tool using DuckDuckGo API. Create a browser/scraper tool for web content extraction. Develop a summarization tool leveraging LLMs. Ensure each tool follows the @tool pattern and includes comprehensive documentation. Implement proper error handling and rate limiting. Create helper functions for common operations. Package these as optional dependencies to keep the core library lean.
+
+# Test Strategy:
+Test each tool with realistic usage scenarios. Verify proper handling of API limits and errors. Test with various input types and edge cases. Measure performance and reliability over time.

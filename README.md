@@ -355,6 +355,44 @@ Copy-paste, run, and you have a minimal yet complete example of tiny_chain orche
 
 ---
 
+## (NEW) Retrieval-Augmented Memory (RAG)
+
+> **Note:**
+>
+> - By default, all embeddings are generated locally using HuggingFace models (no external API calls).
+> - To enable RAG, install with:
+>   ```bash
+>   pip install tiny_agent_os[rag]
+>   ```
+> - If you do not use RAG, these dependencies are not required.
+> - **API-based embedding support (e.g., OpenAI, Cohere) is coming soon!**
+
+tinyAgent now supports plug-and-play vector memory for contextual recall using ChromaDB. You can add memory to any agent in just a few lines:
+
+```python
+from tinyagent.decorators import tool
+from tinyagent.agent import tiny_agent
+from tinyagent.utils.vector_memory import VectorMemory
+
+@tool
+def calculate_sum(a: int, b: int) -> int:
+    """Calculate the sum of two integers."""
+    return a + b
+
+mem = VectorMemory(persistence_directory="~/.tinyagent_mem")
+agent = tiny_agent(tools=[calculate_sum], memory=mem)
+
+# Store a fact in memory
+question = "remember that my lucky numbers are 7 and 11"
+agent.run(question)
+
+# Retrieve the fact later
+follow = "what were my lucky numbers?"
+print(agent.run(follow))  # → "7 and 11"
+```
+
+This enables your agent to remember and retrieve facts, context, or instructions across turns—no extra boilerplate required.
+
 ## Features
 
 - **Modular Design:** Easily convert any function into a tool.

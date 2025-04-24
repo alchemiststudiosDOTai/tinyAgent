@@ -1,0 +1,139 @@
+# tinyAgent 🤖 – Product Requirements Document
+
+<context>
+
+## Overview  
+TinyAgent is an open‑source Python framework that converts plain Python functions into autonomous, LLM‑powered agents with almost zero boilerplate. It eliminates the friction of orchestration, error‑handling, and multi‑step planning so developers can focus on business logic instead of agent plumbing. Target users range from solo hackers to enterprise teams that need auditable, self‑hostable orchestration, all benefiting from tinyAgent’s three‑line setup and built‑in tool planner.
+
+## Core Features  
+### `@tool` Decorator  
+* **What it does:** Turns a Python function into a discoverable tool.  
+* **Why it’s important:** Removes boilerplate and captures rich metadata (signature, doc‑string).  
+* **How it works:** Wraps the function, registers schema, validates args/results.
+
+### `tiny_agent` Runtime  
+* **What it does:** Executes a single user query against a list of tools.  
+* **Why it’s important:** Enables instant “function‑as‑agent” usage.  
+* **How it works:** LLM parses intent → maps to tool → validates → executes → returns JSON/text.
+
+### `tiny_chain` Orchestrator  
+* **What it does:** Plans and runs multi‑step tool sequences.  
+* **Why it’s important:** Solves complex tasks that require search, scraping, summarising, etc.  
+* **How it works:** A triage LLM proposes a plan → executes each step → fallback tries all tools.
+
+### Config & Env Loader  
+* **What it does:** Central YAML + `.env` management layer.  
+* **Why it’s important:** One‑command portability across local, staging, prod.  
+* **How it works:** Reads `config.yml` and env vars → injects keys, model prefs, retry policy.
+
+### Structured Error Handling  
+* **What it does:** Provides unified exceptions, retry & back‑off.  
+* **Why it’s important:** Prevents silent failures & surfaces actionable logs.  
+* **How it works:** Decorators capture errors, classify, retry or bubble up.
+
+### JSON I/O Enforcement  
+* **What it does:** Guarantees machine‑readable outputs.  
+* **Why it’s important:** Down‑stream systems can reliably parse results.  
+* **How it works:** Schema‑first validation; LLM prompted to comply, else auto‑parses.
+
+## User Experience  
+* **Personas**  
+  * Solo Dev (Mia) – automates a weekly data‑cleaning pipeline.  
+  * Startup Engineer (Raj) – embeds an AI helper inside a SaaS dashboard.  
+  * Research Analyst (Luis) – chains search → scrape → summarise for competitive‑intel reports.  
+* **Key Flows**  
+  1. Install → `pip install tiny_agent_os`  
+  2. Define Tool → add `@tool` decorator  
+  3. Instantiate Agent → `agent = tiny_agent(tools=[...])`  
+  4. Run Query → `agent.run("what is 2+2")` or submit task to `tiny_chain`  
+  5. Inspect JSON Trace → view structured steps / errors  
+* **UI/UX Considerations**  
+  * Pure Python API + CLI; optional future web dashboard for tracing  
+  * Clear, colourised console logs for each step  
+  * Docs site with copy‑paste runnable snippets
+
+</context>
+
+<PRD>
+
+## Technical Architecture  
+* **System Components**  
+  * Core library (`decorators.py`, `agent.py`, `registry.py`)  
+  * Orchestrator (`factory/tiny_chain.py`)  
+  * Tool plug‑ins (search, browser, summarise, etc.)  
+  * Config manager (YAML + env)  
+  * Optional CLI + future web dashboard  
+* **Data Models**  
+  * `Tool` – `name`, `description`, `signature`, `schema`  
+  * `Plan` – ordered list of `{tool, args}`  
+  * `Trace` – steps, status, stderr, result  
+* **APIs & Integrations**  
+  * LLM providers via OpenRouter / OpenAI spec  
+  * DuckDuckGo API, custom browser scrape module  
+  * Optional vector DB (e.g. Chroma) for retrieval in later phases  
+* **Infrastructure Requirements**  
+  * Python ≥ 3.9 runtime  
+  * Outbound HTTPS to LLM / search endpoints  
+  * Container‑friendly; no server resources unless hosting a service
+
+## Development Roadmap  
+### Phase 1 – MVP  
+* `@tool` decorator & registry  
+* `tiny_agent` single‑tool runtime  
+* Basic LLM adapter (OpenRouter)  
+* YAML/env config loader  
+* Minimal docs & quick‑start examples
+
+### Phase 2 – Orchestration  
+* `tiny_chain` triage agent & fallback logic  
+* Built‑in search, browser & summarise tools  
+* Structured tracing & verbose logging  
+* CLI commands `tinyagent run`, `tinychain submit`
+
+### Phase 3 – Ecosystem & DX  
+* Plug‑in discovery (entry‑points)  
+* Test harness + mock LLMs  
+* VS Code snippets / templates  
+* Documentation overhaul & tutorial site  
+* Community examples repository
+
+### Phase 4 – Advanced Planning & UI  
+* Graph‑based planner with memory & vector store  
+* Web dashboard for live task inspection  
+* Multi‑tenant config layering  
+* Enterprise licence automation hooks
+
+### Phase 5 – Hosting & SaaS Add‑ons  
+* Managed API gateway  
+* Usage metering & billing hooks  
+* OAuth & team workspaces  
+* SLA monitoring & alerting
+
+## Logical Dependency Chain  
+1. Core decorator & runtime engine  
+2. Config & error‑handling layer  
+3. LLM adapter abstraction  
+4. Tool registry & unit tests  
+5. Orchestrator planner (`tiny_chain`)  
+6. CLI interfaces  
+7. Tracing & logging  
+8. Plug‑in ecosystem  
+9. Optional UI & hosting modules
+
+## Risks and Mitigations  
+| Risk | Description | Mitigation |  
+|------|-------------|-----------|  
+| LLM Unreliability | Hallucinations or schema breakage | Strict JSON validation, retry with parser‑based fallback |  
+| API Cost Spikes | Heavy usage could incur high LLM fees | Caching, user‑configurable model tier, budget alerts |  
+| Single‑Maintainer Bus‑Factor | Project stalls if lead is unavailable | Encourage OSS contributors, CI tests, thorough docs |  
+| Competitive Landscape | Large frameworks dominate mindshare | Differentiate via zero‑boilerplate, speed, permissive licence |  
+| Licensing Confusion | BSL may deter some users | Clear FAQs, enterprise path, consider dual‑licence |  
+
+## Appendix  
+* Function → Tool JSON schema (v0.7)  
+* `config.yml` default with OpenRouter + local LLM stanza  
+* Error taxonomy & retry policy spec  
+* Future vector‑store interface proposal
+
+</PRD>
+

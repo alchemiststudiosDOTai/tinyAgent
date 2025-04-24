@@ -1,0 +1,11 @@
+# Task ID: 3
+# Title: Implement LLM Adapter Interface
+# Status: done
+# Dependencies: 2
+# Priority: high
+# Description: Create an abstraction layer for interacting with different LLM providers while maintaining a consistent interface.
+# Details:
+Design an abstract LLMAdapter class with concrete implementations for OpenRouter and OpenAI. Support text completion and JSON mode responses. Include rate limiting, retries, and error handling. Implement token counting and budget tracking. Configure via the config system developed in Task 2. Support async and sync interfaces. Handle provider-specific quirks while presenting a unified API to the rest of the system.
+
+# Test Strategy:
+Create mock LLM responses for testing. Verify proper handling of API errors, rate limits, and malformed responses. Test with actual API keys (in CI with secrets). Measure performance and reliability across different providers.
