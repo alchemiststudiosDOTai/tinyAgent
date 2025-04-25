@@ -82,6 +82,21 @@ tinyAgent is a streamlined framework for building powerful, LLM-powered agents t
 pip install tiny_agent_os
 ```
 
+### RAG (Retrieval-Augmented Generation) Optional Dependencies
+
+- For local embeddings (sentence-transformers):
+  ```bash
+  pip install tiny_agent_os[rag-local]
+  ```
+- For OpenAI API embeddings:
+  ```bash
+  pip install tiny_agent_os[rag-api]
+  ```
+- For both local and API embedding support:
+  ```bash
+  pip install tiny_agent_os[rag]
+  ```
+
 ---
 
 ## Post-Installation Configuration for Pip Users
@@ -357,15 +372,12 @@ Copy-paste, run, and you have a minimal yet complete example of tiny_chain orche
 
 ## (NEW) Retrieval-Augmented Memory (RAG)
 
-> **Note:**
->
-> - By default, all embeddings are generated locally using HuggingFace models (no external API calls).
-> - To enable RAG, install with:
->   ```bash
->   pip install tiny_agent_os[rag]
->   ```
+> - To enable RAG, install the appropriate extra:
+>   - Local embeddings: `pip install tiny_agent_os[rag-local]`
+>   - OpenAI API embeddings: `pip install tiny_agent_os[rag-api]`
+>   - Both: `pip install tiny_agent_os[rag]`
 > - If you do not use RAG, these dependencies are not required.
-> - **API-based embedding support (e.g., OpenAI, Cohere) is coming soon!**
+> - **API-based embedding support (e.g., OpenAI) is now available!**
 
 For **full details and configuration examples, see [`documentation/rag.md`](documentation/rag.md)**.
 

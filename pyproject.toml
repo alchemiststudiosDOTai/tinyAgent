@@ -59,7 +59,14 @@ version_file = "src/tinyagent/_version.py"
 fallback_version = "0.1.0"
 
 [project.optional-dependencies]
-rag = [
+rag-local = [
     "chromadb>=0.4.22",
     "sentence-transformers>=2.2.2"
+]
+rag-api = [
+    "chromadb>=0.4.22"
+]
+rag = [
+    "tiny_agent_os[rag-local]",
+    "tiny_agent_os[rag-api]"
 ]

@@ -4,6 +4,23 @@
 
 Retrieval-Augmented Generation (RAG) is a technique that combines large language models (LLMs) with a vector database to provide contextually relevant information from external sources or conversation history. This enables agents to "recall" facts, previous messages, or documents, improving accuracy and grounding responses.
 
+## Installation for RAG
+
+Depending on your embedding provider, install the appropriate optional dependencies:
+
+- For local embeddings (sentence-transformers):
+  ```bash
+  pip install tiny_agent_os[rag-local]
+  ```
+- For OpenAI API embeddings:
+  ```bash
+  pip install tiny_agent_os[rag-api]
+  ```
+- For both local and API embedding support:
+  ```bash
+  pip install tiny_agent_os[rag]
+  ```
+
 ## How RAG Works in tinyAgent
 
 - **VectorMemory** stores and retrieves conversation history or documents using vector embeddings.
@@ -39,6 +56,7 @@ embedding_provider:
 ## Switching Providers
 
 - Change the `provider_type` in `config.yml` to either `openai` or `local`.
+- Make sure you have installed the correct optional dependencies for your provider (see Installation for RAG above).
 - No code changes are needed—tinyAgent will automatically use the correct provider at runtime.
 
 ## Troubleshooting

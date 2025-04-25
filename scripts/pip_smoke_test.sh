@@ -18,7 +18,7 @@ msg "Using wheel: $wheel"
 # ─── temp venv ──────────────────────────────────────────
 tmp=$(mktemp -d); python3 -m venv "$tmp/venv"
 source "$tmp/venv/bin/activate"
-python3 -m pip install -q --upgrade pip "$wheel"
+python3 -m pip install -q --upgrade pip "$wheel[rag]"
 
 # ─── smoke checks ──────────────────────────────────────
 msg "Import test"
@@ -48,6 +48,15 @@ PY
 
 msg "Running tiny_chain_tooling.py test"
 python3 tests/tiny_chain_tooling.py || err "tiny_chain_tooling.py test failed"
+
+msg "Running vector_memory_local_smoke_test.py"
+python3 tests/vector_memory_local_smoke_test.py || err "vector_memory_local_smoke_test.py failed"
+
+msg "Running vector_memory_openai_smoke_test.py"
+python3 tests/vector_memory_openai_smoke_test.py || err "vector_memory_openai_smoke_test.py failed"
+
+msg "Running rag_smoke_test.py"
+python3 tests/rag_smoke_test.py || err "rag_smoke_test.py failed"
 
 msg "All smoke‑tests passed ✔︎"
 deactivate; rm -rf "$tmp"
