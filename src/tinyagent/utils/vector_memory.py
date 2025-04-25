@@ -6,6 +6,7 @@ import time
 import threading
 import uuid
 from typing import Optional, Dict, Any, List, Tuple
+from .embedding_provider import EmbeddingProvider
 
 class VectorMemory:
     """
@@ -16,20 +17,24 @@ class VectorMemory:
         self,
         persistence_directory: Optional[str] = None,
         embedding_model: str = "all-MiniLM-L6-v2",
-        collection_name: str = "tinyagent_memory"
+        collection_name: str = "tinyagent_memory",
+        embedding_provider: Optional[EmbeddingProvider] = None
     ):
         """
         Initialize the VectorMemory system.
         Args:
             persistence_directory: Directory for ChromaDB persistence (optional)
-            embedding_model: Name of the embedding model to use
+            embedding_model: Name of the embedding model to use (ignored if embedding_provider is given)
             collection_name: Name of the ChromaDB collection
+            embedding_provider: Optional EmbeddingProvider instance (OpenAI or local)
         """
         self.persistence_directory = persistence_directory or ".chroma_memory"
         self.embedding_model_name = embedding_model
         self.collection_name = collection_name
+        self.embedding_provider = embedding_provider
         self._init_chromadb()
-        self._init_embedding_model()
+        if not self.embedding_provider:
+            self._init_embedding_model()
         self._lock = threading.Lock()
         self._embedding_cache = {}  # text -> embedding
 
@@ -40,7 +45,7 @@ class VectorMemory:
         self.collection = self.chroma_client.get_or_create_collection(self.collection_name)
 
     def _init_embedding_model(self):
-        # For now, only local models; OpenAI support can be added later
+        # Only used if no embedding_provider is given
         self.embedding_model = SentenceTransformer(self.embedding_model_name)
 
     def configure_persistence(self, directory: str):
@@ -51,7 +56,8 @@ class VectorMemory:
     def configure_embedding_model(self, model_name: str):
         """Switch the embedding model used for vectorization."""
         self.embedding_model_name = model_name
-        self._init_embedding_model()
+        if not self.embedding_provider:
+            self._init_embedding_model()
 
     def _embed_text(self, text: str):
         """Generate an embedding for the given text."""
@@ -59,7 +65,10 @@ class VectorMemory:
             raise ValueError("Text for embedding must not be empty.")
         if text in self._embedding_cache:
             return self._embedding_cache[text]
-        emb = self.embedding_model.encode([text])[0]
+        if self.embedding_provider:
+            emb = self.embedding_provider.generate_embedding(text)
+        else:
+            emb = self.embedding_model.encode([text])[0]
         self._embedding_cache[text] = emb
         return emb
 

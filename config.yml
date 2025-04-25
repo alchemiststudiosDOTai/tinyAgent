@@ -13,6 +13,19 @@ model:
   default: "deepseek/deepseek-chat"
   # use claude 3.7 for best resutls, v3 is best value while using tools but 3.7 is the SOTA to use if you can afford it, r1 is best for general use
 
+# Embedding provider configuration
+embedding_provider:
+  # Provider type: "openai" (future: "local", "cohere", etc.)
+  provider_type: "openai"
+  # OpenAI embedding model name
+  model_name: "text-embedding-3-small"
+  # API key (can use env var reference)
+  api_key: ${OPENAI_API_KEY}
+  # Optional: override embedding dimension (default: model's standard)
+  # dimensions: 1536
+  # Optional: request timeout in seconds
+  # timeout_seconds: 30
+
 parsing:
   # When true, only strict JSON parsing is used
   strict_json: true

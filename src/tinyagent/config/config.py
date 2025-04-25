@@ -59,6 +59,16 @@ class APIConfig(TypedDict, total=False):
     cors_origins: List[str]
     port: int
 
+
+class EmbeddingProviderConfig(TypedDict, total=False):
+    """Configuration for embedding provider."""
+    provider_type: str
+    model_name: str
+    api_key: str
+    dimensions: int
+    timeout_seconds: int
+
+
 class TinyAgentConfig(TypedDict, total=False):
     """Top-level configuration structure."""
     parsing: ParsingConfig
@@ -68,6 +78,7 @@ class TinyAgentConfig(TypedDict, total=False):
     logging: LoggingConfig
     agent: AgentConfig
     api: APIConfig
+    embedding_provider: EmbeddingProviderConfig
 
 
 # Default configuration
@@ -105,6 +116,13 @@ DEFAULT_CONFIG: TinyAgentConfig = {
         "max_steps": 2,  # Default to 2 steps per phase
         "debug_level": 0,  # Default to no debug output
         "default_model": "deepseek/deepseek-r1"  # Default model
+    },
+    "embedding_provider": {
+        "provider_type": "openai",
+        "model_name": "text-embedding-3-small",
+        "api_key": "${OPENAI_API_KEY}",
+        # "dimensions": 1536,  # Optional
+        # "timeout_seconds": 30,  # Optional
     }
 }
 
@@ -256,3 +274,18 @@ def validate_config(config: TinyAgentConfig) -> None:
     if "rate_limits" in config and "global_limit" in config["rate_limits"]:
         if not isinstance(config["rate_limits"]["global_limit"], int):
             raise ConfigurationError("rate_limits.global_limit must be an integer")
+    
+    # Validate embedding_provider
+    if "embedding_provider" in config:
+        ep = config["embedding_provider"]
+        if not isinstance(ep, dict):
+            raise ConfigurationError("embedding_provider must be a dictionary")
+        if ep.get("provider_type") == "openai":
+            if not isinstance(ep.get("model_name"), str):
+                raise ConfigurationError("embedding_provider.model_name must be a string for OpenAI provider")
+            if not isinstance(ep.get("api_key"), str):
+                raise ConfigurationError("embedding_provider.api_key must be a string for OpenAI provider")
+            if "dimensions" in ep and not isinstance(ep["dimensions"], int):
+                raise ConfigurationError("embedding_provider.dimensions must be an integer if provided")
+            if "timeout_seconds" in ep and not isinstance(ep["timeout_seconds"], int):
+                raise ConfigurationError("embedding_provider.timeout_seconds must be an integer if provided")

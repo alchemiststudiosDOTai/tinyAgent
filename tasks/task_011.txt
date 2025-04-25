@@ -1,6 +1,6 @@
 # Task ID: 11
 # Title: Implement Vector Memory with ChromaDB
-# Status: in-progress
+# Status: done
 # Dependencies: None
 # Priority: medium
 # Description: Create a vector-based memory system using ChromaDB to store conversation history and enable contextual retrieval for the agent.
@@ -202,7 +202,7 @@ Implementation report for VectorMemory core operations:
 </info added on 2025-04-25T08:15:23.456Z>
 </info added on 2025-04-24T21:23:33.796Z>
 
-## 3. Integrate VectorMemory with TinyAgent [pending]
+## 3. Integrate VectorMemory with TinyAgent [done]
 ### Dependencies: 11.2
 ### Description: Modify TinyAgent to use the vector memory for contextual conversations
 ### Details:

@@ -367,6 +367,8 @@ Copy-paste, run, and you have a minimal yet complete example of tiny_chain orche
 > - If you do not use RAG, these dependencies are not required.
 > - **API-based embedding support (e.g., OpenAI, Cohere) is coming soon!**
 
+For **full details and configuration examples, see [`documentation/rag.md`](documentation/rag.md)**.
+
 tinyAgent now supports plug-and-play vector memory for contextual recall using ChromaDB. You can add memory to any agent in just a few lines:
 
 ```python

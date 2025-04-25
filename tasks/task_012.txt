@@ -1,0 +1,294 @@
+# Task ID: 12
+# Title: Implement OpenAI Embedding Support for Vector Memory
+# Status: pending
+# Dependencies: None
+# Priority: medium
+# Description: Add support for OpenAI embeddings in the vector memory system, allowing users to configure their preferred embedding model through config.yml.
+# Details:
+This task involves extending the vector memory system to use OpenAI's embedding models. Implementation should include:
+
+1. Update the config loader to parse OpenAI embedding configuration from config.yml, including:
+   - Model selection (e.g., text-embedding-3-small, text-embedding-3-large)
+   - API key configuration
+   - Optional parameters (dimensions, etc.)
+
+2. Implement the embedding logic:
+   - Create an EmbeddingProvider interface/abstract class
+   - Implement OpenAIEmbeddingProvider that uses the openai Python package
+   - Add methods to generate embeddings from text inputs
+   - Handle API errors and rate limiting appropriately
+
+3. Integrate with the existing ChromaDB vector memory:
+   - Modify the vector memory implementation to use the configured embedding provider
+   - Ensure the embedding dimensions match ChromaDB collection settings
+
+4. Document the new configuration options in the relevant documentation files:
+   - Add a section on embedding configuration to the main documentation
+   - Update example config.yml files to show OpenAI embedding setup
+
+The implementation should maintain backward compatibility and provide sensible defaults if embedding configuration is not explicitly provided.
+
+# Test Strategy:
+Testing should verify both the configuration and functional aspects of the OpenAI embedding integration:
+
+1. Unit tests:
+   - Test config parsing with various valid and invalid embedding configurations
+   - Test the OpenAIEmbeddingProvider class with mocked OpenAI API responses
+   - Verify error handling for API failures and rate limits
+
+2. Integration tests:
+   - Test end-to-end flow with actual OpenAI API calls (using a test API key)
+   - Verify embeddings are correctly stored in and retrieved from ChromaDB
+   - Test with different embedding models to ensure configuration works
+
+3. Configuration tests:
+   - Verify default values work when configuration is missing
+   - Test with invalid configurations to ensure appropriate error messages
+
+4. Performance tests:
+   - Measure and document embedding generation time
+   - Verify memory performance with different embedding dimensions
+
+All tests should use a test API key and minimal API calls to avoid unnecessary costs. Mock responses should be used where appropriate.
+
+# Subtasks:
+## 1. Create EmbeddingProvider Interface and OpenAI Implementation [done]
+### Dependencies: None
+### Description: Design and implement the embedding provider architecture with OpenAI support
+### Details:
+Implementation steps:
+1. Create an abstract `EmbeddingProvider` class or interface with methods for:
+   - `generate_embedding(text: str) -> List[float]`
+   - `generate_embeddings(texts: List[str]) -> List[List[float]]`
+   - `get_embedding_dimension() -> int`
+
+2. Implement `OpenAIEmbeddingProvider` class that:
+   - Inherits from the `EmbeddingProvider` interface
+   - Takes configuration parameters in constructor (model name, API key, dimensions)
+   - Uses the openai Python package to call the embeddings API
+   - Implements proper error handling for API errors, rate limits, etc.
+   - Includes retry logic with exponential backoff for temporary failures
+   - Caches results where appropriate to minimize API calls
+
+3. Add utility methods for:
+   - Validating OpenAI API keys
+   - Checking model availability
+   - Normalizing/preprocessing text before embedding
+
+Testing approach:
+- Unit test the `OpenAIEmbeddingProvider` with mocked API responses
+- Test error handling with simulated API failures
+- Validate embedding dimensions match expectations for different models
+
+<info added on 2025-04-25T19:04:38.077Z>
+Regarding the caching question:
+
+I recommend implementing a hybrid approach:
+
+1. **Add optional in-provider caching with configuration:**
+   - Implement a configurable caching mechanism in `OpenAIEmbeddingProvider` that can be enabled/disabled
+   - Allow setting cache size limits and TTL (time-to-live) for cached embeddings
+   - Example implementation:
+   ```python
+   def __init__(self, api_key, model="text-embedding-ada-002", dimensions=1536, 
+                enable_caching=True, cache_size=1000, cache_ttl=3600):
+       self.api_key = api_key
+       self.model = model
+       self.dimensions = dimensions
+       self.enable_caching = enable_caching
+       if enable_caching:
+           self.cache = LRUCache(maxsize=cache_size, ttl=cache_ttl)
+   
+   def generate_embedding(self, text: str) -> List[float]:
+       if self.enable_caching:
+           cache_key = self._create_cache_key(text)
+           if cache_key in self.cache:
+               return self.cache[cache_key]
+       
+       # Generate embedding via API
+       embedding = self._call_openai_api(text)
+       
+       if self.enable_caching:
+           self.cache[cache_key] = embedding
+       
+       return embedding
+   ```
+
+2. **Add cache interface for external caching:**
+   - Create a simple `EmbeddingCache` interface that external systems can implement
+   - Allow injecting custom cache implementations into the provider
+   - This enables more sophisticated caching strategies (Redis, database, etc.)
+
+This approach maintains simplicity for basic use cases while providing flexibility for advanced scenarios. Default to in-memory caching (enabled) for convenience, but allow users to disable it or provide their own cache implementation.
+</info added on 2025-04-25T19:04:38.077Z>
+
+## 2. Update Config System for OpenAI Embedding Settings [done]
+### Dependencies: 12.1
+### Description: Extend the configuration system to support OpenAI embedding options
+### Details:
+Implementation steps:
+1. Modify the config loader to parse OpenAI embedding configuration:
+   - Add a new section in config.yml schema for `embedding_provider`
+   - Support parameters including:
+     - `provider_type: "openai"` (for future extensibility)
+     - `model_name: "text-embedding-3-small"` (with appropriate defaults)
+     - `api_key` (with support for environment variable references)
+     - `dimensions` (optional, defaulting to model's standard dimension)
+     - `timeout_seconds` and other request parameters
+
+2. Implement configuration validation:
+   - Check for required fields
+   - Validate model names against allowed values
+   - Provide helpful error messages for misconfiguration
+
+3. Create a factory function/class that:
+   - Takes the parsed configuration
+   - Returns the appropriate `EmbeddingProvider` instance
+   - Uses sensible defaults if specific config is missing
+
+4. Update example config files and documentation:
+   - Add embedding configuration examples to template config.yml
+   - Document all available options in the config documentation
+
+Testing approach:
+- Test parsing of various valid configuration formats
+- Test validation error handling for invalid configurations
+- Verify factory correctly instantiates the right provider with correct parameters
+
+<info added on 2025-04-25T19:14:52.027Z>
+For the design crossroad regarding embedding providers:
+
+Recommended approach: Implement option 1 (provider_type switch) now with a clean abstraction that will support option 2 later:
+
+```python
+class EmbeddingProviderFactory:
+    @staticmethod
+    def create_provider(config):
+        provider_type = config.get("provider_type", "local")
+        if provider_type == "openai":
+            return OpenAIEmbeddingProvider(config)
+        elif provider_type == "local":
+            return LocalEmbeddingProvider(config)
+        else:
+            raise ValueError(f"Unsupported embedding provider: {provider_type}")
+```
+
+Implementation considerations:
+- Create a base `EmbeddingProvider` abstract class with common interface methods
+- Add configuration validation for each provider type
+- For local models, include parameters like:
+  - `model_name: "all-MiniLM-L6-v2"` (default)
+  - `device: "cpu"` or `"cuda"`
+  - `cache_folder` for model storage
+- Add a utility function that returns the current active provider
+
+This approach offers the best balance of immediate functionality while laying groundwork for future runtime switching if needed. It keeps the config-driven approach simple while ensuring the architecture can evolve.
+</info added on 2025-04-25T19:14:52.027Z>
+
+<info added on 2025-04-25T19:24:47.790Z>
+<info added on 2025-04-26T08:30:15.123Z>
+Excellent progress! The smoke tests confirm our implementation is working correctly. Here are some final recommendations before closing this subtask:
+
+1. Add a simple integration test that verifies the full config-to-query pipeline:
+```python
+def test_embedding_provider_end_to_end():
+    # Test with minimal viable config for each provider type
+    for provider_config in [
+        {"provider_type": "openai", "api_key": "test_key", "model_name": "text-embedding-3-small"},
+        {"provider_type": "local", "model_name": "all-MiniLM-L6-v2"}
+    ]:
+        config = Config({"embedding": provider_config})
+        memory = VectorMemory(config)
+        
+        # Simple smoke test of embedding and retrieval
+        memory.add("test document", metadata={"source": "test"})
+        results = memory.search("test query", limit=1)
+        
+        assert len(results) > 0
+        assert results[0].metadata["source"] == "test"
+```
+
+2. Final documentation updates needed:
+   - Add a section in the README about embedding provider configuration
+   - Document performance characteristics and token usage for each provider
+   - Include a troubleshooting section for common configuration issues
+
+3. Before marking complete, ensure:
+   - All environment variable substitutions are properly handled (e.g., `${OPENAI_API_KEY}`)
+   - Config validation provides actionable error messages
+   - Default values are sensible and documented
+
+The implementation is indeed minimal and backward-compatible. The abstraction is clean with good separation of concerns between configuration and implementation. This subtask can be marked complete after these final documentation updates.
+</info added on 2025-04-26T08:30:15.123Z>
+</info added on 2025-04-25T19:24:47.790Z>
+
+## 3. Integrate OpenAI Embeddings with ChromaDB Vector Memory [done]
+### Dependencies: 12.1, 12.2
+### Description: Connect the embedding provider system with the existing vector memory implementation
+### Details:
+Implementation steps:
+1. Modify the ChromaDB vector memory implementation to:
+   - Accept an `EmbeddingProvider` instance during initialization
+   - Use the provider's embedding methods when storing new data
+   - Ensure ChromaDB collection settings match the embedding dimensions
+   - Fall back to default embedding if not explicitly configured
+
+2. Update the vector memory factory/initialization code to:
+   - Read embedding configuration from config
+   - Instantiate the appropriate provider via the factory
+   - Pass the provider to the vector memory implementation
+   - Handle backward compatibility for existing configurations
+
+3. Implement integration tests that:
+   - Verify end-to-end functionality with actual OpenAI API calls (using test keys)
+   - Test storage and retrieval with different embedding models
+   - Confirm dimension compatibility between embedding provider and ChromaDB
+
+4. Add performance monitoring:
+   - Track embedding generation time
+   - Count tokens used for embeddings
+   - Log warnings for potential cost implications
+
+Testing approach:
+- Integration tests with actual ChromaDB instances
+- Test vector similarity search results match expectations
+- Verify backward compatibility with existing configurations
+- Test performance with various input sizes
+
+<info added on 2025-04-25T19:52:57.352Z>
+Here's the additional information to add:
+
+Implementation details for config-driven approach:
+- Add a new `embedding_provider` section to `config.yml` with:
+  ```yaml
+  embedding_provider:
+    type: "openai"  # or "local", etc.
+    model: "text-embedding-ada-002"  # OpenAI model name or local model path
+    dimensions: 1536  # Embedding dimensions
+    # Provider-specific parameters
+    openai:
+      api_key: "${OPENAI_API_KEY}"  # Environment variable reference
+    local:
+      model_path: "./models/all-MiniLM-L6-v2"
+  ```
+
+- Create a singleton provider factory that:
+  - Initializes only once at application startup
+  - Reads from config and instantiates the appropriate provider
+  - Exposes a `get_default_provider()` method for components to access
+
+- Modify `VectorMemoryFactory` to:
+  - Default to the singleton provider if none explicitly provided
+  - Allow direct provider injection to override config (for advanced users)
+  - Log the embedding provider type and model on initialization
+
+- Add graceful error handling for:
+  - Config validation to ensure dimensions match provider capabilities
+  - Fallback to local embeddings if API calls fail (with appropriate warnings)
+  - Clear error messages when embedding dimensions mismatch with existing collections
+
+- Create helper utilities for migration:
+  - Add CLI command to re-embed existing collections with new provider
+  - Include progress tracking for large collection migrations
+</info added on 2025-04-25T19:52:57.352Z>
+
