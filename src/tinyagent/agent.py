@@ -31,10 +31,7 @@ from .logging import get_logger
 from .prompts.prompt_manager import PromptManager
 
 
-
-
 #We can move this to utils probbaly
-# Set up logger
 logger = get_logger(__name__)
 
 # Type definitions
@@ -63,7 +60,7 @@ class CacheEntry(Dict[str, Any]):
     tool: str
     args: Dict[str, Any]
 
-
+# this is the class that handles the retrys, gets the from the config file
 class RetryManager:
     """Manages the retry strategy with temperature warming and model escalation."""
     
@@ -255,7 +252,8 @@ class Agent:
         
         # Initialize retry manager
         self.retry_manager = RetryManager(self.config)
-        
+    
+    # move to the utils directory    
     def create_tool(self, name: str, description: str, func: Callable, parameters: Optional[Dict[str, str]] = None) -> None:
         """Create and register a new tool."""
         if name in self._tools:
@@ -291,6 +289,7 @@ class Agent:
         # Call the tool directly as a callable, not using an 'execute' method
         return tool.func(**kwargs)
     
+    # move to the utils directory, check the rest of the codebase for config logic 
     def _get_config_value(self, key_path: str, default: Any) -> Any:
         """
         Get a value from the configuration by dot-separated key path.
@@ -347,6 +346,7 @@ class Agent:
         # Create a hash of the content
         return hashlib.md5(key_content.encode()).hexdigest()
 
+    # move to the utils directory, check the rest of the codebase for cache logic 
     def _cleanup_cache(self) -> None:
         """Remove expired entries and enforce size limit."""
         current_time = time.time()
@@ -479,6 +479,8 @@ class Agent:
         return self.prompt_manager.process_template(template, {
             "tools": self.format_tools_for_prompt()
         })
+    
+    # move parsing logic, to a new dir, move other parsion tools here as well 
     
     def _parse_response(self, content: str) -> Optional[Dict[str, Any]]:
         """
@@ -645,7 +647,7 @@ class Agent:
                 logger.warning(f"Failed to extract fields from malformed JSON: {str(e)}")
             
             return None
-
+    # Moves this to the parsing directory  as well 
     def _validate_parsed_data(self, data: Any) -> bool:
         """
         Validate that parsed data matches expected structure.
