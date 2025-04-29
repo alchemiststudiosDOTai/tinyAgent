@@ -51,22 +51,6 @@ tinyAgent is a streamlined framework for building powerful, LLM-powered agents t
 ```bash
 pip install tiny_agent_os
 ```
-
-### RAG (Retrieval-Augmented Generation) Optional Dependencies
-
-- For local embeddings (sentence-transformers):
-  ```bash
-  pip install tiny_agent_os[rag-local]
-  ```
-- For OpenAI API embeddings:
-  ```bash
-  pip install tiny_agent_os[rag-api]
-  ```
-- For both local and API embedding support:
-  ```bash
-  pip install tiny_agent_os[rag]
-  ```
-
 ---
 
 ## Post-Installation Configuration for Pip Users
