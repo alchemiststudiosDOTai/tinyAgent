@@ -1,5 +1,47 @@
 # Retrieval-Augmented Generation (RAG) in tinyAgent
 
+## Quick Start: How to Use RAG
+
+Retrieval-Augmented Generation (RAG) lets tinyAgent combine LLMs with a vector database to provide contextually relevant information from documents or conversation history.
+
+**To get started:**
+
+1. **Install the package with RAG support:**
+   - For local embeddings (sentence-transformers):
+     ```bash
+     pip install tiny_agent_os[rag-local]
+     ```
+   - For OpenAI API embeddings:
+     ```bash
+     pip install tiny_agent_os[rag-api]
+     ```
+   - For both local and API embedding support:
+     ```bash
+     pip install tiny_agent_os[rag]
+     ```
+
+2. **Configure your embedding provider in `config.yml`:**
+   - For OpenAI:
+     ```yaml
+     embedding_provider:
+       provider_type: "openai"
+       model_name: "text-embedding-3-small"
+       api_key: ${OPENAI_API_KEY} # Set this in your environment
+     ```
+   - For local (sentence-transformers):
+     ```yaml
+     embedding_provider:
+       provider_type: "local"
+       model_name: "all-MiniLM-L6-v2"
+       device: "cpu" # or "cuda" for GPU
+     ```
+
+3. **Set any required environment variables** (e.g., `OPENAI_API_KEY` for OpenAI provider).
+
+4. **Run tinyAgent as usual.** RAG will be used automatically for retrieval-augmented responses based on your configuration.
+
+---
+
 ## What is RAG?
 
 Retrieval-Augmented Generation (RAG) is a technique that combines large language models (LLMs) with a vector database to provide contextually relevant information from external sources or conversation history. This enables agents to "recall" facts, previous messages, or documents, improving accuracy and grounding responses.
@@ -66,10 +108,61 @@ embedding_provider:
 - **Performance:** Local models are faster and cost-free, but may be less accurate than OpenAI's latest models.
 - **ChromaDB Issues:** Ensure the persistence directory is writable and not corrupted.
 
-## Testing Your Setup
+## Example: Using VectorMemory in Your Code
 
-- See `tests/vector_memory_provider_smoke_test.py` for smoke tests covering both providers.
-- Run the tests to verify your configuration and provider integration.
+You can use RAG features programmatically in your own code. Here are real examples for both local and OpenAI embedding providers:
+
+### Local Embedding Provider Example
+
+```python
+from tinyagent.utils.vector_memory import VectorMemory
+from tinyagent.utils.embedding_provider import LocalEmbeddingProvider
+
+# Initialize the local embedding provider
+provider = LocalEmbeddingProvider(model_name="all-MiniLM-L6-v2", device="cpu")
+
+# Create a VectorMemory instance
+vm = VectorMemory(
+    persistence_directory=".chroma_memory",
+    collection_name="my_collection",
+    embedding_provider=provider
+)
+
+# Add a message to memory
+vm.add("user", "This is a message to store in vector memory.")
+
+# Fetch the most relevant message for a query
+results = vm.fetch("message", k=1)
+print("Fetch results:", results)
+```
+
+### OpenAI Embedding Provider Example
+
+```python
+import os
+from tinyagent.utils.vector_memory import VectorMemory
+from tinyagent.utils.embedding_provider import OpenAIEmbeddingProvider
+
+# Make sure your OpenAI API key is set in the environment
+api_key = os.getenv("OPENAI_API_KEY")
+
+# Initialize the OpenAI embedding provider
+provider = OpenAIEmbeddingProvider(model_name="text-embedding-3-small", api_key=api_key)
+
+# Create a VectorMemory instance
+vm = VectorMemory(
+    persistence_directory=".chroma_memory",
+    collection_name="my_collection",
+    embedding_provider=provider
+)
+
+# Add a message to memory
+vm.add("user", "This is a message to store in vector memory.")
+
+# Fetch the most relevant message for a query
+results = vm.fetch("message", k=1)
+print("Fetch results:", results)
+```
 
 ## References
 
