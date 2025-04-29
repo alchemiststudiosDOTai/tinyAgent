@@ -139,23 +139,20 @@ The /documentation folder has more details and is being updated.
 - And many other open-source contributors!
 
 ---
-
-## Contact
-
-For questions, suggestions, or business inquiries:
-
-- **Email**: [info@alchemiststudios.ai](mailto:info@alchemiststudios.ai)
-- **X**: [@tunahorse21](https://x.com/tunahorse21)
-- **Website**: [alchemiststudios.ai](https://alchemiststudios.ai)
-
----
-
 ## Learn More
 
 - [Functions as Tools](documentation/agentsarefunction.md)
 - [tinyChain Overview](documentation/tiny_chain_overview.md)
 - [RAG](documentation/rag.md)
+---
 
+---
+## Contact
+For questions, suggestions, or business inquiries:
+
+- **Email**: [info@alchemiststudios.ai](mailto:info@alchemiststudios.ai)
+- **X**: [@tunahorse21](https://x.com/tunahorse21)
+- **Website**: [alchemiststudios.ai](https://alchemiststudios.ai)
 ---
 
 ## License
@@ -164,7 +161,4 @@ For questions, suggestions, or business inquiries:
 This project is licensed under the Business Source License 1.1. It is **free for individuals and small businesses** (with annual revenues under $1M).
 For commercial use by larger businesses, an enterprise license is required.
 For licensing or usage inquiries, please contact: [info@alchemiststudios.ai](mailto:info@alchemiststudios.ai)
-
-
-
 ---
