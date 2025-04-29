@@ -144,11 +144,49 @@ After installing (either via pip or from source), remember to configure your env
 
 Both the config.yml and env work out of the box with a openrouter API, you can use any openai API, and the config has an example of a local LLM.
 The /documentation folder has more details and is being updated.
+## Features
+
+- **Modular Design:** Easily convert any function into a tool.
+- **Flexible Agent Options:** Use the simple orchestrator or advanced `AgentFactory`.
+- **Robust Error Handling:** Improved debugging with custom exceptions.
+- **Structured Output:** Enforce JSON formats for consistent outputs.
+
+---
+
+## Acknowledgments & Inspirations
+
+- **my wife**
+- [HuggingFace SmoLAgents](https://github.com/huggingface/smolagents)
+- [Aider-AI](https://github.com/Aider-AI/aider)
+- And many other open-source contributors!
+
+---
+
+## Contact
+
+For questions, suggestions, or business inquiries:
+
+- **Email**: [info@alchemiststudios.ai](mailto:info@alchemiststudios.ai)
+- **X**: [@tunahorse21](https://x.com/tunahorse21)
+- **Website**: [alchemiststudios.ai](https://alchemiststudios.ai)
+
+---
 
 ## Learn More
 
 - [Functions as Tools](documentation/agentsarefunction.md)
 - [tinyChain Overview](documentation/tiny_chain_overview.md)
 - [Examples](documentation/agents.md)
+
+---
+
+## License
+
+**Business Source License 1.1 (BSL)**
+This project is licensed under the Business Source License 1.1. It is **free for individuals and small businesses** (with annual revenues under $1M).
+For commercial use by larger businesses, an enterprise license is required.
+For licensing or usage inquiries, please contact: [info@alchemiststudios.ai](mailto:info@alchemiststudios.ai)
+
+
 
 ---
