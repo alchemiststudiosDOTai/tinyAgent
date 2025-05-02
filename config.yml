@@ -3,13 +3,17 @@
 #base_url: "http://localhost:1234/v1"
 base_url: "https://openrouter.ai/api/v1"
 
-structured_outputs: True
+structured_outputs: false
+# IMPORTANT: If structured_outputs is True, the default model MUST support
+# structured outputs on OpenRouter. Check compatible models here:
+# https://openrouter.ai/models?fmt=cards&order=newest&supported_parameters=structured_outputs
+# Using an unsupported model will likely cause API errors (e.g., 404 Not Found).
 
 model:
   # Default model to use
-  # default: "deepseek/deepseek-r1"
-  #default: "mistral-small-24b-instruct-2501"
-  #default: "anthropic/claude-3.7-sonnet"
+  #default: "deepseek/deepseek-r1"
+  #default: "mistralai/mistral-small-3.1-24b-instruct"
+  #default: "openai/gpt-4.1-mini"
   default: "deepseek/deepseek-chat"
   # use claude 3.7 for best resutls, v3 is best value while using tools but 3.7 is the SOTA to use if you can afford it, r1 is best for general use
 
@@ -49,7 +53,6 @@ retries:
   model_escalation:
     enabled: true
     sequence:
-      - "deepseek/deepseek-r1" # Then use the latest model
       - "anthropic/claude-3.7-sonnet"
 
 # Enable dynamic tool creation
@@ -110,3 +113,21 @@ logging:
   level: CRITICAL # DEBUG, INFO, WARNING, ERROR, CRITICAL
   format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
   handlers: ["console"]
+
+# Observability configuration
+observability:
+  tracing:
+    enabled: true # Explicitly enable tracing
+    service_name: "tinyagent" # Default service name
+    sampling_rate: 1.0 # Sample all traces for testing/dev by default
+    exporter:
+      # Exporter type: "console" or "otlp" or "sqlite"
+      type: "console" # Changed to sqlite for database saving
+      # OTLP specific settings (only used if type is "otlp")
+      endpoint: "http://localhost:4317"
+      headers: {}
+      # SQLite specific settings (only used if type is "sqlite")
+      db_path: "traces.db" # Path to the SQLite database file
+    attributes:
+      environment: "development"
+      version: "0.1.0" # Placeholder version

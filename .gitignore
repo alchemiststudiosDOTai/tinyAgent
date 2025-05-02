@@ -140,3 +140,7 @@ dev-debug.log
 # Task files
 mcp.json
 roadmap.md
+
+# Added by Claude Task Master
+tasks.json
+tasks/ 

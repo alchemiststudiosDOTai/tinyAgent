@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TinyAgent Traceboard</title>
+    <!-- Added Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Roboto+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <!-- End Google Fonts -->
+    <style>
+      body {
+        font-family: "Roboto", system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans",
+          "Helvetica Neue", sans-serif;
+        line-height: 1.6;
+        padding: 20px;
+        background-color: #f8f9fa; /* Light background */
+        color: #212529; /* Darker text for contrast */
+      }
+      h1,
+      h2 {
+        color: #343a40; /* Slightly darker heading */
+        font-weight: 700; /* Bold headings */
+      }
+      h1 {
+        border-bottom: 2px solid #dee2e6;
+        padding-bottom: 0.5em;
+        margin-bottom: 1em;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        background-color: #ffffff; /* White table background */
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+        border-radius: 5px; /* Rounded corners */
+        overflow: hidden; /* Clip shadow */
+      }
+      th,
+      td {
+        border: 1px solid #dee2e6; /* Lighter borders */
+        padding: 12px 15px; /* More padding */
+        text-align: left;
+      }
+      th {
+        background-color: #e9ecef; /* Lighter header */
+        font-weight: 700; /* Bold headers */
+        color: #495057;
+      }
+      tbody tr:nth-child(even) {
+        background-color: #f8f9fa; /* Maintain alternating rows */
+      }
+      tbody tr:hover {
+        background-color: #e9ecef; /* Hover effect */
+      }
+      a {
+        color: #007bff;
+        text-decoration: none;
+        font-weight: 500;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .trace-id {
+        font-family: "Roboto Mono", monospace;
+        font-size: 0.9em;
+      }
+      .timestamp-ms {
+        font-size: 0.9em;
+      }
+      .error {
+        color: #dc3545; /* Bootstrap danger color */
+        font-weight: bold;
+        margin-top: 1em;
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        padding: 10px 15px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>TinyAgent Traceboard</h1>
+    <h2>Recent Traces</h2>
+
+    {% if traces %}
+    <table>
+      <thead>
+        <tr>
+          <th>Trace ID</th>
+          <th>Start Time (UTC)</th>
+          <th>Span Count</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for trace in traces %}
+        <tr>
+          <td>
+            <a href="/trace/{{ trace.trace_id }}" class="trace-id"
+              >{{ trace.trace_id }}</a
+            >
+          </td>
+          <td class="timestamp-ms">
+            {# Display raw milliseconds for simplicity #} {{
+            trace.trace_start_time if trace.trace_start_time else 'N/A' }} {# {{
+            ((trace.trace_start_time / 1000) | timestamp | strftime('%Y-%m-%d
+            %H:%M:%S.%f'))[:-3] if trace.trace_start_time else 'N/A' }} #}
+          </td>
+          <td>{{ trace.span_count }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p>No traces found in the database.</p>
+    <p class="error">
+      {% if request.state.error %}{{ request.state.error }}{% endif %}
+    </p>
+    {% endif %}
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const timestampCells = document.querySelectorAll(".timestamp-ms");
+        timestampCells.forEach((cell) => {
+          const msText = cell.textContent.trim();
+          if (msText && msText !== "N/A") {
+            try {
+              const milliseconds = parseInt(msText, 10);
+              if (!isNaN(milliseconds)) {
+                const date = new Date(milliseconds);
+                // Format to something like: YYYY-MM-DD HH:MM:SS.mmm
+                const formatted = date
+                  .toISOString()
+                  .replace("T", " ")
+                  .slice(0, -1);
+                cell.textContent = formatted;
+              }
+            } catch (e) {
+              console.error("Error formatting timestamp:", msText, e);
+              // Keep original text if formatting fails
+            }
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

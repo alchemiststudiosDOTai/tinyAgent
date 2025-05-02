@@ -21,6 +21,12 @@ from .exceptions import AgentRetryExceeded, ConfigurationError, ParsingError
 from .tool import Tool
 from .utils.type_converter import convert_to_expected_type
 
+# --- ADDED IMPORTS for Tracing ---
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+from .observability.tracer import get_tracer, trace_agent_run
+
+# ----------------------------------
 
 def get_choices(completion):
     if isinstance(completion, dict):
@@ -64,8 +70,9 @@ class CacheEntry(Dict[str, Any]):
 class RetryManager:
     """Manages the retry strategy with temperature warming and model escalation."""
     
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Dict[str, Any], agent_default_model: str):
         self.config = config
+        self.agent_default_model = agent_default_model
         self.current_attempt = 0
         self.temperature = self._get_config_value('retries.temperature.initial', 0.2)
         self.max_temperature = self._get_config_value('retries.temperature.max', 0.8)
@@ -75,7 +82,7 @@ class RetryManager:
             "anthropic/claude-3.5-sonnet",
             "anthropic/claude-3.7-sonnet"
         ])
-        self.current_model_idx = 0
+        self.current_model_idx = -1
         
     def _get_config_value(self, path: str, default: Any) -> Any:
         """Get a value from nested config using dot notation."""
@@ -92,17 +99,34 @@ class RetryManager:
         """Get parameters for next retry attempt."""
         self.current_attempt += 1
         
-        # Every other attempt, increase temperature
-        if self.current_attempt % 2 == 0:
-            self.temperature = min(self.temperature + self.temp_increment, self.max_temperature)
-        
-        # Every third attempt, escalate model
-        if self.current_attempt % 3 == 0:
-            self.current_model_idx = min(self.current_model_idx + 1, len(self.model_sequence) - 1)
-            # Reset temperature when escalating model
-            self.temperature = self._get_config_value('retries.temperature.initial', 0.2)
-            
-        return self.temperature, self.model_sequence[self.current_model_idx]
+        model_to_use = ""
+        if self.current_attempt == 1:
+            model_to_use = self.agent_default_model
+            logger.debug(f"RetryManager: Attempt 1, using default model: {model_to_use}")
+        else:
+            # Only escalate if the sequence has more models
+            if (self.current_attempt - 1) % 3 == 0 and self.current_attempt > 1: 
+                 # Indent the following block correctly
+                 self.current_model_idx = min(self.current_model_idx + 1, len(self.model_sequence) - 1)
+                 # Reset temperature when escalating
+                 self.temperature = self._get_config_value('retries.temperature.initial', 0.2)
+                 logger.debug(f"RetryManager: Escalating model index to {self.current_model_idx}")
+
+            # Ensure index is valid for the sequence
+            effective_model_idx = max(0, self.current_model_idx) # Use index 0 if initial index was -1
+
+            if effective_model_idx < len(self.model_sequence):
+                 model_to_use = self.model_sequence[effective_model_idx]
+                 logger.debug(f"RetryManager: Attempt {self.current_attempt}, using escalation sequence index {effective_model_idx}: {model_to_use}")
+            else:
+                 model_to_use = self.model_sequence[-1]
+                 logger.warning(f"RetryManager: Attempt {self.current_attempt}, index out of bounds, using last model: {model_to_use}")
+
+            if self.current_attempt > 1 and self.current_attempt % 2 == 0:
+                 self.temperature = min(self.temperature + self.temp_increment, self.max_temperature)
+                 logger.debug(f"RetryManager: Increasing temperature to {self.temperature}")
+                 
+        return self.temperature, model_to_use
         
     def should_retry(self) -> bool:
         """Determine if another retry attempt should be made."""
@@ -163,8 +187,8 @@ class Agent:
             from dotenv import load_dotenv
             env_path = os.getenv("TINYAGENT_ENV")
             if not env_path:
-                cwd_env = os.path.join(os.getcwd(), '.env')
-                if os.path.isfile(cwd_env):
+                cwd_env = os.getenv(os.path.join(os.getcwd(), '.env'))
+                if cwd_env:
                     env_path = cwd_env
                 else:
                     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -250,8 +274,8 @@ class Agent:
         # Initialize prompt manager with project root for development mode
         self.prompt_manager = PromptManager(project_root=project_root)
         
-        # Initialize retry manager
-        self.retry_manager = RetryManager(self.config)
+        # Initialize retry manager, passing the actual default model
+        self.retry_manager = RetryManager(self.config, agent_default_model=self.model)
     
     # move to the utils directory    
     def create_tool(self, name: str, description: str, func: Callable, parameters: Optional[Dict[str, str]] = None) -> None:
@@ -389,11 +413,12 @@ class Agent:
                 logger.info(f"Arguments: {arguments}")
                 logger.info(f"Cached Result: {cache_entry['result']}")
                 logger.info("="*50 + "\n")
+                
                 return cache_entry['result']
         
         try:
             logger.info("\n" + "="*50)
-            logger.info("Tool Execution")
+            logger.info("Tool Execution (Cache Miss)")
             logger.info("="*50)
             logger.info(f"Tool: {tool_name}")
             logger.info(f"Arguments: {arguments}")
@@ -418,7 +443,7 @@ class Agent:
                 'args': arguments
             }
             
-            # Log successful tool call
+            # Log successful tool call to history
             self.history.append(cast(ToolCallResult, {
                 "tool": tool_name,
                 "args": arguments,
@@ -436,7 +461,7 @@ class Agent:
             logger.error(f"Error: {str(e)}")
             logger.error("="*50 + "\n")
             
-            # Log failed tool call
+            # Log failed tool call to history
             self.history.append(cast(ToolCallError, {
                 "tool": tool_name,
                 "args": arguments,
@@ -444,7 +469,8 @@ class Agent:
                 "success": False,
                 "timestamp": time.time()
             }))
-            raise
+            
+            raise # Re-raise the exception
     
     def _build_system_prompt(self) -> str:
         """
@@ -709,173 +735,192 @@ class Agent:
         
         return False
     
+    def _is_tracing_enabled(self) -> bool:
+        """Check if tracing is enabled."""
+        return isinstance(self, TracedAgent)
+    
     def run(self, query: str, template_path: Optional[str] = None, variables: Optional[Dict[str, Any]] = None, expected_type: Optional[type] = None) -> Any:
-        """Run the Agent with enhanced retry mechanism."""
+        """Run the Agent with enhanced retry mechanism and observability."""
+        
+        # Core agent logic without explicit tracing context
         logger.info("\n" + "="*50)
         logger.info("Agent Execution")
         logger.info("="*50 + "\n")
         
         retry_history = []
+        final_result = None # Initialize final_result
         
         if not self.get_available_tools():
             logger.warning("No tools available for execution")
-            return "No tools available"
+            raise ValueError("No tools available for execution")
         
         system_prompt = self._build_system_prompt()
         user_prompt = query
         
-        # Initialize retry manager for this run
-        self.retry_manager = RetryManager(self.config)
+        self.retry_manager = RetryManager(self.config, agent_default_model=self.model)
         
         while self.retry_manager.should_retry():
             temperature, current_model = self.retry_manager.next_attempt()
             
+            logger.debug(f"[Agent.run] Attempt {self.retry_manager.current_attempt} with model {current_model} and temperature {temperature}")
+            client = OpenAI(base_url=self.base_url, api_key=self.api_key)
+            messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}]
+            payload = build_openrouter_payload(messages=messages, config=self.config, model=current_model, temperature=temperature)
+            api_key = os.getenv("OPENROUTER_API_KEY")
+            
             try:
-                logger.debug(f"[Agent.run] Attempt {self.retry_manager.current_attempt} with model {current_model} and temperature {temperature}")
-                # Initialize OpenAI client with configuration
-                client = OpenAI(
-                    base_url=self.base_url,
-                    api_key=self.api_key,
-                )
-
-                messages = [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ]
-
-                payload = build_openrouter_payload(
-                    messages=messages,
-                    config=self.config,
-                    model=current_model,
-                    temperature=temperature
-                )
-
-                api_key = os.getenv("OPENROUTER_API_KEY")
                 completion = make_openrouter_request(self.config, api_key, payload)
                 logger.debug(f"[Agent.run] Raw completion: {repr(completion)}")
+            except requests.exceptions.HTTPError as e:
+                error_msg = f"HTTP error occurred: {str(e)}"
+                logger.warning(error_msg)
+                retry_history.append({"attempt": self.retry_manager.current_attempt, "model": current_model, "temperature": temperature, "error": error_msg})
                 
-                if not get_choices(completion):
-                    error_msg = f"Invalid response format - no choices returned"
-                    logger.debug(f"[Agent.run] {error_msg}")
-                    retry_history.append({
-                        "attempt": self.retry_manager.current_attempt,
-                        "model": current_model,
-                        "temperature": temperature,
-                        "error": error_msg
-                    })
-                    continue
-                
-                choices = get_choices(completion)
-                content = choices[0].message.content if hasattr(choices[0], "message") else choices[0]["message"]["content"]
-                logger.debug(f"[Agent.run] Raw LLM content: {repr(content)}")
-                parsed = self._parse_response(content)
-                logger.debug(f"[Agent.run] Parsed response: {repr(parsed)}")
-                
-                # Output debug information about the response
-                logger.info(f"Raw LLM response: {content[:500]}")
-                if parsed:
-                    logger.info(f"Parsed response: {parsed}")
-                
-                if parsed and self._validate_parsed_data(parsed):
-                    # Handle orchestrator assessment format
-                    if "assessment" in parsed:
-                        logger.info(f"Successfully parsed assessment format: {parsed}")
-                        logger.info("\n" + "="*50)
-                        logger.info(f"Task completed. Final answer: {parsed}")
-                        logger.info("="*50 + "\n")
-
-                        # Apply type conversion using utility if requested
-                        if expected_type:
-                            logger.warning(f"Expected type '{expected_type.__name__}' requested for assessment result. Conversion not applied.")
-                        return parsed # Return original parsed dict for assessment
-
-                    # Handle tool execution format
-                    elif "tool" in parsed and "arguments" in parsed:
-                        logger.info(f"Successfully parsed tool execution format: {parsed}")
-                        tool_name, tool_args = parsed['tool'], parsed['arguments']
-                        result = self.execute_tool_call(tool_name, tool_args)
-                        logger.info("\n" + "="*50)
-                        logger.info(f"Task completed. Final answer: {result}")
-                        logger.info("="*50 + "\n")
-
-                        # Apply type conversion using utility if requested
-                        final_result = convert_to_expected_type(result, expected_type, logger)
-                        return final_result
-                    
-                # If we couldn't parse the response properly, but it's not empty
-                elif content and content.strip():
-                    # Create a direct assessment response for triage_agent when the query contains keywords related to triage
-                    if "triage" in query.lower() or any(kw in query.lower() for kw in ["analyze", "task", "categorize", "determine"]):
-                        logger.warning(f"Converting plain text to triage assessment: {content[:100]}...")
-                        assessment = "direct"  # Default
-                        
-                        # Try to infer assessment type from content
-                        if re.search(r'\b(phased|multi-step|research|planning|implementation)\b', content, re.IGNORECASE):
-                            assessment = "phased"
-                        elif re.search(r'\b(new agent|specialized|create agent)\b', content, re.IGNORECASE):
-                            assessment = "create_new"
-                            
-                        triage_result = {
-                            "assessment": assessment,
-                            "requires_new_agent": assessment == "create_new",
-                            "reasoning": f"Inferred from response: {content[:150]}...",
-                            "agent_id": "triage" if assessment == "delegate" else None
-                        }
-                        logger.info(f"Created triage assessment: {triage_result}")
-                        return triage_result
-                    else:
-                        # For non-triage queries, ensure we pass the content as a message
-                        logger.warning(f"Response format not recognized as structured JSON, treating as chat: {content[:100]}...")
-                        logger.info("Returning content as chat response")
-                        # Ensure we pass a non-empty message
-                        message = content.strip() if content.strip() else "I apologize, but I couldn't generate a proper response. Could you please rephrase your question?"
-                        result = self.execute_tool_call("chat", {"message": message})
-                        logger.info("\n" + "="*50)
-                        logger.info(f"Task completed. Final answer: {result}")
-                        logger.info("="*50 + "\n")
-
-                        # Apply type conversion using utility if requested
-                        final_result = convert_to_expected_type(result, expected_type, logger)
-                        return final_result
-                else:
-                    # Only count as an error for retry if response is completely empty
-                    error_msg = f"Invalid response format - {content[:100]}..."
-                    logger.debug(f"[Agent.run] {error_msg}")
-                    retry_history.append({
-                        "attempt": self.retry_manager.current_attempt,
-                        "model": current_model,
-                        "temperature": temperature,
-                        "error": error_msg,
-                        "raw_content": content[:200]
-                    })
-                
-                # Use stricter prompt for next attempt
-                system_prompt = self._build_retry_prompt()
-                
+                # If this is the last retry attempt, raise AgentRetryExceeded instead of HTTPError
+                if not self.retry_manager.should_retry():
+                    raise AgentRetryExceeded(
+                        f"Failed due to HTTP error after {self.retry_manager.current_attempt} attempts: {str(e)}", 
+                        history=retry_history,
+                        error_code=AgentRetryExceeded.ERROR_HTTP_ERROR
+                    ) from e
+                continue
             except Exception as e:
-                error_msg = f"Attempt failed: {str(e)}"
-                logger.debug(f"[Agent.run] Exception: {error_msg}")
-                retry_history.append({
-                    "attempt": self.retry_manager.current_attempt,
-                    "model": current_model,
-                    "temperature": temperature,
-                    "error": error_msg
-                })
-        
-        # If we've exhausted all retries, create a fallback result
-        fallback_result = self.execute_tool_call("chat", {
-            "message": "I couldn't understand how to process your request. Could you please rephrase it?"
-        })
-        
-        # Apply type conversion using utility if requested (unlikely to succeed here)
-        final_result = convert_to_expected_type(fallback_result, expected_type, logger)
-        # Still raise the exception after processing fallback
+                error_msg = f"Error making API request: {str(e)}"
+                logger.warning(error_msg)
+                retry_history.append({"attempt": self.retry_manager.current_attempt, "model": current_model, "temperature": temperature, "error": error_msg})
+                
+                # If this is the last retry attempt, raise AgentRetryExceeded instead of the original exception
+                if not self.retry_manager.should_retry():
+                    raise AgentRetryExceeded(
+                        f"Failed due to error after {self.retry_manager.current_attempt} attempts: {str(e)}", 
+                        history=retry_history,
+                        error_code=AgentRetryExceeded.ERROR_API_REQUEST
+                    ) from e
+                continue
+            
+            if not get_choices(completion):
+                error_msg = f"Invalid response format - no choices returned"
+                logger.debug(f"[Agent.run] {error_msg}")
+                retry_history.append({"attempt": self.retry_manager.current_attempt, "model": current_model, "temperature": temperature, "error": error_msg})
+                continue
+            
+            choices = get_choices(completion)
+            content = choices[0].message.content if hasattr(choices[0], "message") else choices[0]["message"]["content"]
+            logger.debug(f"[Agent.run] Raw LLM content: {repr(content)}")
+            parsed = self._parse_response(content)
+            logger.debug(f"[Agent.run] Parsed response: {repr(parsed)}")
+            
+            logger.info(f"Raw LLM response: {content[:500]}")
+            if parsed: logger.info(f"Parsed response: {parsed}")
+            
+            if parsed and self._validate_parsed_data(parsed):
+                # Prioritize checking for tool call format
+                if "tool" in parsed and "arguments" in parsed:
+                    logger.info(f"Successfully parsed tool execution format: {parsed}")
+                    tool_name, tool_args = parsed['tool'], parsed['arguments']
+                    
+                    # Don't allow fallback to chat tool
+                    if tool_name == "chat" and tool_name not in query.lower():
+                        error_msg = "No valid tool found for query"
+                        logger.warning(error_msg)
+                        retry_history.append({"attempt": self.retry_manager.current_attempt, "model": current_model, "temperature": temperature, "error": error_msg})
+                        continue
+                    
+                    # Execute the tool call
+                    try:
+                        result = self.execute_tool_call(tool_name, tool_args)
+                        logger.info("\n" + "="*50); logger.info(f"Task completed. Final answer: {result}"); logger.info("="*50 + "\n")
+                        # Convert and store the actual execution result
+                        final_result = convert_to_expected_type(result, expected_type, logger)
+                        break # Exit retry loop on successful tool execution
+                    except Exception as e:
+                        error_msg = f"Tool execution failed: {str(e)}"
+                        logger.warning(error_msg)
+                        retry_history.append({"attempt": self.retry_manager.current_attempt, "model": current_model, "temperature": temperature, "error": error_msg})
+                        continue
 
-        raise AgentRetryExceeded(
-            f"Failed to get valid response after {self.retry_manager.current_attempt} attempts",
-            history=retry_history
-        )
+                # Check for other formats like assessment *after* tool call
+                elif "assessment" in parsed:
+                    logger.info(f"Successfully parsed assessment format: {parsed}")
+                    logger.info("\n" + "="*50); logger.info(f"Task completed. Final answer: {parsed}"); logger.info("="*50 + "\n")
+                    # Store the parsed assessment dictionary as the result
+                    final_result = parsed
+                    break # Exit retry loop on successful assessment parsing
+                else:
+                    # Handle other potential valid parsed formats if necessary, or log unexpected structure
+                    logger.warning(f"Parsed data has unexpected structure: {parsed}")
+                    # Decide if this should be an error or fallback
+                    # For now, let's treat it as needing retry
+                    error_msg = f"Parsed data validated but structure not recognized: {parsed}"
+                    retry_history.append({"attempt": self.retry_manager.current_attempt, "model": current_model, "temperature": temperature, "error": error_msg, "raw_content": content[:200]})
+                    system_prompt = self._build_retry_prompt()
+                    continue # Continue to next retry attempt
+            
+            else:
+                error_msg = f"Invalid or empty response format - {content[:100]}..."
+                logger.debug(f"[Agent.run] {error_msg}")
+                retry_history.append({"attempt": self.retry_manager.current_attempt, "model": current_model, "temperature": temperature, "error": error_msg, "raw_content": content[:200]})
+                system_prompt = self._build_retry_prompt()
+            
+        # If loop finishes without breaking (i.e., no success)
+        else: # Corresponds to the while loop
+            logger.error(f"Agent failed after {self.retry_manager.current_attempt} attempts.")
+            # Determine most appropriate error code from history
+            error_code = None
+            # The error code will be automatically determined from history
+            # Raise outside the loop. Decorator will catch this exception if applied.
+            raise AgentRetryExceeded(
+                f"Failed to get valid response after {self.retry_manager.current_attempt} attempts", 
+                history=retry_history
+            )
 
+        # Return the final result obtained before loop exit
+        return final_result
+
+# --- ADDED TracedAgent Subclass ---
+class TracedAgent(Agent):
+    """An Agent subclass whose run method is automatically traced."""
+    
+    @trace_agent_run # Apply decorator ONLY to the subclass run method
+    def run(self, query: str, template_path: Optional[str] = None, variables: Optional[Dict[str, Any]] = None, expected_type: Optional[type] = None) -> Any:
+        """Overrides Agent.run to apply tracing via decorator and calls the parent implementation."""
+        # The decorator handles the span, the actual logic is in the parent
+        return super().run(query, template_path=template_path, variables=variables, expected_type=expected_type)
+        
+    # --- ADDED: Override execute_tool_call to add tracing for TracedAgent --- 
+    def execute_tool_call(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
+        """Overrides base method to add tracing specifically for tool calls in TracedAgent."""
+        tracer = get_tracer(__name__) # Get tracer instance
+        
+        # Ensure arguments are JSON serializable for attributes
+        try:
+            args_json = json.dumps(arguments)
+        except TypeError:
+            args_json = json.dumps(str(arguments)) # Fallback
+
+        # Start the tool execution span
+        with tracer.start_as_current_span(f"tool.execute.{tool_name}") as tool_span:
+            tool_span.set_attribute("tool.name", tool_name)
+            tool_span.set_attribute("tool.arguments", args_json)
+            
+            result = None # Initialize result
+            try:
+                # Call the original Agent.execute_tool_call logic from the base class
+                result = super().execute_tool_call(tool_name, arguments)
+                
+                # Record successful result and status
+                tool_span.set_attribute("tool.result", str(result))
+                tool_span.set_status(Status(StatusCode.OK))
+                
+                return result
+            except Exception as e:
+                # Record exception and error status
+                tool_span.record_exception(e)
+                tool_span.set_status(Status(StatusCode.ERROR, f"Tool execution failed: {str(e)}"))
+                raise # Re-raise the exception
+    # --- END OVERRIDE --- 
+
+# --- END Subclass ---
 
 def get_llm(model: Optional[str] = None) -> Callable[[str], str]:
     """
@@ -951,9 +996,9 @@ def get_llm(model: Optional[str] = None) -> Callable[[str], str]:
     
     return llm_call
 
-def tiny_agent(tools=None, model=None):
+def tiny_agent(tools=None, model=None, **kwargs):
     """
     Simplified alias to create an Agent using AgentFactory with given tools and optional model.
     """
     from .factory.agent_factory import AgentFactory
-    return AgentFactory.get_instance().create_agent(tools=tools, model=model)
+    return AgentFactory.get_instance().create_agent(tools=tools, model=model, **kwargs)

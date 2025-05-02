@@ -23,7 +23,10 @@ def convert_to_expected_type(result: Any, expected_type: Optional[Type], logger:
         logger: Optional logger instance for warnings.
 
     Returns:
-        The converted result, or the original result if no conversion is needed or possible.
+        The converted result.
+
+    Raises:
+        ValueError: If the result cannot be converted to the expected type.
     """
     if logger is None:
         logger = logging.getLogger(__name__)
@@ -33,7 +36,7 @@ def convert_to_expected_type(result: Any, expected_type: Optional[Type], logger:
         return result
 
     original_result = result # Keep original for logging/fallback
-    converted_result = original_result
+    converted_result = None
 
     try:
         # --- String Conversion --- (Often a base case)
@@ -52,11 +55,9 @@ def convert_to_expected_type(result: Any, expected_type: Optional[Type], logger:
                     converted_result = int(numbers[-1]) # Take last integer found
                     logger.info(f"Extracted and converted result to int: {converted_result}")
                 else:
-                    logger.warning(f"Expected type 'int', but no integer found in string: '{original_result[:100]}...'.")
-                    converted_result = original_result # Fallback
+                    raise ValueError(f"No integer found in string: '{original_result[:100]}...'")
             else:
-                 logger.warning(f"Expected type 'int', but input type is {type(original_result)}. Cannot convert.")
-                 converted_result = original_result # Fallback
+                raise ValueError(f"Cannot convert type {type(original_result)} to int")
 
         # --- Float Conversion --- (Handles existing int/float or extracts from string)
         elif expected_type is float:
@@ -69,11 +70,9 @@ def convert_to_expected_type(result: Any, expected_type: Optional[Type], logger:
                     converted_result = float(numbers[-1]) # Take last float/int found
                     logger.info(f"Extracted and converted result to float: {converted_result}")
                 else:
-                    logger.warning(f"Expected type 'float', but no number found in string: '{original_result[:100]}...'.")
-                    converted_result = original_result # Fallback
+                    raise ValueError(f"No number found in string: '{original_result[:100]}...'")
             else:
-                 logger.warning(f"Expected type 'float', but input type is {type(original_result)}. Cannot convert.")
-                 converted_result = original_result # Fallback
+                raise ValueError(f"Cannot convert type {type(original_result)} to float")
 
         # --- Boolean Conversion --- (Handles existing bool/numeric or common strings)
         elif expected_type is bool:
@@ -91,21 +90,18 @@ def convert_to_expected_type(result: Any, expected_type: Optional[Type], logger:
                     converted_result = False
                     logger.info(f"Converted string '{original_result}' to bool: False")
                 else:
-                    logger.warning(f"Expected type 'bool', but string '{original_result[:100]}...' is not a recognized boolean value.")
-                    converted_result = original_result # Fallback
+                    raise ValueError(f"String '{original_result[:100]}...' is not a recognized boolean value")
             else:
-                 logger.warning(f"Expected type 'bool', but input type is {type(original_result)}. Cannot convert.")
-                 converted_result = original_result # Fallback
+                raise ValueError(f"Cannot convert type {type(original_result)} to bool")
 
         # --- List/Dict Conversion (JSON) --- (Handles existing list/dict or parses from string)
         elif expected_type in (list, dict):
             if isinstance(original_result, (list, dict)):
-                # Already correct type, maybe check if it matches expected list vs dict?
+                # Already correct type, check if it matches expected list vs dict
                 if isinstance(original_result, expected_type):
-                     converted_result = original_result # Correct type
+                    converted_result = original_result # Correct type
                 else:
-                    logger.warning(f"Input is {type(original_result).__name__} but expected {expected_type.__name__}.")
-                    converted_result = original_result # Fallback
+                    raise ValueError(f"Input is {type(original_result).__name__} but expected {expected_type.__name__}")
             elif isinstance(original_result, str):
                 try:
                     parsed_json = json.loads(original_result)
@@ -113,22 +109,18 @@ def convert_to_expected_type(result: Any, expected_type: Optional[Type], logger:
                         converted_result = parsed_json
                         logger.info(f"Parsed string and converted to {expected_type.__name__}.")
                     else:
-                        logger.warning(f"Parsed JSON is type {type(parsed_json).__name__}, but expected {expected_type.__name__}. String: '{original_result[:100]}...'")
-                        converted_result = original_result # Fallback
+                        raise ValueError(f"Parsed JSON is type {type(parsed_json).__name__}, but expected {expected_type.__name__}")
                 except json.JSONDecodeError:
-                    logger.warning(f"Expected type '{expected_type.__name__}', but failed to parse string as JSON: '{original_result[:100]}...'")
-                    converted_result = original_result # Fallback
+                    raise ValueError(f"Failed to parse string as JSON: '{original_result[:100]}...'")
             else:
-                logger.warning(f"Expected type '{expected_type.__name__}', but input type is {type(original_result)}. Cannot convert.")
-                converted_result = original_result # Fallback
+                raise ValueError(f"Cannot convert type {type(original_result)} to {expected_type.__name__}")
 
         else:
-            # If expected_type is not one we handle, log and return original
-            logger.warning(f"Unsupported expected_type: {expected_type}. Returning original result.")
-            converted_result = original_result
+            # If expected_type is not one we handle, raise error
+            raise ValueError(f"Unsupported expected_type: {expected_type}")
 
     except Exception as e:
-        logger.error(f"Error during type conversion to {expected_type}: {e}. Returning original result.")
-        converted_result = original_result
+        logger.error(f"Error during type conversion to {expected_type}: {e}")
+        raise ValueError(f"Failed to convert result to {expected_type.__name__}: {str(e)}")
 
     return converted_result 

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trace Detail - {{ trace_id }}</title>
+    <!-- Added Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Roboto+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <!-- End Google Fonts -->
+    <style>
+      body {
+        font-family: "Roboto", system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans",
+          "Helvetica Neue", sans-serif;
+        line-height: 1.6;
+        padding: 20px;
+        background-color: #f8f9fa; /* Light background */
+        color: #212529; /* Darker text for contrast */
+      }
+      h1,
+      h2 {
+        color: #343a40; /* Slightly darker heading */
+        font-weight: 700; /* Bold headings */
+      }
+      h1 {
+        border-bottom: 2px solid #dee2e6;
+        padding-bottom: 0.5em;
+        margin-bottom: 1em;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px; /* Adjusted */
+        margin-bottom: 15px; /* Adjusted */
+        background-color: #ffffff; /* White table background */
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+        border-radius: 5px; /* Rounded corners */
+        overflow: hidden; /* Clip shadow */
+      }
+      th,
+      td {
+        border: 1px solid #dee2e6; /* Lighter borders */
+        padding: 10px 15px; /* Adjusted padding */
+        text-align: left;
+        vertical-align: top;
+        font-size: 0.95em; /* Slightly smaller table text */
+      }
+      th {
+        background-color: #e9ecef; /* Lighter header */
+        font-weight: 700; /* Bold headers */
+        color: #495057;
+        width: 150px; /* Fixed width for headers */
+      }
+      td {
+        word-break: break-all; /* Allow long strings like IDs to wrap */
+      }
+      a {
+        color: #007bff;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .trace-id,
+      .span-id,
+      code {
+        font-family: "Roboto Mono", monospace;
+        font-size: 0.9em; /* Smaller monospace font */
+      }
+      pre {
+        font-family: "Roboto Mono", monospace; /* Monospace font for pre */
+        background-color: #e9ecef; /* Match header background */
+        border: 1px solid #dee2e6; /* Match table borders */
+        padding: 15px;
+        border-radius: 4px;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        font-size: 0.85em; /* Smaller pre font */
+        margin-top: 5px;
+      }
+      .span-details {
+        margin-left: 0; /* Remove indent */
+        margin-top: 15px;
+      }
+      .span-details strong {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 700;
+        color: #495057;
+      }
+      .span-entry {
+        /* Removed background and border, relying on table styles */
+        padding: 0;
+        margin-bottom: 25px;
+        border-radius: 5px;
+      }
+      hr {
+        border: 0;
+        border-top: 1px solid #dee2e6;
+        margin: 25px 0;
+      }
+      .error {
+        color: #dc3545; /* Bootstrap danger color */
+        font-weight: bold;
+      }
+      .status-OK {
+        color: #28a745; /* Bootstrap success */
+        font-weight: bold;
+      }
+      .status-ERROR {
+        color: #dc3545; /* Bootstrap danger */
+        font-weight: bold;
+      }
+      .status-UNSET {
+        color: #6c757d; /* Bootstrap secondary */
+      }
+      .timestamp-ms {
+        font-size: 0.9em;
+      }
+    </style>
+  </head>
+  <body>
+    <p><a href="/">&larr; Back to Trace List</a></p>
+    <h1>Trace Detail</h1>
+    <p>
+      <strong>Trace ID:</strong> <span class="trace-id">{{ trace_id }}</span>
+    </p>
+
+    <h2>Spans</h2>
+    {% if spans %} {% for span in spans %}
+    <div class="span-entry">
+      <table>
+        <tr>
+          <th>Span ID</th>
+          <td class="span-id">{{ span.span_id }}</td>
+        </tr>
+        <tr>
+          <th>Parent Span ID</th>
+          <td class="span-id">
+            {{ span.parent_span_id if span.parent_span_id else 'None (Root
+            Span)' }}
+          </td>
+        </tr>
+        <tr>
+          <th>Name</th>
+          <td>{{ span.name }}</td>
+        </tr>
+        <tr>
+          <th>Start Time (UTC)</th>
+          <td class="timestamp-ms">
+            {{ span.start_time if span.start_time else 'N/A' }}
+          </td>
+        </tr>
+        <tr>
+          <th>End Time (UTC)</th>
+          <td class="timestamp-ms">
+            {{ span.end_time if span.end_time else 'N/A' }}
+          </td>
+        </tr>
+        <tr>
+          <th>Duration (ms)</th>
+          <td>{{ span.duration }}</td>
+        </tr>
+        <tr>
+          <th>Status</th>
+          <td class="status-{{ span.status_code }}">
+            {{ span.status_code }}{% if span.status_message %}: {{
+            span.status_message }}{% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th>Kind</th>
+          <td>{{ span.kind }}</td>
+        </tr>
+        <tr>
+          <th>Library</th>
+          <td>{{ span.library_name }}:{{ span.library_version }}</td>
+        </tr>
+      </table>
+      <div class="span-details">
+        {% if span.attributes %}
+        <strong>Attributes:</strong>
+        <pre><code>{{ span.attributes | tojson(indent=2) }}</code></pre>
+        {% endif %} {% if span.events %}
+        <strong>Events:</strong>
+        <pre><code>{{ span.events | tojson(indent=2) }}</code></pre>
+        {% endif %} {% if span.links %}
+        <strong>Links:</strong>
+        <pre><code>{{ span.links | tojson(indent=2) }}</code></pre>
+        {% endif %} {% if span.resource %}
+        <strong>Resource:</strong>
+        <pre><code>{{ span.resource | tojson(indent=2) }}</code></pre>
+        {% endif %}
+      </div>
+      <hr style="margin-top: 20px; margin-bottom: 20px" />
+    </div>
+    {% endfor %} {% else %}
+    <p class="error">No spans found for this trace ID.</p>
+    {% endif %}
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const timestampCells = document.querySelectorAll(".timestamp-ms");
+        timestampCells.forEach((cell) => {
+          const msText = cell.textContent.trim();
+          if (msText && msText !== "N/A") {
+            try {
+              const milliseconds = parseInt(msText, 10);
+              if (!isNaN(milliseconds)) {
+                const date = new Date(milliseconds);
+                // Format to something like: YYYY-MM-DD HH:MM:SS.mmm
+                const formatted = date
+                  .toISOString()
+                  .replace("T", " ")
+                  .slice(0, -1);
+                cell.textContent = formatted;
+              }
+            } catch (e) {
+              console.error("Error formatting timestamp:", msText, e);
+              // Keep original text if formatting fails
+            }
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

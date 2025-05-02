@@ -184,7 +184,7 @@ class AgentFactory:
         logger.info(f"Registered tool: {tool.name}")
         return tool
 
-    def create_agent(self, tools: Optional[List[Union[Tool, Callable]]] = None, model: Optional[str] = None) -> 'Agent':
+    def create_agent(self, tools: Optional[List[Union[Tool, Callable]]] = None, model: Optional[str] = None, **kwargs) -> 'Agent':
         """
         Create a new agent with specified tools.
 
@@ -194,15 +194,42 @@ class AgentFactory:
         Args:
             tools: List of Tool instances or callable functions
             model: Optional model name to use for the agent
+            **kwargs: Additional keyword arguments to pass to the Agent constructor (e.g., trace_this_agent).
 
         Returns:
             The created Agent instance
         """
         # Import Agent here to avoid circular imports
-        from ..agent import Agent
+        from ..agent import Agent, TracedAgent # Keep both imports
+        # --- ADDED: Import tracer provider status --- 
+        from ..observability.tracer import _tracer_provider, configure_tracing
 
-        # Create agent without factory reference
-        agent = Agent(model=model)
+        # --- MODIFIED: Logic to determine agent class --- 
+        should_trace_explicit = kwargs.pop('trace_this_agent', None) # Get explicit flag, default None
+        
+        # Ensure tracing is configured if not already (needed for check below)
+        if _tracer_provider is None:
+            configure_tracing() # Use default config
+            
+        # Determine if tracing is globally active
+        is_tracing_globally_active = (_tracer_provider is not None and
+                                      type(_tracer_provider).__name__ != 'NoOpTracerProvider')
+
+        if should_trace_explicit is True:
+             logger.info("Creating TracedAgent instance (explicitly requested).")
+             agent = TracedAgent(model=model, **kwargs)
+        elif should_trace_explicit is False:
+             logger.info("Creating standard Agent instance (explicitly requested off).")
+             agent = Agent(model=model, **kwargs)
+        elif is_tracing_globally_active:
+             # Default case: trace_this_agent not specified, but tracing is globally ON
+             logger.info("Creating TracedAgent instance (tracing globally active).")
+             agent = TracedAgent(model=model, **kwargs)
+        else:
+             # Default case: trace_this_agent not specified, tracing globally OFF
+             logger.info("Creating standard Agent instance (tracing globally inactive).")
+             agent = Agent(model=model, **kwargs)
+        # --- END MODIFIED LOGIC --- 
 
         # Register existing factory tools with the agent
         for tool_name, tool in self._tools.items():

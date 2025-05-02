@@ -44,50 +44,74 @@ tinyAgent is a streamlined framework for building powerful, LLM-powered agents t
 
 ---
 
-## Installation
+## Installation & Setup
 
-### Via pip (Recommended)
+### 1. Install the Package
 
 ```bash
+# Basic installation
 pip install tiny_agent_os
+
+# With observability features (recommended)
+pip install "tiny_agent_os[traceboard]"
+
+# With all features (RAG + observability)
+pip install "tiny_agent_os[rag,traceboard]"
 ```
----
 
-## Post-Installation Configuration for Pip Users
+### 2. Get the Configuration Files
 
-After installing via `pip`, you'll need to provide your own configuration files. For convenience, you can download the defaults directly:
-
----
-
-### Download the Configuration File (`config.yml`)
-
-**Using `wget`:**
+After installation, you'll need two configuration files:
 
 ```bash
+# Create a basic config.yml
+python -m tinyagent.config init
+
+# Or download the example config directly
 wget https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/config.yml
 ```
 
----
-
-### Download the Environment File (`.env`)
-
-Download the example environment file and rename it to `.env`:
-
-**Using `wget`:**
+Create a `.env` file with your API keys:
 
 ```bash
+# Download the example .env file
 wget https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/.envexample -O .env
+
+# Edit with your API keys
+nano .env  # or use any text editor
 ```
 
-> **Note:** Be sure to edit the `.env` file with your actual API keys and any other required variables.
+### 3. Quick Start Example
 
----
+```python
+from tinyagent.decorators import tool
+from tinyagent.agent import tiny_agent
+from tinyagent.observability.tracer import configure_tracing  # For tracing support
 
-### Cloning for Development
+# Define a tool
+@tool
+def add(a: int, b: int) -> int:
+    return a + b
+
+# Enable tracing (optional)
+configure_tracing()  # This reads your config.yml
+
+# Create an agent (with tracing enabled)
+agent = tiny_agent(tools=[add], trace_this_agent=True)
+
+# Run it!
+result = agent.run("add 40 and 2")
+print(result)  # → 42
+
+```
+
+### 4. View Traces (if using traceboard)
+
+If you installed with `[traceboard]`, you can view traces in a web UI:
 
 ```bash
-git clone https://github.com/alchemiststudiosDOTai/tinyAgent.git
-cd tinyAgent
+# Start the traceboard (defaults to http://localhost:8000)
+python -m tinyagent.observability.traceboard --db traces.db
 ```
 
 ---
@@ -98,12 +122,14 @@ After installing (either via pip or from source), remember to configure your env
 
 Both the config.yml and env work out of the box with a openrouter API, you can use any openai API, and the config has an example of a local LLM.
 The /documentation folder has more details and is being updated.
+
 ## Features
 
 - **Modular Design:** Easily convert any function into a tool.
 - **Flexible Agent Options:** Use the simple orchestrator or advanced `AgentFactory`.
 - **Robust Error Handling:** Improved debugging with custom exceptions.
 - **Structured Output:** Enforce JSON formats for consistent outputs.
+- **Comprehensive Observability:** Built-in OpenTelemetry tracing with multiple exporters (console, OTLP, SQLite) and a web-based trace viewer.
 
 ---
 
@@ -115,20 +141,26 @@ The /documentation folder has more details and is being updated.
 - And many other open-source contributors!
 
 ---
+
 ## Learn More
 
 - [Functions as Tools](documentation/agentsarefunction.md)
 - [tinyChain Overview](documentation/tiny_chain_overview.md)
 - [RAG](documentation/rag.md)
+- [Observability](documentation/observability.md)
+
 ---
 
 ---
+
 ## Contact
+
 For questions, suggestions, or business inquiries:
 
 - **Email**: [info@alchemiststudios.ai](mailto:info@alchemiststudios.ai)
 - **X**: [@tunahorse21](https://x.com/tunahorse21)
 - **Website**: [alchemiststudios.ai](https://alchemiststudios.ai)
+
 ---
 
 ## License
@@ -137,4 +169,5 @@ For questions, suggestions, or business inquiries:
 This project is licensed under the Business Source License 1.1. It is **free for individuals and small businesses** (with annual revenues under $1M).
 For commercial use by larger businesses, an enterprise license is required.
 For licensing or usage inquiries, please contact: [info@alchemiststudios.ai](mailto:info@alchemiststudios.ai)
+
 ---

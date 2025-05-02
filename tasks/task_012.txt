@@ -1,6 +1,6 @@
 # Task ID: 12
 # Title: Implement OpenAI Embedding Support for Vector Memory
-# Status: pending
+# Status: done
 # Dependencies: None
 # Priority: medium
 # Description: Add support for OpenAI embeddings in the vector memory system, allowing users to configure their preferred embedding model through config.yml.
@@ -292,7 +292,7 @@ Implementation details for config-driven approach:
   - Include progress tracking for large collection migrations
 </info added on 2025-04-25T19:52:57.352Z>
 
-## 4. pypi rag [pending]
+## 4. pypi rag [done]
 ### Dependencies: None
 ### Description: Publish or update the RAG (Retrieval-Augmented Generation) functionality as a PyPI package or subpackage, ensuring all vector memory and embedding provider features are included and documented. Prepare for public release and verify installability.
 ### Details:

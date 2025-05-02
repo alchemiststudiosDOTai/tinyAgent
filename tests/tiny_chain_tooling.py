@@ -2,6 +2,10 @@
 """
 tiny_chain example: automatically find and summarise U.S. import-tariff data
 """
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
+
 from tinyagent.factory.tiny_chain import tiny_chain
 from tinyagent.tools.duckduckgo_search import get_tool as search_tool
 from tinyagent.tools.custom_text_browser import get_tool as browser_tool

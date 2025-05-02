@@ -7,6 +7,7 @@ particularly the `tool` decorator for transforming functions into Tool instances
 
 import functools
 import inspect
+import json
 from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast, overload
 
 from .tool import Tool, ParamType

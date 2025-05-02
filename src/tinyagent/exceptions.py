@@ -9,10 +9,50 @@ from typing import List, Dict, Any, Optional
 
 class AgentRetryExceeded(Exception):
     """Exception raised when agent exceeds max retry attempts."""
-    def __init__(self, message, history=None):
+    
+    # Error codes for different types of failures
+    ERROR_UNKNOWN = "ERR_UNKNOWN"
+    ERROR_NO_VALID_TOOL = "ERR_NO_VALID_TOOL"
+    ERROR_INVALID_RESPONSE_FORMAT = "ERR_INVALID_RESPONSE_FORMAT"
+    ERROR_PARSING_FAILED = "ERR_PARSING_FAILED"
+    ERROR_TOOL_EXECUTION_FAILED = "ERR_TOOL_EXECUTION_FAILED"
+    ERROR_HTTP_ERROR = "ERR_HTTP_ERROR"
+    ERROR_API_REQUEST = "ERR_API_REQUEST"
+    
+    def __init__(self, message, history=None, error_code=None):
         self.message = message
         self.history = history or []
-        super().__init__(message)
+        
+        # Determine error code from history if not provided
+        if error_code is None and history:
+            # Get most common error from history
+            errors = [attempt.get('error', '') for attempt in history if 'error' in attempt]
+            if errors:
+                if any("No valid tool found" in err for err in errors):
+                    self.error_code = self.ERROR_NO_VALID_TOOL
+                elif any("Invalid response format" in err for err in errors):
+                    self.error_code = self.ERROR_INVALID_RESPONSE_FORMAT
+                elif any("Tool execution failed" in err for err in errors):
+                    self.error_code = self.ERROR_TOOL_EXECUTION_FAILED
+                elif any("HTTP error" in err for err in errors):
+                    self.error_code = self.ERROR_HTTP_ERROR
+                elif any("API request" in err for err in errors):
+                    self.error_code = self.ERROR_API_REQUEST
+                elif any("Invalid or empty response format" in err for err in errors):
+                    self.error_code = self.ERROR_PARSING_FAILED
+                else:
+                    self.error_code = self.ERROR_UNKNOWN
+            else:
+                self.error_code = self.ERROR_UNKNOWN
+        else:
+            self.error_code = error_code or self.ERROR_UNKNOWN
+            
+        # Add error code to message
+        message_with_code = f"[{self.error_code}] {message}"
+        super().__init__(message_with_code)
+        
+    def __str__(self):
+        return f"[{self.error_code}] {self.message}"
 
 
 class TinyAgentError(Exception):

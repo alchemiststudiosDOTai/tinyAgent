@@ -1,0 +1,25 @@
+# Example configuration file for tinyAgent observability features
+
+observability:
+  tracing:
+    enabled: true # Master switch for tracing
+    service_name: "tinyagent" # Name identifying this service in traces
+    sampling_rate: 1.0 # Fraction of traces to sample (0.0 to 1.0)
+    exporter:
+      # Exporter type: "console", "otlp", or "sqlite"
+      type: "console" # Default to console for easy setup
+
+      # OTLP specific settings (only used if type is "otlp")
+      endpoint: "http://localhost:4317" # OTLP collector endpoint URL
+      headers: {} # Optional headers for OTLP exporter (e.g., auth)
+
+      # SQLite specific settings (only used if type is "sqlite")
+      db_path: "traces.db" # Path where the SQLite database file will be created/used
+
+    attributes: # Extra key-value attributes added to all spans
+      environment: "development"
+      version: "0.1.0" # Will be replaced with actual package version
+
+# Note: Copy this file to your project root as 'config.yml' and adjust settings as needed.
+# For more details on configuration options, see the documentation at:
+# https://github.com/alchemiststudiosai/tinyAgent/blob/main/documentation/observability.md
