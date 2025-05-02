@@ -1,133 +1,67 @@
-# tinyAgent Configuration
-# Model configuration
-#base_url: "http://localhost:1234/v1"
+# ───────────────────────── tinyAgent config ─────────────────────────
+# If you turn on `structured_outputs`, the *default* model **must**
+# advertise “Structured Outputs” on OpenRouter, otherwise you’ll get
+# 404 / 422 errors.  Check compatible models here:
+# https://openrouter.ai/models?fmt=cards&order=newest&supported_parameters=structured_outputs
+# -------------------------------------------------------------------
+
 base_url: "https://openrouter.ai/api/v1"
 
-structured_outputs: false
-# IMPORTANT: If structured_outputs is True, the default model MUST support
-# structured outputs on OpenRouter. Check compatible models here:
-# https://openrouter.ai/models?fmt=cards&order=newest&supported_parameters=structured_outputs
-# Using an unsupported model will likely cause API errors (e.g., 404 Not Found).
-
+structured_outputs: true # <- leave off unless model supports it
+#Any openrouter model will work, but r1 is a good compromise between cost and performance, for tool calling v3 is bearable, claude 3.5+ is ideal but expensive
 model:
-  # Default model to use
-  #default: "deepseek/deepseek-r1"
-  #default: "mistralai/mistral-small-3.1-24b-instruct"
-  #default: "openai/gpt-4.1-mini"
-  default: "deepseek/deepseek-chat"
-  # use claude 3.7 for best resutls, v3 is best value while using tools but 3.7 is the SOTA to use if you can afford it, r1 is best for general use
+  default: "deepseek/deepseek-r1"
 
-# Embedding provider configuration
 embedding_provider:
-  # Provider type: "openai" (future: "local", "cohere", etc.)
   provider_type: "openai"
-  # OpenAI embedding model name
   model_name: "text-embedding-3-small"
-  # API key (can use env var reference)
   api_key: ${OPENAI_API_KEY}
-  # Optional: override embedding dimension (default: model's standard)
-  # dimensions: 1536
-  # Optional: request timeout in seconds
-  # timeout_seconds: 30
 
 parsing:
-  # When true, only strict JSON parsing is used
-  strict_json: true
-  # Fallback parsers (only used when strict_json is false)
+  strict_json: true # strict only; set false to allow fallbacks
   fallback_parsers:
-    # Enable template-style parsing as first fallback
     template: true
-    # Enable regex-style parsing as last resort
     regex: true
 
-# Retry configuration with warming and escalation
 retries:
-  # Maximum retry attempts
   max_attempts: 3
-  # Temperature control for creativity
-  temperature:
-    initial: 0.2
-    increment: 0.4
-    max: 1
-  # Model escalation sequence
+  temperature: { initial: 0.2, increment: 0.4, max: 1.0 }
   model_escalation:
     enabled: true
-    sequence:
-      - "anthropic/claude-3.7-sonnet"
+    sequence: ["anthropic/claude-3.7-sonnet"]
 
-# Enable dynamic tool creation
-dynamic_agents:
-  allow_new_tools_by_default: false
+dynamic_agents: { allow_new_tools_by_default: false }
 
-# Code execution security configuration
 code_execution:
-  # Allow potentially dangerous operations (file operations, etc)
-  allow_dangerous_operations: true # Set to false to enforce strict security
-  # Optional: more granular control
+  allow_dangerous_operations: true
   allowed_operations:
     file_operations: true
     os_operations: false
-    imports: ["os", "sys"] # Additional allowed imports beyond the defaults
+    imports: ["os", "sys"]
 
-# File operations configuration
 file_operations:
-  # Default output directory for file operations
   output_dir: "tinyAgent_output"
-  # List of allowed file extensions (empty list means all extensions allowed)
-  allowed_extensions:
-    - ".txt"
-    - ".json"
-    - ".yaml"
-    - ".md"
-    - ".py"
-    - ".log"
-  # Maximum file size in bytes (10MB default)
-  max_file_size: 10485760
-  # Whether to create subdirectories automatically
+  allowed_extensions: [".txt", ".json", ".yaml", ".md", ".py", ".log"]
+  max_file_size: 10_485_760 # 10 MB
   create_subdirs: true
-  # Whether to allow overwriting existing files
   allow_overwrite: true
 
-# Proxy configuration
 proxy:
-  # Master switch for proxy functionality
-  # When false, all proxy features are disabled regardless of other settings
-  # When true, the proxy will be used according to the configuration below
-  enabled: False
-
-  # Proxy URL template with placeholders
-  # Format: http://customer-{username}-cc-{country}:{password}@pr.oxylabs.io:7777
-  # The %s placeholders will be replaced in order with:
-  # 1. username (from TINYAGENT_PROXY_USERNAME env var)
-  # 2. country code (from TINYAGENT_PROXY_COUNTRY env var)
-  # 3. password (from TINYAGENT_PROXY_PASSWORD env var)
-  # basd on your proxy provider the url format can be diffrent, these confgis are for oxy
+  enabled: false # set true + creds below to activate
   url: "http://customer-%s-cc-%s:%s@pr.oxylabs.io:7777"
-  # Authentication credentials loaded from environment variables
-  # These values will be inserted into the URL template above
   username: ${TINYAGENT_PROXY_USERNAME}
   password: ${TINYAGENT_PROXY_PASSWORD}
   country: ${TINYAGENT_PROXY_COUNTRY}
 
 logging:
-  level: CRITICAL # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: CRITICAL
   format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
   handlers: ["console"]
 
-# Observability configuration
 observability:
   tracing:
-    enabled: true # Explicitly enable tracing
-    service_name: "tinyagent" # Default service name
-    sampling_rate: 1.0 # Sample all traces for testing/dev by default
-    exporter:
-      # Exporter type: "console" or "otlp" or "sqlite"
-      type: "console" # Changed to sqlite for database saving
-      # OTLP specific settings (only used if type is "otlp")
-      endpoint: "http://localhost:4317"
-      headers: {}
-      # SQLite specific settings (only used if type is "sqlite")
-      db_path: "traces.db" # Path to the SQLite database file
-    attributes:
-      environment: "development"
-      version: "0.1.0" # Placeholder version
+    enabled: false
+    service_name: "tinyagent"
+    sampling_rate: 1.0 # 100 % in dev; lower in prod
+    exporter: { type: "console" }
+    attributes: { environment: "development", version: "0.1.0" }

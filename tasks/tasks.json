@@ -392,7 +392,7 @@
             2
           ],
           "details": "Implementation steps:\n1. Identify the 20% of smoke tests that cover the most critical functionality\n2. For each critical test:\n   - Create appropriate test file(s) in the new structure\n   - Reimplement using pytest fixtures from subtask 2\n   - Replace basic checks with specific assertions\n   - Add proper error handling and exception testing\n   - Ensure isolated execution using mocks where appropriate\n3. Verify test coverage for critical components meets minimum threshold (e.g., 80%)\n4. Document patterns used for different test scenarios\n\nTesting approach:\n- Run both old and new tests in parallel to ensure functionality is preserved\n- Verify coverage reports show appropriate coverage of critical code paths\n- Execute tests in isolation to confirm independence and repeatability",
-          "status": "pending",
+          "status": "in-progress",
           "parentTaskId": 18
         },
         {
