@@ -105,14 +105,7 @@ print(result)  # → 42
 
 ```
 
-### 4. View Traces (if using traceboard)
 
-If you installed with `[traceboard]`, you can view traces in a web UI:
-
-```bash
-# Start the traceboard (defaults to http://localhost:8000)
-python -m tinyagent.observability.traceboard --db traces.db
-```
 
 ---
 
