@@ -6,7 +6,6 @@ import sys
 import os
 import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
-
 from tinyagent.factory.tiny_chain import tiny_chain
 from tinyagent.tools.duckduckgo_search import get_tool as search_tool
 from tinyagent.tools.custom_text_browser import get_tool as browser_tool
@@ -23,8 +22,7 @@ def test_tiny_chain_tariff_search():
     # Create chain
     chain = tiny_chain.get_instance(
         tools=[search_tool(), browser_tool(), summarize._tool]
-    )
-    
+    )  
     try:
         # Submit the task
         task_id = chain.submit_task(
@@ -40,10 +38,8 @@ def test_tiny_chain_tariff_search():
         # Verify task completed
         task_status = chain.get_task_status(task_id)
         assert task_status is not None
-        
         # Mark test as passed
         assert True
-        
         # Return the result for inspection when run from main
         return result
     except Exception as e:

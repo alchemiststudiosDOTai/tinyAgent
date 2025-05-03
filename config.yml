@@ -60,7 +60,7 @@ logging:
 
 observability:
   tracing:
-    enabled: false
+    enabled: true
     service_name: "tinyagent"
     sampling_rate: 1.0 # 100 % in dev; lower in prod
     exporter: { type: "console" }

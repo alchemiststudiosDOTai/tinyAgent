@@ -20,17 +20,42 @@ def main():
     print(f"Query: '{query}' -> Result: {result}")
 
 
-def test_vector_memory_smoke():
-    print("\n[VectorMemory Smoke Test]")
-    vm = VectorMemory(persistence_directory=".test_chroma_memory", collection_name="test_collection")
+import pytest
+from tinyagent.utils.vector_memory import VectorMemory
+
+@pytest.fixture
+def vector_memory(tmp_path):
+    # Use a unique directory for each test run
+    return VectorMemory(persistence_directory=str(tmp_path), collection_name="test_collection")
+
+def test_vector_memory_unit(vector_memory):
+    vm = vector_memory
     assert vm.collection is not None, "ChromaDB collection was not initialized."
     text = "Hello, this is a test message."
     embedding = vm._embed_text(text)
-    print(f"Embedding shape: {embedding.shape if hasattr(embedding, 'shape') else type(embedding)}")
+    # Ensure embedding is a list, numpy array, or similar
+    assert hasattr(embedding, '__len__') or hasattr(embedding, 'shape'), "Embedding output is not a valid vector."
     meta = vm._format_metadata(role="user", content=text)
-    print(f"Metadata: {meta}")
-    assert isinstance(meta, dict) and "role" in meta and "timestamp" in meta, "Metadata format incorrect."
-    print("VectorMemory smoke test passed.")
+    assert isinstance(meta, dict), "Metadata is not a dict."
+    assert "role" in meta, "Metadata missing 'role'."
+    assert "timestamp" in meta, "Metadata missing 'timestamp'."
+    assert meta["role"] == "user"
+
+@pytest.mark.parametrize("bad_text", [None, 123, {}])
+def test_embed_text_invalid_input(vector_memory, bad_text):
+    vm = vector_memory
+    with pytest.raises(Exception):
+        vm._embed_text(bad_text)
+
+@pytest.mark.parametrize("bad_meta", [({},), (None,), (123,)])
+def test_format_metadata_invalid_input(vector_memory, bad_meta):
+    vm = vector_memory
+    # _format_metadata expects keyword args, so passing a dict or non-dict should fail
+    with pytest.raises(Exception):
+        if isinstance(bad_meta, dict):
+            vm._format_metadata(**bad_meta)
+        else:
+            vm._format_metadata(bad_meta)
 
 
 def test_vector_memory_extended():

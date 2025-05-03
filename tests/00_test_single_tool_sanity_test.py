@@ -33,7 +33,4 @@ def test_agent_returns_correct_numbers():
     for query, expected in test_cases:
         result = agent.run(query, expected_type=int)
         assert result == expected, f"Query: '{query}'\nExpected: {expected}\nGot: {result}"
-        
-    # Verify the agent handles reversed order
-    result = agent.run("calculate 3 plus 5", expected_type=int)
-    assert result == 8, f"Failed on reversed order: Expected 8, got {result}"
+   

@@ -46,14 +46,7 @@ assert result == 8, f"expected 8, got {result}"
 print("  OK → sum = 8")
 PY
 
-msg "Running tiny_chain_tooling.py test"
-python3 tests/tiny_chain_tooling.py || err "tiny_chain_tooling.py test failed"
 
-msg "Running vector_memory_local_smoke_test.py"
-python3 tests/vector_memory_local_smoke_test.py || err "vector_memory_local_smoke_test.py failed"
-
-msg "Running vector_memory_openai_smoke_test.py"
-python3 tests/vector_memory_openai_smoke_test.py || err "vector_memory_openai_smoke_test.py failed"
 
 msg "Running rag_smoke_test.py"
 python3 tests/rag_smoke_test.py || err "rag_smoke_test.py failed"
