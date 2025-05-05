@@ -2,6 +2,19 @@
 
 # Test script for verifying pip installation and observability features
 
+# Check if required API keys are available
+if [ -z "$OPENROUTER_API_KEY" ]; then
+  echo "⚠️ OPENROUTER_API_KEY is not set. Tests requiring OpenRouter API will fail."
+  echo "Please set a valid API key before running this script:"
+  echo "export OPENROUTER_API_KEY='your-key-here'"
+fi
+
+if [ -z "$OPENAI_API_KEY" ]; then
+  echo "⚠️ OPENAI_API_KEY is not set. Tests requiring OpenAI API will fail."
+  echo "Please set a valid API key before running this script:"
+  echo "export OPENAI_API_KEY='your-key-here'"
+fi
+
 # Create a temporary test directory
 TEST_DIR=$(mktemp -d)
 echo "Created test directory: $TEST_DIR"
@@ -14,67 +27,31 @@ source venv/bin/activate
 # Install tinyAgent with traceboard
 pip install tiny_agent_os[traceboard]
 
-# Create test configuration
-cat > config.yml << EOL
-observability:
-  tracing:
-    enabled: true
-    service_name: "test-tinyagent"
-    sampling_rate: 1.0
-    exporter:
-      type: "sqlite"
-      db_path: "test_traces.db"
-    attributes:
-      environment: "test"
-      version: "0.1.0"
-EOL
+# Install testing dependencies
+echo "Installing testing dependencies..."
+pip install pytest opentelemetry-api opentelemetry-sdk opentelemetry-exporter-otlp chromadb anyio==4.0.0 sentence-transformers
 
-# Create test script
-cat > test_observability.py << EOL
-from tinyagent.decorators import tool
-from tinyagent.agent import tiny_agent
-from tinyagent.observability.tracer import configure_tracing
-import time
+# Run all tests with pytest
+echo "Running all tests using pytest..."
+cd -  # Return to original directory
 
-@tool
-def greet(name: str) -> str:
-    """Greet someone."""
-    time.sleep(1)  # Add delay to make trace more interesting
-    return f"Hello, {name}!"
+# Run all the tests in one command
+echo "==========================================="
+echo "Running all tests at once"
+pytest -xvs tests/0[0-7]_*.py
+TEST_RESULT=$?
+echo "==========================================="
 
-def main():
-    # Configure tracing
-    configure_tracing()
-    
-    # Create traced agent
-    agent = tiny_agent(tools=[greet], trace_this_agent=True)
-    
-    # Run the agent
-    result = agent.run("Greet Alice")
-    print(f"Agent result: {result}")
-
-if __name__ == "__main__":
-    main()
-EOL
-
-# Run the test script
-python test_observability.py
-
-# Launch traceboard in background
-python -m tinyagent.observability.traceboard --db test_traces.db &
-TRACEBOARD_PID=$!
-
-# Wait for traceboard to start
-sleep 2
-
-# Try to access traceboard
-if curl -s http://127.0.0.1:8000 > /dev/null; then
-    echo "✅ Traceboard is accessible"
+# Report test results
+if [ $TEST_RESULT -ne 0 ]; then
+    echo "❌ Some tests failed."
+    echo "Note: API-dependent tests require valid API keys to be set in the environment."
+    echo "You may need to set valid OPENROUTER_API_KEY and OPENAI_API_KEY values."
 else
-    echo "❌ Failed to access traceboard"
+    echo "✅ All tests passed!"
 fi
 
-# Cleanup
-kill $TRACEBOARD_PID
+# Return to test directory to cleanup
+cd "$TEST_DIR"
 deactivate
 echo "Test complete. Check $TEST_DIR for artifacts." 

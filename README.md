@@ -105,8 +105,6 @@ print(result)  # → 42
 
 ```
 
-
-
 ---
 
 ## Post-Installation Configuration

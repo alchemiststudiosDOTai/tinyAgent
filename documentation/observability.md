@@ -92,6 +92,150 @@ observability:
       - `--port <port_number>` (default: `8000`)
     - Access the traceboard in your web browser at the specified host and port (e.g., `http://127.0.0.1:8000`).
 
+## What Observability Looks Like
+
+When tracing is enabled, you get detailed visibility into your agent's operations. Here's what to expect:
+
+### 1. Trace List View
+
+The Traceboard main page displays a list of all traces in the database:
+
+```
+TinyAgent Traceboard
+
+Trace List:
+- d5702744c348f34b6d3cd33b1dfb7898 (test.manual_execution) - 2024-07-05 12:30:02
+  Duration: 152.3ms | Service: test_traceboard_smoke
+
+[... other traces would be listed here ...]
+```
+
+Each trace shows:
+
+- A unique trace ID
+- The name of the root span (typically "agent.run" for agent calls)
+- When the trace was created
+- The total duration
+- The service name from your configuration
+
+### 2. Trace Detail View
+
+Clicking on a trace ID takes you to a detailed view showing the hierarchical span structure:
+
+```
+Trace Detail - d5702744c348f34b6d3cd33b1dfb7898
+
+Root Span: test.manual_execution
+Duration: 152.3ms
+Service: test_traceboard_smoke
+Start Time: 2024-07-05 12:30:02.345
+
+Attributes:
+- test.function: simple_math_test
+- test.a: 55
+- test.b: 45
+- test.result: 100
+- test.run_id: 1746482602.432
+
+Child Spans:
+└── simple_math_test
+    Duration: 98.1ms
+    Attributes:
+    - tool.name: simple_math_test
+    - argument.a: 55
+    - argument.b: 45
+    - return.value: 100
+```
+
+### 3. Agent Execution Trace Example
+
+In a more typical agent execution, you'd see a more complex trace structure:
+
+```
+Trace Detail - c6e92a17b45d8f29a13edf45c9ab6721
+
+Root Span: agent.run
+Duration: 3.25s
+Service: tinyagent
+Start Time: 2024-07-05 12:15:23.789
+
+Attributes:
+- agent.prompt: "Calculate the sum of 123 and 456"
+- agent.model: "deepseek/deepseek-chat"
+- agent.response: "The sum of 123 and 456 is 579."
+
+Child Spans:
+├── llm.completion_request
+│   Duration: 2.43s
+│   Attributes:
+│   - llm.model: "deepseek/deepseek-chat"
+│   - llm.prompt_tokens: 128
+│   - llm.completion_tokens: 45
+│   - llm.total_tokens: 173
+│
+└── tool.execute
+    Duration: 0.58s
+    Attributes:
+    - tool.name: "calculate_sum"
+    - argument.a: 123
+    - argument.b: 456
+    - return.value: 579
+```
+
+### 4. Error Case Example
+
+When an error occurs, spans capture the exception information:
+
+```
+Trace Detail - a8f67c21d9e45b32f89c10ad5e823f56
+
+Root Span: agent.run (Status: ERROR)
+Duration: 1.87s
+Service: tinyagent
+Start Time: 2024-07-05 12:22:45.123
+
+Attributes:
+- agent.prompt: "Calculate the sum of 'hello' and 456"
+- agent.model: "deepseek/deepseek-chat"
+- error.type: "TypeError"
+- error.message: "Cannot convert string to integer: 'hello'"
+
+Child Spans:
+├── llm.completion_request
+│   Duration: 1.43s
+│   Attributes:
+│   - llm.model: "deepseek/deepseek-chat"
+│   - llm.prompt_tokens: 132
+│   - llm.completion_tokens: 38
+│   - llm.total_tokens: 170
+│
+└── tool.execute (Status: ERROR)
+    Duration: 0.31s
+    Attributes:
+    - tool.name: "calculate_sum"
+    - argument.a: "hello"
+    - argument.b: 456
+    - error.type: "TypeError"
+    - error.message: "Cannot convert string to integer: 'hello'"
+```
+
+### 5. Benefits of this Visualization
+
+The traceboard visualization provides:
+
+1. **Timeline**: Precise timing information showing where time is spent
+2. **Hierarchy**: Clear parent-child relationships between spans
+3. **Contextual Data**: Important attributes like inputs and outputs
+4. **Error Tracking**: Detailed error information when things go wrong
+5. **Filtering**: (In more advanced implementations) Ability to filter by time, service, or error status
+
+These visualizations help you:
+
+- Identify performance bottlenecks (e.g., slow tool execution or LLM calls)
+- Debug errors by seeing the exact context and chain of events
+- Understand how your agent processes complex requests
+- Verify that tools receive the expected arguments and return the expected values
+
 ## Usage
 
 To enable tracing for a specific agent instance, use the `trace_this_agent=True` flag when creating it with `tiny_agent`:
@@ -128,10 +272,13 @@ result_no_trace = agent_no_trace.run("Use my tool again...")
 
 - **Default Behavior**: Use `tiny_agent(...)` without the flag to test the default non-traced behavior.
 - **Enabled Behavior**: Use `tiny_agent(..., trace_this_agent=True)` to test traced execution. Ensure `configure_tracing()` has been called appropriately for the test environment (using either the default config or a test-specific one).
-- **SQLite/Traceboard**: See `tests/test_sqlite_traceboard_smoke.py` for an example of testing the SQLite exporter and traceboard functionality. This test explicitly configures tracing using the SQLite exporter for its scope.
+- **SQLite/Traceboard**: See `tests/07_test_sqlite_traceboard_smoke.py` for an example of testing the SQLite exporter and traceboard functionality. This test explicitly configures tracing using the SQLite exporter for its scope.
 
 ## Future Considerations
 
 - **Log Correlation**: Automatically inject `trace_id` and `span_id` into log records.
 - **Metrics**: Add OpenTelemetry metrics for monitoring request counts, durations, error rates, etc.
 - **Context Propagation**: Ensure trace context is correctly propagated across asynchronous boundaries or network calls if more complex interactions are added.
+- **Enhanced Visualization**: Develop a more interactive traceboard with search, filtering, and graphical timeline views.
+- **Retention Policies**: Implement automatic cleanup of old trace data to prevent database growth.
+- **Performance Analysis**: Add statistical analysis of common operations and trend monitoring over time.

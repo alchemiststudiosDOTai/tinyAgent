@@ -1,6 +1,6 @@
 # ───────────────────────── tinyAgent config ─────────────────────────
 # If you turn on `structured_outputs`, the *default* model **must**
-# advertise “Structured Outputs” on OpenRouter, otherwise you’ll get
+# advertise "Structured Outputs" on OpenRouter, otherwise you'll get
 # 404 / 422 errors.  Check compatible models here:
 # https://openrouter.ai/models?fmt=cards&order=newest&supported_parameters=structured_outputs
 # -------------------------------------------------------------------
@@ -62,6 +62,16 @@ observability:
   tracing:
     enabled: true
     service_name: "tinyagent"
-    sampling_rate: 1.0 # 100 % in dev; lower in prod
-    exporter: { type: "console" }
+    sampling_rate: 1.0
+    # Available exporter types:
+    # - "console": Outputs traces to console
+    # - "otlp": Sends traces to an OpenTelemetry collector
+    # - "sqlite": Stores traces in a SQLite database (requires db_path)
+    exporter:
+      type: "sqlite"
+      db_path: "traces.db"
+    # Example SQLite exporter configuration:
+    # exporter:
+    #   type: "sqlite"
+    #   db_path: "traces.db"
     attributes: { environment: "development", version: "0.1.0" }
