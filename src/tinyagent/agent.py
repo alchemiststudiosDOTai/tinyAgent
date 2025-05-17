@@ -535,144 +535,21 @@ class Agent:
             return self.parser.parse(content)
         
         # Use the robust JSON parser with fallback strategies
-        try:
-            # Import here to avoid circular imports
-            from .utils.json_parser import robust_json_parse, extract_json_debug_info
-            
-            # Define expected keys for validation
-            expected_keys = ["tool", "arguments"]
-            
-            # Enable verbose mode based on configuration
-            verbose = self._get_config_value('parsing.verbose', False)
-            
-            # Use the robust parser with all strategies
-            result = robust_json_parse(content, expected_keys, verbose)
-            
-            # Validate structure if we got a result
-            if result and self._validate_parsed_data(result):
-                return result
-                
-            # If parsing failed, log debug information
-            if verbose and not result:
-                debug_info = extract_json_debug_info(content)
-                logger.warning(f"JSON parsing failed: {debug_info['identified_issues']}")
-                
-            return None
-            
-        except ImportError:
-            # Fall back to basic parsing if the json_parser module is unavailable
-            logger.warning("Robust JSON parser not available, using basic parsing")
-            
-            # Fix common syntax errors in JSON (missing commas between fields)
-            fixed_content = content
-            if '{' in content and '}' in content:
-                # Extract the JSON-like part
-                json_match = re.search(r'({[\s\S]*})', content)
-                if json_match:
-                    json_part = json_match.group(1)
-                    # Add missing commas between fields
-                    fixed_json = re.sub(r'"\s+"', '", "', json_part)
-                    fixed_content = content.replace(json_part, fixed_json)
-            
-            # Basic regex extraction
-            json_match = re.search(r'({[\s\S]*})', fixed_content)
-            if json_match:
-                try:
-                    data = json.loads(json_match.group(1))
-                    if self._validate_parsed_data(data):
-                        return data
-                except json.JSONDecodeError:
-                    # Try again with more aggressive fixing
-                    try:
-                        extracted_json = json_match.group(1)
-                        # Add missing commas between key-value pairs
-                        fixed_json = re.sub(r'"\s+("?\w+"\s*:)', '", \1', extracted_json)
-                        data = json.loads(fixed_json)
-                        if self._validate_parsed_data(data):
-                            return data
-                    except (json.JSONDecodeError, Exception):
-                        pass
-            
-            # Try parsing entire content as JSON
-            try:
-                data = json.loads(fixed_content)
-                if self._validate_parsed_data(data):
-                    return data
-            except json.JSONDecodeError:
-                pass
-                
-            # Last resort: Try to extract fields directly with regex
-            try:
-                # Check for orchestrator assessment format fields
-                if "assessment" in content:
-                    # Extract fields with regex for orchestrator format
-                    assessment_match = re.search(r'"assessment"\s*:\s*"([^"]+)"', content)
-                    requires_new_agent_match = re.search(r'"requires_new_agent"\s*:\s*(true|false)', content)
-                    agent_id_match = re.search(r'"agent_id"\s*:\s*([^,}\s]+)', content)
-                    reasoning_match = re.search(r'"reasoning"\s*:\s*"([^"]+)"', content)
-                    
-                    if assessment_match:
-                        # Construct a minimal valid dict with assessment
-                        data = {
-                            "assessment": assessment_match.group(1)
-                        }
-                        
-                        # Add requires_new_agent if found, or infer it
-                        if requires_new_agent_match:
-                            data["requires_new_agent"] = requires_new_agent_match.group(1).lower() == "true"
-                        else:
-                            data["requires_new_agent"] = data["assessment"] == "create_new"
-                        
-                        # Add optional fields if found
-                        if agent_id_match:
-                            agent_id = agent_id_match.group(1)
-                            if agent_id.lower() == "null":
-                                data["agent_id"] = None
-                            else:
-                                data["agent_id"] = agent_id.strip('"')
-                                
-                        if reasoning_match:
-                            data["reasoning"] = reasoning_match.group(1)
-                        
-                        return data
-                
-                # Check for tool execution format fields
-                elif "tool" in content:
-                    tool_match = re.search(r'"tool"\s*:\s*"([^"]+)"', content)
-                    arguments_match = re.search(r'"arguments"\s*:\s*({[^}]+})', content)
-                    
-                    if tool_match:
-                        # Construct a minimal valid dict with tool
-                        data = {
-                            "tool": tool_match.group(1),
-                            "arguments": {}
-                        }
-                        
-                        # Add arguments if found
-                        if arguments_match:
-                            try:
-                                arguments = json.loads(arguments_match.group(1))
-                                data["arguments"] = arguments
-                            except json.JSONDecodeError:
-                                # If we can't parse the arguments JSON, use an empty dict
-                                pass
-                        
-                        return data
-                
-                # If no JSON-like structure is found, but there's text content,
-                # assume it's a chat response and wrap it
-                if len(content.strip()) > 0:
-                    return {
-                        "tool": "chat",
-                        "arguments": {
-                            "message": content.strip()
-                        }
-                    }
-                
-            except Exception as e:
-                logger.warning(f"Failed to extract fields from malformed JSON: {str(e)}")
-            
-            return None
+        from .utils.json_parser import robust_json_parse, extract_json_debug_info
+
+        expected_keys = ["tool", "arguments"]
+        verbose = self._get_config_value('parsing.verbose', False)
+
+        result = robust_json_parse(content, expected_keys, verbose)
+
+        if result and self._validate_parsed_data(result):
+            return result
+
+        if verbose and not result:
+            debug_info = extract_json_debug_info(content)
+            logger.warning(f"JSON parsing failed: {debug_info['identified_issues']}")
+
+        return None
     # Moves this to the parsing directory  as well 
     def _validate_parsed_data(self, data: Any) -> bool:
         """
