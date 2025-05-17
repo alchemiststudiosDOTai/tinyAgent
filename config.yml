@@ -10,7 +10,7 @@ base_url: "https://openrouter.ai/api/v1"
 structured_outputs: true # <- leave off unless model supports it
 #Any openrouter model will work, but r1 is a good compromise between cost and performance, for tool calling v3 is bearable, claude 3.5+ is ideal but expensive
 model:
-  default: "deepseek/deepseek-r1"
+  default: "mistralai/mistral-small-3.1-24b-instruct"
 
 embedding_provider:
   provider_type: "openai"
@@ -24,12 +24,11 @@ parsing:
     regex: true
 
 retries:
-  max_attempts: 3
+  max_attempts: 2
   temperature: { initial: 0.2, increment: 0.4, max: 1.0 }
   model_escalation:
     enabled: true
-    sequence: ["anthropic/claude-3.7-sonnet"]
-
+    sequence: ["deepseek/deepseek-r1"]
 dynamic_agents: { allow_new_tools_by_default: false }
 
 code_execution:
@@ -54,13 +53,13 @@ proxy:
   country: ${TINYAGENT_PROXY_COUNTRY}
 
 logging:
-  level: CRITICAL
+  level: INFO
   format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
   handlers: ["console"]
 
 observability:
   tracing:
-    enabled: true
+    enabled: false
     service_name: "tinyagent"
     sampling_rate: 1.0
     # Available exporter types:

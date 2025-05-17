@@ -27,10 +27,10 @@ from ..exceptions import ConfigurationError
 logger = get_logger(__name__)
 
 # Constants
-API_URL: Final[str] = "https://openrouter.ai/api/v1/chat/completions"
 ENV_API_KEY: Final[str] = "OPENROUTER_API_KEY"
 DEFAULT_MODEL: Final[str] = "anthropic/claude-3.5-sonnet"
 DEFAULT_SYSTEM_PROMPT: Final[str] = "You are a helpful AI assistant. Respond concisely and accurately to questions."
+DEFAULT_BASE_URL: Final[str] = "https://openrouter.ai/v1"
 
 class ChatSession:
     """
@@ -49,6 +49,7 @@ class ChatSession:
         self,
         model: Optional[str] = None,
         api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
     ) -> None:
         """
         Initialize a chat session with the specified model.
@@ -72,6 +73,7 @@ class ChatSession:
         # Priority: 1. Explicitly provided model, 2. Config model, 3. Default
         self.model = model or config_model or DEFAULT_MODEL
         self.api_key = api_key or os.getenv(ENV_API_KEY)
+        self.base_url = base_url or get_config_value(config, "base_url", DEFAULT_BASE_URL)
         
         if not self.api_key:
             raise ConfigurationError(f"{ENV_API_KEY} must be set in .env")
@@ -152,7 +154,7 @@ class ChatSession:
         try:
             # Initialize OpenAI client with OpenRouter configuration
             client = OpenAI(
-                base_url="https://openrouter.ai/api/v1",
+                base_url=self.base_url,
                 api_key=self.api_key,
             )
             
@@ -231,6 +233,7 @@ class ChatSession:
 def run_chat_mode(
     model: Optional[str] = None,
     system_prompt: Optional[str] = None,
+    base_url: Optional[str] = None,
 ) -> None:
     """
     Run the chat mode interface with the specified model.
@@ -251,7 +254,7 @@ def run_chat_mode(
     
     try:
         # Create chat session
-        session = ChatSession(model=model)
+        session = ChatSession(model=model, base_url=base_url)
         
         # Print the model being used (which could be from config)
         print(

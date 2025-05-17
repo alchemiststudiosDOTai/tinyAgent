@@ -7,7 +7,20 @@ If schema parsing fails or is disabled, it falls back to the robust parser.
 
 import json
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
+
+def _forbid_extra(node: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Recursively ensure every JSON-schema object contains
+    `"additionalProperties": False` (required by Mistral/OpenAI).
+    """
+    if node.get("type") == "object":
+        node.setdefault("additionalProperties", False)
+        for prop in node.get("properties", {}).values():
+            _forbid_extra(prop)
+    elif node.get("type") == "array" and "items" in node:
+        _forbid_extra(node["items"])
+    return node
 
 try:
     from .json_parser import parse_json_with_strategies
@@ -16,23 +29,44 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-def build_schema_for_task(context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """
-    Build or retrieve the JSON schema for the current task context.
-    This can be dynamic or static based on the use case.
-    """
-    # For now, return a generic tool call schema
+def build_schema_for_task() -> Dict[str, Any]:
+    """Build a JSON schema for the task response."""
+    # Define the schema with all required properties
     schema = {
         "type": "object",
         "properties": {
-            "tool": {"type": "string", "description": "Tool name"},
-            "arguments": {"type": "object", "description": "Tool parameters"}
+            "tool": {
+                "type": "string",
+                "description": "Tool name"
+            },
+            "arguments": {
+                "type": "object",
+                "description": "Tool parameters",
+                "properties": {
+                    "a": {"type": "number"},
+                    "b": {"type": "number"}
+                },
+                "required": ["a", "b"],
+                "additionalProperties": False
+            }
         },
         "required": ["tool", "arguments"],
         "additionalProperties": False
     }
+    
+    # Log the final schema being used
+    schema_str = json.dumps(schema, indent=2)
     logger.info("\n[StructuredOutputs] Built schema for task:")
-    logger.info(json.dumps(schema, indent=2))
+    logger.info(schema_str)
+    
+    # Verify the schema is valid JSON
+    try:
+        json.loads(schema_str)
+        logger.debug("[StructuredOutputs] Schema is valid JSON")
+    except json.JSONDecodeError as e:
+        logger.error(f"[StructuredOutputs] Invalid JSON schema: {e}")
+        raise
+        
     return schema
 
 def inject_schema_in_request(messages: list, config: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
