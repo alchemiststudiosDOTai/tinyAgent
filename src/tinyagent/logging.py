@@ -43,10 +43,15 @@ def configure_logging(log_level: Optional[str] = None, config: Optional[Dict[str
         level = logging.INFO
         print(f"Invalid log level '{level_name}', defaulting to INFO")
     
+    # Get log format from config or use default
+    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    if config and "logging" in config and "format" in config["logging"]:
+        log_format = config["logging"]["format"]
+    
     # Configure root logger
     logging.basicConfig(
         level=level,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        format=log_format,
         handlers=[logging.StreamHandler(sys.stdout)]
     )
     

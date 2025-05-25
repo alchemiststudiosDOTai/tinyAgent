@@ -55,21 +55,24 @@ def build_openrouter_payload(
     # Inject response_format with schema if enabled
     if config.get("structured_outputs", False):
         logger.info("\n[OpenRouterRequest] Structured outputs ENABLED. Adding response_format schema to payload.")
-        schema = {
-            "type": "object",
-            "properties": {
-                "tool": {"type": "string", "description": "Tool name"},
-                "arguments": {"type": "object", "description": "Tool parameters"}
-            },
-            "required": ["tool", "arguments"],
-            "additionalProperties": False
-        }
         payload["response_format"] = {
             "type": "json_schema",
             "json_schema": {
                 "name": "tool_call",
                 "strict": True,
-                "schema": schema
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "tool": {"type": "string", "description": "Tool name"},
+                        "arguments": {
+                            "type": "object",
+                            "description": "Tool parameters",
+                            "additionalProperties": False
+                        }
+                    },
+                    "required": ["tool", "arguments"],
+                    "additionalProperties": False
+                }
             }
         }
         payload["provider"] = {"require_parameters": True}
@@ -92,6 +95,11 @@ def make_openrouter_request(
     import requests
     from openai import OpenAI
 
+    logger.info("Starting OpenRouter request")
+    logger.debug(f"Using structured_outputs: {config.get('structured_outputs', False)}")
+    logger.debug(f"Model in payload: {payload.get('model')}")
+    logger.debug(f"API Key present: {bool(api_key)}")
+    
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
@@ -99,16 +107,29 @@ def make_openrouter_request(
     }
 
     if config.get("structured_outputs", False):
+        url = "https://openrouter.ai/api/v1/chat/completions"
+        logger.debug(f"Making direct request to: {url}")
+        logger.debug(f"Request headers: {headers}")
+        logger.debug(f"Request payload: {payload}")
+        
         response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
+            url,
             headers=headers,
             json=payload,
+            timeout=30  # Add timeout to prevent hanging
         )
+        logger.debug(f"Response status: {response.status_code}")
+        logger.debug(f"Response content (first 500 chars): {response.text[:500]}")
+        
         response.raise_for_status()
         data = response.json()
         return data
     else:
-        client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
+        # Use the base URL from config
+        base_url = config.get("base_url", "https://openrouter.ai/api/v1")
+        logger.debug(f"Using base URL: {base_url}")
+        
+        client = OpenAI(base_url=base_url, api_key=api_key)
         completion = client.chat.completions.create(
             **payload,
             extra_headers={
