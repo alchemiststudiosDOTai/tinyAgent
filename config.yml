@@ -10,7 +10,7 @@ base_url: "https://openrouter.ai/api/v1"
 structured_outputs: true # <- leave off unless model supports it
 #Any openrouter model will work, but r1 is a good compromise between cost and performance, for tool calling v3 is bearable, claude 3.5+ is ideal but expensive
 model:
-  default: "mistralai/mistral-small-3.1-24b-instruct"
+  default: "openai/gpt-4.1"
 
 embedding_provider:
   provider_type: "openai"
