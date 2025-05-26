@@ -1,11 +1,11 @@
 import json
 import os
 
-from tinyagent.react.react_agent import ReActAgent
+from tinyagent.reasoning_agent.reasoning_agent import ReasoningAgent
 from tinyagent.tools.g_login import get_tool
 
 
-def test_react_agent_login():
+def test_reasoning_agent_login():
     responses = [
         json.dumps({
             "thought": "Need credentials to login",
@@ -21,7 +21,7 @@ def test_react_agent_login():
         return responses.pop(0)
 
     tool = get_tool()
-    agent = ReActAgent(tools=[tool])
+    agent = ReasoningAgent(tools=[tool])
 
-    result = agent.run_react("login", llm_callable=fake_llm)
+    result = agent.run_reasoning("login", llm_callable=fake_llm)
     assert result == "done"

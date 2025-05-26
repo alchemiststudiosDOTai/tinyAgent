@@ -121,6 +121,7 @@ The /documentation folder has more details and is being updated.
 - **Robust Error Handling:** Improved debugging with custom exceptions.
 - **Structured Output:** Enforce JSON formats for consistent outputs.
 - **Comprehensive Observability:** Built-in OpenTelemetry tracing with multiple exporters (console, OTLP, SQLite) and a web-based trace viewer.
+- **Reasoning Agent Support:** Transparent reasoning with thought → action → observation loops for interpretable AI agents.
 
 ---
 
@@ -139,6 +140,23 @@ The /documentation folder has more details and is being updated.
 - [tinyChain Overview](documentation/tiny_chain_overview.md)
 - [RAG](documentation/rag.md)
 - [Observability](documentation/observability.md)
+
+### Reasoning Agent Pattern
+
+The Reasoning Agent pattern makes agents interpretable by showing their thought process:
+
+```python
+from tinyagent.reasoning_agent import ReasoningAgent
+from tinyagent.decorators import tool
+
+@tool
+def calculate(expression: str) -> float:
+    return eval(expression)
+
+agent = ReasoningAgent(tools=[calculate])
+result = agent.run_reasoning("What is 15 + 27?", verbose=True)
+# Shows: Thought → Action → Observation → Final Answer
+```
 
 ---
 
