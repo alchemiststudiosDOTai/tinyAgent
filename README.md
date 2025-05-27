@@ -24,6 +24,7 @@ print(agent.run("add 40 and 2"))           # 3️⃣  natural‑language call
 
 - **Zero boilerplate** – just a decorator.
 - **Built‑in LLM orchestration** – validation, JSON I/O, retry, fallback.
+- **ReAct Pattern Support** – Advanced reasoning + acting pattern for complex multi-step tasks.
 - **Scales as you grow** – add more tools or plug into tiny_chain without rewrites.
 
 
@@ -102,7 +103,34 @@ agent = tiny_agent(tools=[add], trace_this_agent=True)
 # Run it!
 result = agent.run("add 40 and 2")
 print(result)  # → 42
+```
 
+### 4. ReAct Pattern Example (NEW!)
+
+For complex multi-step reasoning tasks, use the ReAct agent:
+
+```python
+from tinyagent.react.react_agent import ReActAgent
+from tinyagent.decorators import tool
+from tinyagent.agent import get_llm
+
+# Define tools
+@tool
+def calculate(expression: str) -> float:
+    """Evaluate a mathematical expression."""
+    return eval(expression)
+
+# Create ReAct agent
+agent = ReActAgent()
+agent.register_tool(calculate._tool)
+
+# Run with reasoning steps
+result = agent.run_react(
+    query="If I have 15 apples and give away 40%, how many do I have left?",
+    llm_callable=get_llm(),
+    max_steps=3
+)
+print(result)  # → "You have 9 apples left"
 ```
 
 ---
@@ -118,7 +146,8 @@ The /documentation folder has more details and is being updated.
 
 - **Modular Design:** Easily convert any function into a tool.
 - **Flexible Agent Options:** Use the simple orchestrator or advanced `AgentFactory`.
-- **Robust Error Handling:** Improved debugging with custom exceptions.
+- **ReAct Pattern:** Built-in support for Reasoning + Acting pattern for complex multi-step reasoning tasks.
+- **Robust Error Handling:** Improved debugging with custom exceptions and JSON parsing.
 - **Structured Output:** Enforce JSON formats for consistent outputs.
 - **Comprehensive Observability:** Built-in OpenTelemetry tracing with multiple exporters (console, OTLP, SQLite) and a web-based trace viewer.
 
@@ -136,7 +165,8 @@ The /documentation folder has more details and is being updated.
 ## Learn More
 
 - [Functions as Tools](documentation/agentsarefunction.md)
-- [tinyChain Overview](documentation/tiny_chain_overview.md)
+- [ReAct Pattern Guide](documentation/react_pattern.md)
+- [tinyChain Overview](documentation/tiny_chain_overview.md) *(Note: tinyChain will be sunset soon in favor of ReAct pattern due to better performance and stability. Existing code will continue to work but won't receive updates.)*
 - [RAG](documentation/rag.md)
 - [Observability](documentation/observability.md)
 
