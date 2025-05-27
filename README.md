@@ -107,31 +107,43 @@ print(result)  # → 42
 
 ### 4. ReAct Pattern Example (NEW!)
 
-For complex multi-step reasoning tasks, use the ReAct agent:
+For complex multi-step reasoning tasks, use the ReAct agent. The framework automatically tells the LLM about available tools, so you can use any function name:
 
 ```python
 from tinyagent.react.react_agent import ReActAgent
 from tinyagent.decorators import tool
 from tinyagent.agent import get_llm
 
-# Define tools
+# Define tools - any function name works!
 @tool
 def calculate(expression: str) -> float:
     """Evaluate a mathematical expression."""
     return eval(expression)
 
+@tool
+def add_numbers(a: float, b: float) -> float:
+    """Add two numbers together."""
+    return a + b
+
 # Create ReAct agent
 agent = ReActAgent()
 agent.register_tool(calculate._tool)
+agent.register_tool(add_numbers._tool)
 
-# Run with reasoning steps
+# Run with reasoning steps - framework automatically handles tool discovery
 result = agent.run_react(
     query="If I have 15 apples and give away 40%, how many do I have left?",
     llm_callable=get_llm(),
-    max_steps=3
+    max_steps=5
 )
-print(result)  # → "You have 9 apples left"
+print(result)  # → "You have 9 apples left."
 ```
+
+**Key Features:**
+- ✅ **Automatic tool discovery** - Framework tells LLM about available tools
+- ✅ **No "Unknown tool" errors** - LLM uses exact tool names from registration  
+- ✅ **Zero configuration** - Just register tools and run
+- ✅ **Multi-step reasoning** - Handles complex queries requiring multiple tool calls
 
 ---
 

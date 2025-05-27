@@ -108,6 +108,13 @@ class ReActAgent:
             "{\"thought\": str, \"action\": {\"tool\": \"final_answer\", "
             "\"args\": {\"answer\": str}}}."
         )
+        
+        # Add available tools information
+        if self.tools:
+            instructions += f"\n\nAVAILABLE TOOLS:\n"
+            for tool_name, tool in self.tools.items():
+                instructions += f"- {tool_name}: {tool.description or 'No description available'}\n"
+        
         pad = scratchpad.format()
         if pad:
             instructions += "\nPrevious steps:\n" + pad
