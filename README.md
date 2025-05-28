@@ -4,6 +4,17 @@
 
 ![tinyAgent Logo](static/images/tinyAgent_logo_v2.png)
 
+## ⚠️ Important Notice - Framework Evolution
+
+**ReactAgent is now the recommended approach for new projects.** Going forward, ReactAgent will be the primary focus for development and new features. The simple agent (`tiny_agent`) and tinyChain will remain available for backward compatibility, but won't receive active development or new features.
+
+**Why ReactAgent?**
+- ✅ **Better reasoning** - Multi-step thinking with explicit thought processes
+- ✅ **More reliable** - Built-in error handling and retry logic
+- ✅ **Cleaner API** - No need to pass `llm_callable=get_llm()` anymore
+- ✅ **Future-proof** - All new features will be added here first
+
+---
 
 # Why tinyAgent?
 
@@ -11,22 +22,55 @@ Turn any Python function into an AI‑powered agent in three lines:
 
 ```python
 from tinyagent.decorators import tool
-from tinyagent.agent import tiny_agent
+from tinyagent.react.react_agent import ReactAgent
 
 @tool                  # 1️⃣  function → tool
-def add(a: int, b: int) -> int:
-    return a + b
+def calculate_percentage(value: float, percentage: float) -> float:
+    """Calculate what percentage of a value is (e.g., 40% of 15)."""
+    return value * (percentage / 100)
 
-agent = tiny_agent(tools=[add])             # 2️⃣  tool → agent
-print(agent.run("add 40 and 2"))           # 3️⃣  natural‑language call
-# → 42
+@tool
+def subtract_numbers(number1: float, number2: float) -> float:
+    """Subtract the second number from the first number."""
+    return number1 - number2
+
+agent = ReactAgent()                        # 2️⃣  tool → agent (LLM auto-configured!)
+agent.register_tool(calculate_percentage._tool)
+agent.register_tool(subtract_numbers._tool)
+result = agent.run_react("If I have 15 apples and give away 40%, how many do I have left?")     # 3️⃣  multi-step reasoning
+print(result)
+# → "You have 9 apples left."
 ```
 
-- **Zero boilerplate** – just a decorator.
-- **Built‑in LLM orchestration** – validation, JSON I/O, retry, fallback.
-- **ReAct Pattern Support** – Advanced reasoning + acting pattern for complex multi-step tasks.
-- **Scales as you grow** – add more tools or plug into tiny_chain without rewrites.
+**Real Output:**
+```
+Thought: I need to calculate 40% of 15 apples first, then subtract that from the original 15 apples.
 
+Action: calculate_percentage
+Action Input: {"value": 15, "percentage": 40}
+
+RESULT: 6.0
+
+Thought: Now I need to subtract 6 from 15 to find out how many apples are left.
+
+Action: subtract_numbers
+Action Input: {"number1": 15, "number2": 6.0}
+
+RESULT: 9.0
+
+Action: final_answer
+Action Input: {"answer": "You have 9 apples left."}
+
+*** FINAL ANSWER CALLED ***
+Answer: You have 9 apples left.
+
+FINAL ANSWER: You have 9 apples left.
+```
+
+- **Zero boilerplate** – just a decorator and register tools.
+- **Built‑in LLM orchestration** – validation, JSON I/O, retry, fallback.
+- **ReAct Pattern** – Advanced reasoning + acting pattern for complex multi-step tasks.
+- **Scales as you grow** – add more tools without rewrites.
 
 **Made by (x) [@tunahorse21](https://x.com/tunahorse21) | A product of [alchemiststudios.ai](https://alchemiststudios.ai)**
 
@@ -82,68 +126,129 @@ wget https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/.en
 nano .env  # or use any text editor
 ```
 
-### 3. Quick Start Example
+### 3. Quick Start Example (ReactAgent - Recommended!)
 
 ```python
 from tinyagent.decorators import tool
-from tinyagent.agent import tiny_agent
-from tinyagent.observability.tracer import configure_tracing  # For tracing support
+from tinyagent.react.react_agent import ReactAgent
 
 # Define a tool
 @tool
 def add(a: int, b: int) -> int:
     return a + b
 
-# Enable tracing (optional)
-configure_tracing()  # This reads your config.yml
+# Create a ReactAgent (LLM automatically configured!)
+agent = ReactAgent()
+agent.register_tool(add._tool)
 
-# Create an agent (with tracing enabled)
-agent = tiny_agent(tools=[add], trace_this_agent=True)
-
-# Run it!
-result = agent.run("add 40 and 2")
-print(result)  # → 42
+# Run it with reasoning!
+result = agent.run_react("add 40 and 2")
+print(result)  # → Shows the reasoning process and final answer: 42
 ```
 
-### 4. ReAct Pattern Example (NEW!)
+### 4. ReactAgent Pattern (RECOMMENDED!) - Complete Working Example
 
-For complex multi-step reasoning tasks, use the ReAct agent. The framework automatically tells the LLM about available tools, so you can use any function name:
+Here's the complete working example from `examples/react_phase2.py`:
 
 ```python
-from tinyagent.react.react_agent import ReActAgent
+#!/usr/bin/env python3
+"""
+ReactAgent Example - README Demo
+
+This example demonstrates the ReactAgent with the same tools and query
+used in the README, showing multi-step reasoning with atomic tools.
+"""
+
 from tinyagent.decorators import tool
-from tinyagent.agent import get_llm
+from tinyagent.react.react_agent import ReactAgent
 
-# Define tools - any function name works!
+# Create atomic tools following tinyAgent philosophy
 @tool
-def calculate(expression: str) -> float:
-    """Evaluate a mathematical expression."""
-    return eval(expression)
+def calculate_percentage(value: float, percentage: float) -> float:
+    """Calculate what percentage of a value is (e.g., 40% of 15)."""
+    result = value * (percentage / 100)
+    print(f"\n[Tool Execution] calculate_percentage({value}, {percentage}%) = {result}")
+    return result
 
 @tool
-def add_numbers(a: float, b: float) -> float:
-    """Add two numbers together."""
-    return a + b
+def subtract_numbers(number1: float, number2: float) -> float:
+    """Subtract the second number from the first number. Use parameters: number1 (first number), number2 (second number). Returns number1 - number2."""
+    result = number1 - number2
+    print(f"\n[Tool Execution] subtract_numbers({number1} - {number2}) = {result}")
+    return result
 
-# Create ReAct agent
-agent = ReActAgent()
-agent.register_tool(calculate._tool)
-agent.register_tool(add_numbers._tool)
+@tool
+def add_numbers(number1: float, number2: float) -> float:
+    """Add two numbers together. Use parameters: number1 (first number), number2 (second number). Returns number1 + number2."""
+    result = number1 + number2
+    print(f"\n[Tool Execution] add_numbers({number1} + {number2}) = {result}")
+    return result
 
-# Run with reasoning steps - framework automatically handles tool discovery
-result = agent.run_react(
-    query="If I have 15 apples and give away 40%, how many do I have left?",
-    llm_callable=get_llm(),
-    max_steps=5
-)
-print(result)  # → "You have 9 apples left."
+def main():
+    print("ReactAgent README Example - Apple Calculation\n")
+    print("This demonstrates the exact example from the README:")
+    print("'If I have 15 apples and give away 40%, how many do I have left?'\n")
+    
+    # Create ReactAgent (LLM automatically configured!)
+    agent = ReactAgent()
+    
+    # Register our atomic tools
+    agent.register_tool(calculate_percentage._tool)
+    agent.register_tool(subtract_numbers._tool)
+    
+    print(f"Registered tools:")
+    for tool in agent.tools:
+        print(f"  - {tool.name}: {tool.description}")
+    print()
+    
+    # The exact query from the README
+    query = "If I have 15 apples and give away 40%, how many do I have left?"
+    
+    print(f"Query: {query}\n")
+    print("Starting ReactAgent reasoning process...\n")
+    print("="*60)
+    
+    try:
+        # Run with reasoning steps
+        result = agent.run_react(query, max_steps=5)
+        
+        print("="*60)
+        print(f"\nFINAL ANSWER: {result}")
+        
+    except Exception as e:
+        print(f"\nERROR: {e}")
+        import traceback
+        traceback.print_exc()
+
+if __name__ == "__main__":
+    main()
 ```
 
 **Key Features:**
 - ✅ **Automatic tool discovery** - Framework tells LLM about available tools
 - ✅ **No "Unknown tool" errors** - LLM uses exact tool names from registration  
 - ✅ **Zero configuration** - Just register tools and run
+- ✅ **Built-in LLM** - Uses your config.yml settings automatically
 - ✅ **Multi-step reasoning** - Handles complex queries requiring multiple tool calls
+- ✅ **Clean final answers** - Built-in `final_answer` tool for clean termination
+- ✅ **Exception-based flow** - Reliable completion mechanism inspired by SmolAgent
+
+### 5. Legacy Simple Agent (Still Supported)
+
+For simple use cases, the original pattern still works:
+
+```python
+from tinyagent.decorators import tool
+from tinyagent.agent import tiny_agent
+
+@tool
+def add(a: int, b: int) -> int:
+    return a + b
+
+agent = tiny_agent(tools=[add])
+result = agent.run("add 40 and 2")
+print(result)  # → 42
+```
 
 ---
 
@@ -157,10 +262,11 @@ The /documentation folder has more details and is being updated.
 ## Features
 
 - **Modular Design:** Easily convert any function into a tool.
-- **Flexible Agent Options:** Use the simple orchestrator or advanced `AgentFactory`.
-- **ReAct Pattern:** Built-in support for Reasoning + Acting pattern for complex multi-step reasoning tasks.
+- **ReactAgent Pattern:** Built-in support for Reasoning + Acting pattern for complex multi-step reasoning tasks.
+- **Flexible Agent Options:** Use ReactAgent (recommended) or the simple orchestrator.
 - **Robust Error Handling:** Improved debugging with custom exceptions and JSON parsing.
 - **Structured Output:** Enforce JSON formats for consistent outputs.
+- **Clean Final Answers:** Exception-based flow control inspired by SmolAgent for reliable completion.
 - **Comprehensive Observability:** Built-in OpenTelemetry tracing with multiple exporters (console, OTLP, SQLite) and a web-based trace viewer.
 
 ---
@@ -177,8 +283,8 @@ The /documentation folder has more details and is being updated.
 ## Learn More
 
 - [Functions as Tools](documentation/agentsarefunction.md)
-- [ReAct Pattern Guide](documentation/react_pattern.md)
-- [tinyChain Overview](documentation/tiny_chain_overview.md) *(Note: tinyChain will be sunset soon in favor of ReAct pattern due to better performance and stability. Existing code will continue to work but won't receive updates.)*
+- [ReactAgent Pattern Guide](documentation/react_pattern.md)
+- [tinyChain Overview](documentation/tiny_chain_overview.md) *(Note: tinyChain will be sunset soon in favor of ReactAgent pattern due to better performance and stability. Existing code will continue to work but won't receive updates.)*
 - [RAG](documentation/rag.md)
 - [Observability](documentation/observability.md)
 
