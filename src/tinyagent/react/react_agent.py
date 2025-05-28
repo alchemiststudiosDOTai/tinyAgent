@@ -52,16 +52,35 @@ class FinalAnswerCalled(Exception):
 class ReactAgent:
     """ReAct (Reasoning + Acting) agent with built-in LLM support."""
     
-    llm_callable: Optional[callable] = None
     tools: List[Tool] = field(default_factory=list)
+    llm_callable: Optional[callable] = None
     max_steps: int = 10
+    add_base_tools: bool = True
     
     def __post_init__(self):
         if self.llm_callable is None:
             self.llm_callable = get_llm()
         
-        # Add the built-in final_answer function as a tool
-        self._add_final_answer_tool()
+        # Process tools if they were passed as decorated functions
+        processed_tools = []
+        for tool in self.tools:
+            if hasattr(tool, '_tool'):
+                # This is a decorated function, extract the Tool object
+                processed_tools.append(tool._tool)
+            elif isinstance(tool, Tool):
+                # This is already a Tool object
+                processed_tools.append(tool)
+            else:
+                # Try to convert it to a tool
+                from ..decorators import tool as tool_decorator
+                decorated = tool_decorator(tool)
+                processed_tools.append(decorated._tool)
+        
+        self.tools = processed_tools
+        
+        # Add the built-in final_answer function as a tool if requested
+        if self.add_base_tools:
+            self._add_final_answer_tool()
     
     def _add_final_answer_tool(self):
         """Add the built-in final_answer function as a tool."""
@@ -91,9 +110,24 @@ class ReactAgent:
         
         self.tools.append(final_answer_tool)
 
-    def register_tool(self, tool: Tool) -> None:
-        """Register a tool with the agent."""
-        self.tools.append(tool)
+    def register_tool(self, tool: Any) -> None:
+        """Register a tool with the agent.
+        
+        Args:
+            tool: Can be a Tool object, a decorated function with ._tool attribute,
+                  or a plain function that will be converted to a tool.
+        """
+        if hasattr(tool, '_tool'):
+            # This is a decorated function, extract the Tool object
+            self.tools.append(tool._tool)
+        elif isinstance(tool, Tool):
+            # This is already a Tool object
+            self.tools.append(tool)
+        else:
+            # Try to convert it to a tool
+            from ..decorators import tool as tool_decorator
+            decorated = tool_decorator(tool)
+            self.tools.append(decorated._tool)
 
     def get_tool_descriptions(self) -> str:
         """Get formatted descriptions of all available tools."""
@@ -145,10 +179,17 @@ class ReactAgent:
                     return f"Error executing {tool.name}: {str(e)}"
         return f"Tool '{action.tool}' not found"
 
-    def run_react(self, query: str, max_steps: Optional[int] = None) -> str:
+    def run(self, query: str, max_steps: Optional[int] = None, llm_callable: Optional[callable] = None) -> str:
+        """Run the agent with the given query. Alias for run_react for better ergonomics."""
+        return self.run_react(query, max_steps, llm_callable)
+    
+    def run_react(self, query: str, max_steps: Optional[int] = None, llm_callable: Optional[callable] = None) -> str:
         """Run the ReAct reasoning loop."""
         if max_steps is None:
             max_steps = self.max_steps
+        
+        # Use provided llm_callable for testing, otherwise use the instance's
+        llm = llm_callable if llm_callable is not None else self.llm_callable
             
         scratchpad = Scratchpad()
         
@@ -162,7 +203,7 @@ class ReactAgent:
             
             # Get LLM response
             print("Calling LLM...")
-            response = self.llm_callable(prompt)
+            response = llm(prompt)
             print(f"\nLLM Response:")
             print(f"'{response}'")
             

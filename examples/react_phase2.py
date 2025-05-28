@@ -6,8 +6,7 @@ This example demonstrates the ReactAgent with the same tools and query
 used in the README, showing multi-step reasoning with atomic tools.
 """
 
-from tinyagent.decorators import tool
-from tinyagent.react.react_agent import ReactAgent
+from tinyagent import tool, ReactAgent
 
 # Create atomic tools following tinyAgent philosophy
 @tool
@@ -36,12 +35,8 @@ def test_apple_question():
     print("This demonstrates the exact example from the README:")
     print("'If I have 15 apples and give away 40%, how many do I have left?'\n")
     
-    # Create ReactAgent (LLM automatically configured!)
-    agent = ReactAgent()
-    
-    # Register our atomic tools
-    agent.register_tool(calculate_percentage._tool)
-    agent.register_tool(subtract_numbers._tool)
+    # Create ReactAgent with tools passed directly (cleaner API!)
+    agent = ReactAgent(tools=[calculate_percentage, subtract_numbers])
     
     print(f"Registered tools:")
     for tool in agent.tools:
@@ -56,8 +51,8 @@ def test_apple_question():
     print("="*60)
     
     try:
-        # Run with reasoning steps
-        result = agent.run_react(query, max_steps=5)
+        # Run with reasoning steps (using cleaner .run() method)
+        result = agent.run(query, max_steps=5)
         
         print("="*60)
         print(f"\nFINAL ANSWER: {result}")
@@ -72,12 +67,8 @@ def test_math_question():
     print("Testing with a different math question...")
     print("="*80)
     
-    # Create ReactAgent
-    agent = ReactAgent()
-    
-    # Register tools
-    agent.register_tool(add_numbers._tool)
-    agent.register_tool(subtract_numbers._tool)
+    # Create ReactAgent with tools (cleaner API!)
+    agent = ReactAgent(tools=[add_numbers, subtract_numbers])
     
     query = "What is 25 + 17 - 8?"
     
@@ -86,7 +77,7 @@ def test_math_question():
     print("="*60)
     
     try:
-        result = agent.run_react(query, max_steps=5)
+        result = agent.run(query, max_steps=5)
         
         print("="*60)
         print(f"\nFINAL ANSWER: {result}")

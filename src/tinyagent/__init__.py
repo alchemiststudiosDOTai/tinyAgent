@@ -19,9 +19,10 @@ from .exceptions import (
     RateLimitExceeded, ParsingError,
     AgentRetryExceeded, OrchestratorError, AgentNotFoundError
 )
+from .react.react_agent import ReactAgent
 
 __all__ = [
-    'Tool', 'ParamType', 'tool',
+    'Tool', 'ParamType', 'tool', 'ReactAgent',
     'TinyAgentError', 'ConfigurationError', 'ToolError',
     'ToolNotFoundError', 'ToolExecutionError', 'RateLimitExceeded',
     'ParsingError', 'AgentRetryExceeded', 'OrchestratorError',
