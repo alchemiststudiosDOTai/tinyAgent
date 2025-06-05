@@ -53,10 +53,10 @@ pip install "tiny_agent_os[rag,traceboard]"
 1. Get configuration files:
 ```bash
 # Download config.yml
-wget https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/config.yml
+wget https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/0.72/config.yml
 
 # Download .env template
-wget https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/v0.65/.envexample -O .env
+wget https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/0.72/.envexample -O .env
 ```
 
 2. Add your API key to `.env`:
@@ -99,6 +99,7 @@ Behind the scenes:
 - **Clean API** - Simple, ergonomic interface
 - **Error handling** - Built-in retry logic and graceful failures
 - **Observability** - Optional tracing to see what the agent is doing
+- **Customizable prompts** - Pass custom system prompts via `system_prompt` parameter
 
 ### Tools Philosophy
 Every function can be a tool. Keep them:
