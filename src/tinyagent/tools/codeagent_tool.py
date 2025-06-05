@@ -12,30 +12,33 @@ and dynamic orchestration of tasks.
 """
 
 import re
-import json
 import traceback
-from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
-from ..logging import get_logger
 from ..agent import get_llm
-from ..tool import Tool, ParamType
 from ..config import load_config
+from ..logging import get_logger
+from ..tool import ParamType, Tool
 from .anon_coder import execute_python_code
 
 # Set up logger
 logger = get_logger(__name__)
 
+
 class CodeGenerationMode(Enum):
     """Different modes for code generation."""
+
     BASIC = "basic"  # Simple code generation
     ADVANCED = "advanced"  # With tool integration
     RESEARCH = "research"  # With web search and analysis
 
+
 @dataclass
 class CodeGenerationContext:
     """Context for code generation including memory and tools."""
+
     memory: str = ""
     available_tools: List[str] = None
     mode: CodeGenerationMode = CodeGenerationMode.BASIC
@@ -46,16 +49,23 @@ class CodeGenerationContext:
         if self.available_tools is None:
             self.available_tools = []
 
+
 def generate_system_prompt(context: CodeGenerationContext, task: str) -> str:
     """Generate the system prompt for the LLM."""
-    tools_description = "\n".join([
-        f"- {tool}() -> returns {tool} results" 
-        for tool in context.available_tools
-    ]) if context.available_tools else "No tools available"
+    tools_description = (
+        "\n".join(
+            [
+                f"- {tool}() -> returns {tool} results"
+                for tool in context.available_tools
+            ]
+        )
+        if context.available_tools
+        else "No tools available"
+    )
 
     return f"""\
-You are an autonomous CodeAgent heavily inspired by smolagents. 
-You write Python code to solve the task at hand, using built-in or 
+You are an autonomous CodeAgent heavily inspired by smolagents.
+You write Python code to solve the task at hand, using built-in or
 allowed libraries. If relevant, you can call tinyAgent utility functions:
 
 {tools_description}
@@ -77,37 +87,39 @@ Task to solve:
 
 Write only Python code:"""
 
+
 def validate_generated_code(code: str) -> bool:
     """Validate the generated code for security and quality."""
     # Check for dangerous operations
     dangerous_patterns = [
-        r'exec\s*\(',
-        r'eval\s*\(',
-        r'os\.',
-        r'sys\.',
-        r'subprocess\.',
-        r'__import__\s*\(',
+        r"exec\s*\(",
+        r"eval\s*\(",
+        r"os\.",
+        r"sys\.",
+        r"subprocess\.",
+        r"__import__\s*\(",
     ]
-    
+
     for pattern in dangerous_patterns:
         if re.search(pattern, code):
             logger.warning(f"Dangerous operation detected: {pattern}")
             return False
-    
+
     # Check for basic syntax
     try:
-        compile(code, '<string>', 'exec')
+        compile(code, "<string>", "exec")
         return True
     except SyntaxError as e:
         logger.error(f"Syntax error in generated code: {str(e)}")
         return False
+
 
 def code_agent_execute(
     task: str,
     context_memory: Optional[str] = "",
     timeout: int = 15,
     mode: str = "basic",
-    available_tools: Optional[List[str]] = None
+    available_tools: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """
     The CodeAgent tool will:
@@ -141,20 +153,20 @@ def code_agent_execute(
             memory=context_memory,
             available_tools=available_tools or [],
             mode=CodeGenerationMode(mode),
-            timeout=timeout
+            timeout=timeout,
         )
 
         # Generate code
         logger.debug("[CodeAgent] Prompting LLM to generate code for task")
         system_prompt = generate_system_prompt(context, task)
         generated_code = llm(system_prompt).strip()
-        
+
         if not generated_code:
             return {
                 "success": False,
                 "error": "No code generated",
                 "generated_code": "",
-                "execution_result": ""
+                "execution_result": "",
             }
 
         # Validate code
@@ -163,21 +175,18 @@ def code_agent_execute(
                 "success": False,
                 "error": "Generated code failed validation",
                 "generated_code": generated_code,
-                "execution_result": ""
+                "execution_result": "",
             }
 
         # Execute code
         logger.debug("[CodeAgent] Executing generated code in sandbox")
-        execution_output = execute_python_code(
-            code=generated_code,
-            timeout=timeout
-        )
+        execution_output = execute_python_code(code=generated_code, timeout=timeout)
 
         return {
             "success": True,
             "generated_code": generated_code,
             "execution_result": execution_output,
-            "error": None
+            "error": None,
         }
 
     except Exception as e:
@@ -186,8 +195,9 @@ def code_agent_execute(
             "success": False,
             "error": str(e),
             "generated_code": "",
-            "execution_result": ""
+            "execution_result": "",
         }
+
 
 # Create tool instance
 codeagent_tool = Tool(
@@ -202,10 +212,11 @@ codeagent_tool = Tool(
         "context_memory": ParamType.STRING,
         "timeout": ParamType.INTEGER,
         "mode": ParamType.STRING,
-        "available_tools": ParamType.LIST
+        "available_tools": ParamType.LIST,
     },
-    func=code_agent_execute
+    func=code_agent_execute,
 )
+
 
 def get_tool() -> Tool:
     """
@@ -214,4 +225,4 @@ def get_tool() -> Tool:
     Returns:
         Tool: The code_agent Tool object
     """
-    return codeagent_tool 
+    return codeagent_tool

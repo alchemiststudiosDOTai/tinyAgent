@@ -1,15 +1,18 @@
 import os
-import openai
 import time
 from abc import ABC, abstractmethod
-from typing import List, Optional
 from functools import lru_cache
+from typing import List, Optional
+
+import openai
 from sentence_transformers import SentenceTransformer
+
 
 class EmbeddingProvider(ABC):
     """
     Abstract base class for embedding providers.
     """
+
     @abstractmethod
     def generate_embedding(self, text: str) -> List[float]:
         """
@@ -31,17 +34,28 @@ class EmbeddingProvider(ABC):
         """
         pass
 
+
 class OpenAIEmbeddingProvider(EmbeddingProvider):
     """
     Embedding provider that uses the OpenAI API to generate embeddings.
     """
+
     _MODEL_DIMENSIONS = {
         "text-embedding-3-small": 1536,
         "text-embedding-3-large": 3072,
         # Add more models and their dimensions as needed
     }
 
-    def __init__(self, model_name: str, api_key: Optional[str] = None, dimensions: Optional[int] = None, timeout: Optional[float] = None, enable_caching: bool = True, cache_size: int = 1024, cache_ttl: int = 3600):
+    def __init__(
+        self,
+        model_name: str,
+        api_key: Optional[str] = None,
+        dimensions: Optional[int] = None,
+        timeout: Optional[float] = None,
+        enable_caching: bool = True,
+        cache_size: int = 1024,
+        cache_ttl: int = 3600,
+    ):
         """
         Initialize the OpenAI embedding provider.
         Args:
@@ -61,7 +75,9 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         self.cache_size = cache_size
         self.cache_ttl = cache_ttl
         if not self.api_key:
-            raise ValueError("OpenAI API key must be provided via argument or OPENAI_API_KEY env var.")
+            raise ValueError(
+                "OpenAI API key must be provided via argument or OPENAI_API_KEY env var."
+            )
         openai.api_key = self.api_key
         self._cached_dimension = None
         # For batch caching: (text,...) -> (embedding, timestamp)
@@ -73,26 +89,31 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         for attempt in range(1, max_attempts + 1):
             try:
                 return func(*args, **kwargs)
-            except (openai.error.RateLimitError, openai.error.Timeout, openai.error.APIConnectionError) as e:
+            except (
+                openai.error.RateLimitError,
+                openai.error.Timeout,
+                openai.error.APIConnectionError,
+            ) as e:
                 if attempt == max_attempts:
-                    raise RuntimeError(f"OpenAI embedding API error after {attempt} attempts: {e}")
+                    raise RuntimeError(
+                        f"OpenAI embedding API error after {attempt} attempts: {e}"
+                    ) from e
                 time.sleep(backoff)
                 backoff *= 2
             except Exception as e:
-                raise RuntimeError(f"OpenAI embedding API error: {e}")
+                raise RuntimeError(f"OpenAI embedding API error: {e}") from e
 
     def _cache_single(self):
         # functools.lru_cache can't be used directly on instance methods with self, so wrap
         @lru_cache(maxsize=self.cache_size)
         def cached(text):
             return self._with_retries(self._embed_single, text)
+
         return cached
 
     def _embed_single(self, text: str) -> List[float]:
         response = openai.embeddings.create(
-            input=text,
-            model=self.model_name,
-            timeout=self.timeout
+            input=text, model=self.model_name, timeout=self.timeout
         )
         return response.data[0].embedding
 
@@ -103,7 +124,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         if not text:
             raise ValueError("Text for embedding must not be empty.")
         if self.enable_caching:
-            if not hasattr(self, '_single_cache'):
+            if not hasattr(self, "_single_cache"):
                 self._single_cache = self._cache_single()
             return self._single_cache(text)
         return self._with_retries(self._embed_single, text)
@@ -129,33 +150,40 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
                     uncached.append(t)
                     uncached_indices.append(i)
             if uncached:
+
                 def call():
                     response = openai.embeddings.create(
-                        input=uncached,
-                        model=self.model_name,
-                        timeout=self.timeout
+                        input=uncached, model=self.model_name, timeout=self.timeout
                     )
                     return [item.embedding for item in response.data]
+
                 new_embs = self._with_retries(call)
                 for idx, emb in zip(uncached_indices, new_embs):
                     results[idx] = emb
                     if self._batch_cache is not None:
                         self._batch_cache[(texts[idx],)] = (emb, now)
                 # Prune cache if over size
-                if self._batch_cache is not None and len(self._batch_cache) > self.cache_size:
+                if (
+                    self._batch_cache is not None
+                    and len(self._batch_cache) > self.cache_size
+                ):
                     # Remove oldest
-                    sorted_items = sorted(self._batch_cache.items(), key=lambda x: x[1][1])
-                    for k, _ in sorted_items[:len(self._batch_cache)-self.cache_size]:
+                    sorted_items = sorted(
+                        self._batch_cache.items(), key=lambda x: x[1][1]
+                    )
+                    for k, _ in sorted_items[
+                        : len(self._batch_cache) - self.cache_size
+                    ]:
                         del self._batch_cache[k]
             return results
+
         # No caching
         def call():
             response = openai.embeddings.create(
-                input=texts,
-                model=self.model_name,
-                timeout=self.timeout
+                input=texts, model=self.model_name, timeout=self.timeout
             )
             return [item.embedding for item in response.data]
+
         return self._with_retries(call)
 
     def get_embedding_dimension(self) -> int:
@@ -177,7 +205,9 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             self._cached_dimension = len(emb)
             return self._cached_dimension
         except Exception:
-            raise RuntimeError(f"Could not determine embedding dimension for model {self.model_name}")
+            raise RuntimeError(
+                f"Could not determine embedding dimension for model {self.model_name}"
+            ) from None
 
     def validate_api_key(self) -> bool:
         """
@@ -212,16 +242,28 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         """
         return text.strip().lower()
 
+
 class LocalEmbeddingProvider(EmbeddingProvider):
     """
     Embedding provider using local sentence-transformers models.
     """
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2", device: str = "cpu", cache_folder: str = None, dimensions: int = None):
+
+    def __init__(
+        self,
+        model_name: str = "all-MiniLM-L6-v2",
+        device: str = "cpu",
+        cache_folder: str = None,
+        dimensions: int = None,
+    ):
         self.model_name = model_name
         self.device = device
         self.cache_folder = cache_folder
         self.dimensions = dimensions
-        self.model = SentenceTransformer(model_name, cache_folder=cache_folder) if cache_folder else SentenceTransformer(model_name)
+        self.model = (
+            SentenceTransformer(model_name, cache_folder=cache_folder)
+            if cache_folder
+            else SentenceTransformer(model_name)
+        )
         self.model.to(device)
         self._cached_dimension = None
 
@@ -229,13 +271,13 @@ class LocalEmbeddingProvider(EmbeddingProvider):
         if not text:
             raise ValueError("Text for embedding must not be empty.")
         emb = self.model.encode([text])[0]
-        return emb.tolist() if hasattr(emb, 'tolist') else list(emb)
+        return emb.tolist() if hasattr(emb, "tolist") else list(emb)
 
     def generate_embeddings(self, texts: list) -> list:
         if not texts:
             return []
         embs = self.model.encode(texts)
-        return [e.tolist() if hasattr(e, 'tolist') else list(e) for e in embs]
+        return [e.tolist() if hasattr(e, "tolist") else list(e) for e in embs]
 
     def get_embedding_dimension(self) -> int:
         if self.dimensions:
@@ -247,6 +289,7 @@ class LocalEmbeddingProvider(EmbeddingProvider):
         self._cached_dimension = len(emb)
         return self._cached_dimension
 
+
 def create_embedding_provider_from_config(config: dict):
     """
     Factory to create an EmbeddingProvider from config dict.
@@ -256,6 +299,7 @@ def create_embedding_provider_from_config(config: dict):
     provider_type = ep_cfg.get("provider_type", "openai")
     if provider_type == "openai":
         from .embedding_provider import OpenAIEmbeddingProvider
+
         return OpenAIEmbeddingProvider(
             model_name=ep_cfg.get("model_name", "text-embedding-3-small"),
             api_key=ep_cfg.get("api_key"),
@@ -270,4 +314,4 @@ def create_embedding_provider_from_config(config: dict):
             cache_folder=ep_cfg.get("cache_folder"),
             dimensions=ep_cfg.get("dimensions"),
         )
-    raise ValueError(f"Unsupported embedding provider type: {provider_type}") 
+    raise ValueError(f"Unsupported embedding provider type: {provider_type}")

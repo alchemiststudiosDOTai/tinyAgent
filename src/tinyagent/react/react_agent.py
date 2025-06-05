@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from ..agent import get_llm
 from ..prompts.prompt_manager import PromptManager
@@ -25,7 +25,7 @@ class ThoughtStep:
 @dataclass
 class ActionStep:
     tool: str
-    args: Dict[str, Any]
+    args: dict[str, Any]
 
 
 @dataclass
@@ -35,7 +35,7 @@ class ObservationStep:
 
 @dataclass
 class Scratchpad:
-    steps: List[Any] = field(default_factory=list)
+    steps: list[Any] = field(default_factory=list)
 
     def add(self, step: Any) -> None:
         self.steps.append(step)
@@ -65,12 +65,12 @@ class FinalAnswerCalled(Exception):
 class ReactAgent:
     """ReAct (Reasoning + Acting) agent with built-in LLM support."""
 
-    tools: List[Tool] = field(default_factory=list)
-    llm_callable: Optional[callable] = None
+    tools: list[Tool] = field(default_factory=list)
+    llm_callable: callable | None = None
     max_steps: int = 10
     add_base_tools: bool = True
-    system_prompt: Optional[str] = None
-    system_template: Optional[str] = None
+    system_prompt: str | None = None
+    system_template: str | None = None
     prompt_manager: PromptManager = field(
         default_factory=PromptManager, init=False, repr=False
     )
@@ -103,7 +103,6 @@ class ReactAgent:
 
     def _add_final_answer_tool(self):
         """Add the built-in final_answer function as a tool."""
-        from ..decorators import tool
 
         def final_answer_func(answer: Any) -> str:
             """Call this function when you have the final answer to return to the user.
@@ -169,7 +168,7 @@ class ReactAgent:
             descriptions.append(f"{tool.name}: {tool.description}")
         return "\n".join(descriptions)
 
-    def parse_action(self, text: str) -> Optional[ActionStep]:
+    def parse_action(self, text: str) -> ActionStep | None:
         """Parse action from LLM response."""
         lines = text.strip().split("\n")
         action_line = None
@@ -202,7 +201,7 @@ class ReactAgent:
                         else:
                             # If args is not a dict or doesn't have "answer" key, use the whole args
                             answer = action.args
-                        raise FinalAnswerCalled(answer)
+                        raise FinalAnswerCalled(answer) from None
                     else:
                         return tool(**action.args)
                 except FinalAnswerCalled as e:
@@ -215,8 +214,8 @@ class ReactAgent:
     def run(
         self,
         query: str,
-        max_steps: Optional[int] = None,
-        llm_callable: Optional[callable] = None,
+        max_steps: int | None = None,
+        llm_callable: callable | None = None,
     ) -> str:
         """Run the agent with the given query. Alias for run_react for better ergonomics."""
         return self.run_react(query, max_steps, llm_callable)
@@ -224,8 +223,8 @@ class ReactAgent:
     def run_react(
         self,
         query: str,
-        max_steps: Optional[int] = None,
-        llm_callable: Optional[callable] = None,
+        max_steps: int | None = None,
+        llm_callable: callable | None = None,
     ) -> str:
         """Run the ReAct reasoning loop."""
         if max_steps is None:
@@ -247,7 +246,7 @@ class ReactAgent:
             # Get LLM response
             print("Calling LLM...")
             response = llm(prompt)
-            print(f"\nLLM Response:")
+            print("\nLLM Response:")
             print(f"'{response}'")
 
             # Parse thought
@@ -271,7 +270,7 @@ class ReactAgent:
                     scratchpad.add(ObservationStep(result))
                 except FinalAnswerCalled as e:
                     # Final answer was called - return it directly
-                    print(f"\n*** FINAL ANSWER CALLED ***")
+                    print("\n*** FINAL ANSWER CALLED ***")
                     print(f"Answer: {e.answer}")
                     return str(e.answer)
             else:
@@ -281,13 +280,13 @@ class ReactAgent:
                 return response.strip()
 
             # Show current scratchpad
-            print(f"\n--- SCRATCHPAD SO FAR ---")
+            print("\n--- SCRATCHPAD SO FAR ---")
             scratchpad_content = scratchpad.format()
             if scratchpad_content:
                 print(scratchpad_content)
             else:
                 print("(empty)")
-            print(f"--- END SCRATCHPAD ---")
+            print("--- END SCRATCHPAD ---")
 
         return "Maximum steps reached without final answer"
 
@@ -306,7 +305,7 @@ Thought: think about what to do
 Action: the action to take (must be one of the available tools)
 Action Input: the input to the action as valid JSON
 
-IMPORTANT: 
+IMPORTANT:
 - Only provide ONE Thought and ONE Action at a time
 - Do NOT generate Observations - I will provide the real observation after executing your action
 - Do NOT continue with more thoughts/actions after your first action

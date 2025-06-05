@@ -1,6 +1,3 @@
-import json
-import os
-
 from tinyagent import ReactAgent
 from tinyagent.tools.g_login import get_tool
 
@@ -12,7 +9,7 @@ Action: g_login
 Action Input: {"username": "foo", "password": "bar"}""",
         """Thought: Login complete, returning final answer
 Action: final_answer
-Action Input: {"answer": "done"}"""
+Action Input: {"answer": "done"}""",
     ]
 
     def fake_llm(_prompt):

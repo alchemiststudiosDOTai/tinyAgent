@@ -5,22 +5,32 @@ This module provides a factory class for creating, registering, and managing too
 and agents with built-in rate limiting capabilities.
 """
 
-import sys
-import os
 import inspect
-import importlib.util
-from typing import Dict, Any, Optional, List, Union, Callable, TypeVar, cast, Type
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+)
 
-from ..logging import get_logger
-from ..config import load_config, get_config_value
-from ..tool import Tool, ParamType
+if TYPE_CHECKING:
+    from ..agent import Agent
+
+from ..config import get_config_value, load_config
 from ..exceptions import RateLimitExceeded, ToolNotFoundError
+from ..logging import get_logger
+from ..tool import ParamType, Tool
 
 # Set up logger
 logger = get_logger(__name__)
 
 # Define a generic type variable for better type hints
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class AgentFactory:
@@ -77,10 +87,11 @@ class AgentFactory:
         # Load rate limits from config with default of 30
         self._rate_limits = self._load_rate_limits(self.config)
         # Global rate limit (default: 30)
-        self._global_limit = self._rate_limits.get('global_limit', 30)
+        self._global_limit = self._rate_limits.get("global_limit", 30)
 
         logger.debug(
-            f"Initialized AgentFactory with global rate limit: {self._global_limit}")
+            f"Initialized AgentFactory with global rate limit: {self._global_limit}"
+        )
 
     def _load_rate_limits(self, config: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         """
@@ -93,19 +104,25 @@ class AgentFactory:
             Dictionary of rate limits
         """
         if not config:
-            return {'global_limit': 30}
+            return {"global_limit": 30}
 
         # Get rate limits from config or use default
-        limits = get_config_value(config, 'rate_limits', {})
+        limits = get_config_value(config, "rate_limits", {})
         if not limits:
-            limits = {'global_limit': 30}
-        elif 'global_limit' not in limits:
-            limits['global_limit'] = 30
+            limits = {"global_limit": 30}
+        elif "global_limit" not in limits:
+            limits["global_limit"] = 30
 
         logger.debug(f"Loaded rate limits: {limits}")
         return limits
 
-    def create_tool(self, name: str, description: str, func: Callable, rate_limit: Optional[int] = None) -> Tool:
+    def create_tool(
+        self,
+        name: str,
+        description: str,
+        func: Callable,
+        rate_limit: Optional[int] = None,
+    ) -> Tool:
         """
         Create and register a new tool.
 
@@ -127,7 +144,7 @@ class AgentFactory:
         # Validate tool name
         if not name or not isinstance(name, str):
             raise ValueError("Tool name must be a non-empty string")
-        if not name.islower() or ' ' in name:
+        if not name.islower() or " " in name:
             raise ValueError("Tool name must be lowercase with no spaces")
 
         # Extract parameters from function signature
@@ -135,15 +152,15 @@ class AgentFactory:
         parameters = {}
 
         for param_name, param in sig.parameters.items():
-            if param_name in ('self', 'cls'):
+            if param_name in ("self", "cls"):
                 continue
 
             # Map Python type hints to ParamType
-            if param.annotation == int:
+            if param.annotation is int:
                 param_type = ParamType.INTEGER
-            elif param.annotation == float:
+            elif param.annotation is float:
                 param_type = ParamType.FLOAT
-            elif param.annotation == str:
+            elif param.annotation is str:
                 param_type = ParamType.STRING
             else:
                 param_type = ParamType.ANY
@@ -152,10 +169,7 @@ class AgentFactory:
 
         # Create tool instance
         tool = Tool(
-            name=name,
-            description=description,
-            parameters=parameters,
-            func=func
+            name=name, description=description, parameters=parameters, func=func
         )
 
         # Add rate limit metadata if provided
@@ -184,7 +198,12 @@ class AgentFactory:
         logger.info(f"Registered tool: {tool.name}")
         return tool
 
-    def create_agent(self, tools: Optional[List[Union[Tool, Callable]]] = None, model: Optional[str] = None, **kwargs) -> 'Agent':
+    def create_agent(
+        self,
+        tools: Optional[List[Union[Tool, Callable]]] = None,
+        model: Optional[str] = None,
+        **kwargs,
+    ) -> "Agent":
         """
         Create a new agent with specified tools.
 
@@ -200,45 +219,52 @@ class AgentFactory:
             The created Agent instance
         """
         # Import Agent here to avoid circular imports
-        from ..agent import Agent, TracedAgent # Keep both imports
-        # --- ADDED: Import tracer provider status --- 
+        from ..agent import Agent, TracedAgent  # Keep both imports
+
+        # --- ADDED: Import tracer provider status ---
         from ..observability.tracer import _tracer_provider, configure_tracing
 
-        # --- MODIFIED: Logic to determine agent class --- 
-        should_trace_explicit = kwargs.pop('trace_this_agent', None) # Get explicit flag, default None
-        
+        # --- MODIFIED: Logic to determine agent class ---
+        should_trace_explicit = kwargs.pop(
+            "trace_this_agent", None
+        )  # Get explicit flag, default None
+
         # Ensure tracing is configured if not already (needed for check below)
         if _tracer_provider is None:
-            configure_tracing() # Use default config
-            
+            configure_tracing()  # Use default config
+
         # Determine if tracing is globally active
-        is_tracing_globally_active = (_tracer_provider is not None and
-                                      type(_tracer_provider).__name__ != 'NoOpTracerProvider')
+        is_tracing_globally_active = (
+            _tracer_provider is not None
+            and type(_tracer_provider).__name__ != "NoOpTracerProvider"
+        )
 
         if should_trace_explicit is True:
-             logger.info("Creating TracedAgent instance (explicitly requested).")
-             agent = TracedAgent(model=model, **kwargs)
+            logger.info("Creating TracedAgent instance (explicitly requested).")
+            agent = TracedAgent(model=model, **kwargs)
         elif should_trace_explicit is False:
-             logger.info("Creating standard Agent instance (explicitly requested off).")
-             agent = Agent(model=model, **kwargs)
+            logger.info("Creating standard Agent instance (explicitly requested off).")
+            agent = Agent(model=model, **kwargs)
         elif is_tracing_globally_active:
-             # Default case: trace_this_agent not specified, but tracing is globally ON
-             logger.info("Creating TracedAgent instance (tracing globally active).")
-             agent = TracedAgent(model=model, **kwargs)
+            # Default case: trace_this_agent not specified, but tracing is globally ON
+            logger.info("Creating TracedAgent instance (tracing globally active).")
+            agent = TracedAgent(model=model, **kwargs)
         else:
-             # Default case: trace_this_agent not specified, tracing globally OFF
-             logger.info("Creating standard Agent instance (tracing globally inactive).")
-             agent = Agent(model=model, **kwargs)
-        # --- END MODIFIED LOGIC --- 
+            # Default case: trace_this_agent not specified, tracing globally OFF
+            logger.info("Creating standard Agent instance (tracing globally inactive).")
+            agent = Agent(model=model, **kwargs)
+        # --- END MODIFIED LOGIC ---
 
         # Register existing factory tools with the agent
         for tool_name, tool in self._tools.items():
-            if tool_name != 'chat':  # Skip the built-in chat tool, as Agent already adds it
+            if (
+                tool_name != "chat"
+            ):  # Skip the built-in chat tool, as Agent already adds it
                 agent.create_tool(
                     name=tool.name,
                     description=tool.description,
                     func=tool.func,
-                    parameters=tool.parameters
+                    parameters=tool.parameters,
                 )
 
         # Register any additional tools provided
@@ -252,29 +278,25 @@ class AgentFactory:
                         name=tool.name,
                         description=tool.description,
                         func=tool.func,
-                        parameters=tool.parameters
+                        parameters=tool.parameters,
                     )
                 elif callable(tool):
                     # Create Tool instance from function
-                    func_name = getattr(
-                        tool, '__name__', 'anonymous_function').lower()
+                    func_name = getattr(tool, "__name__", "anonymous_function").lower()
                     tool_desc = tool.__doc__ or f"Tool for {func_name}"
                     # Register with factory
                     created_tool = self.create_tool(
-                        name=func_name,
-                        description=tool_desc,
-                        func=tool
+                        name=func_name, description=tool_desc, func=tool
                     )
                     # Register with agent
                     agent.create_tool(
                         name=func_name,
                         description=tool_desc,
                         func=tool,
-                        parameters=created_tool.parameters
+                        parameters=created_tool.parameters,
                     )
 
-        logger.info(
-            f"Created agent with {len(agent.get_available_tools())} tools")
+        logger.info(f"Created agent with {len(agent.get_available_tools())} tools")
 
         return agent
 
@@ -325,12 +347,16 @@ class AgentFactory:
         tool_limit = self._get_tool_limit(name)
 
         # Block execution if limit exceeded
-        if tool_limit is not None and tool_limit > 0 and self._call_counts[name] >= tool_limit:
+        if (
+            tool_limit is not None
+            and tool_limit > 0
+            and self._call_counts[name] >= tool_limit
+        ):
             logger.warning(
-                f"Rate limit exceeded for tool '{name}': {self._call_counts[name]}/{tool_limit}")
+                f"Rate limit exceeded for tool '{name}': {self._call_counts[name]}/{tool_limit}"
+            )
             raise RateLimitExceeded(
-                f"Tool '{name}' call limit of {tool_limit} exceeded",
-                limit=tool_limit
+                f"Tool '{name}' call limit of {tool_limit} exceeded", limit=tool_limit
             )
 
         # Get the tool and execute it
@@ -340,8 +366,7 @@ class AgentFactory:
         # Only increment counter after successful execution
         self._call_counts[name] += 1
         limit_display = tool_limit if tool_limit is not None else "∞"
-        logger.debug(
-            f"Tool '{name}' usage: {self._call_counts[name]}/{limit_display}")
+        logger.debug(f"Tool '{name}' usage: {self._call_counts[name]}/{limit_display}")
 
         return result
 
@@ -382,11 +407,11 @@ class AgentFactory:
         """
         # First check if tool has a specific rate limit set
         tool = self._tools.get(tool_name)
-        if tool and hasattr(tool, 'rate_limit') and tool.rate_limit is not None:
+        if tool and hasattr(tool, "rate_limit") and tool.rate_limit is not None:
             return tool.rate_limit
 
         # Otherwise check config
-        tool_limits = self._rate_limits.get('tool_limits', {})
+        tool_limits = self._rate_limits.get("tool_limits", {})
         return tool_limits.get(tool_name, self._global_limit)
 
     def get_status(self) -> Dict[str, Any]:
@@ -396,17 +421,16 @@ class AgentFactory:
         Returns:
             Dictionary with current tool usage statistics
         """
-        status = {
-            "global_limit": self._global_limit,
-            "tools": {}
-        }
+        status = {"global_limit": self._global_limit, "tools": {}}
 
         for name, count in self._call_counts.items():
             limit = self._get_tool_limit(name)
             status["tools"][name] = {
                 "calls": count,
                 "limit": limit,
-                "remaining": max(0, limit - count) if limit is not None and limit > 0 else -1
+                "remaining": (
+                    max(0, limit - count) if limit is not None and limit > 0 else -1
+                ),
             }
 
         return status
@@ -425,7 +449,7 @@ class AgentFactory:
         Get a tool that is tracked only when actually executed.
 
         This method creates a new Tool instance that wraps the original
-        tool's function in a way that calls execute_tool() instead of 
+        tool's function in a way that calls execute_tool() instead of
         directly calling the function, ensuring proper usage tracking.
 
         Args:
@@ -452,11 +476,11 @@ class AgentFactory:
             name=original_tool.name,
             description=original_tool.description,
             parameters=original_tool.parameters,
-            func=proxy_func
+            func=proxy_func,
         )
 
         # Copy any custom attributes
-        if hasattr(original_tool, 'rate_limit'):
+        if hasattr(original_tool, "rate_limit"):
             tracked_tool.rate_limit = original_tool.rate_limit
 
         return tracked_tool

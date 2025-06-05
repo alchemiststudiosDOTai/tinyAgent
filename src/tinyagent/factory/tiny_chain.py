@@ -1,12 +1,12 @@
-    # you need pip install duckduckgo-search for internal search, but you can use any
+# you need pip install duckduckgo-search for internal search, but you can use any
 
 import time
-from typing import Dict, Any, Optional, Union, List
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Union
 
 from tinyagent.agent import Agent
 from tinyagent.factory.dynamic_agent_factory import DynamicAgentFactory
-from tinyagent.tool import Tool, ParamType
+from tinyagent.tool import ParamType, Tool
 from tinyagent.utils.json_parser import robust_json_parse
 
 
@@ -15,6 +15,7 @@ class tiny_task:
     """
     tiny_task tracks the state of a submitted user request (a "task").
     """
+
     task_id: str
     description: str
     status: str = "pending"  # pending, in_progress, completed, failed
@@ -58,7 +59,7 @@ class tiny_chain:
         self,
         config: Optional[Dict[str, Any]] = None,
         tools: Optional[List[Tool]] = None,
-        max_retries: int = 2
+        max_retries: int = 2,
     ):
         self.config = config or {}
         self.tasks: Dict[str, tiny_task] = {}
@@ -117,21 +118,21 @@ class tiny_chain:
         Handles a task by ALWAYS executing a plan that uses ALL available tools.
         The triage agent's response is stored for context but we ensure all tools are used
         regardless of what the triage agent decides.
-        
+
         Args:
             task: The task to handle
         """
         try:
             # Get the triage result for context
             triage_result = self._run_with_triage(task)
-            
+
             # Always execute a sequence that uses all tools
             self._execute_all_tools_sequence(task, triage_result)
-            
+
             # If the task is still not completed, try the fallback
             if task.status != "completed":
                 self._use_all_tools_fallback(task)
-                
+
             # If the task is still not completed, mark it as failed
             if task.status != "completed":
                 task.status = "failed"
@@ -152,18 +153,18 @@ class tiny_chain:
         Asks the triage agent how to handle the query. We'll attempt multiple retries
         if the triage output is invalid or empty. The triage agent is expected to
         produce a JSON structure that describes the plan (tool calls, etc.).
-        
+
         IMPORTANT: The triage agent is instructed to use ALL available tools.
-        
+
         Args:
             task: The task to get triage information for
-            
+
         Returns:
             The triage result or None if all attempts failed
         """
         triage_agent = self.agents["triage"]
         attempts = 0
-        
+
         # Enhance the description to emphasize using all tools
         enhanced_description = (
             f"{task.description}\n\n"
@@ -171,14 +172,16 @@ class tiny_chain:
             f"The available tools are: {', '.join(t.name for t in self.factory.list_tools().values())}. "
             f"If you return a tool_sequence, it MUST include ALL of these tools."
         )
-        
+
         # Try to get a response from the triage agent
         while attempts < self.max_retries:
             attempts += 1
             try:
                 # Call the agent without the timeout parameter
                 raw_response = triage_agent.run(enhanced_description)
-                print(f"[Triage Attempt {attempts}] Raw response: {repr(raw_response)}")  # Debug print
+                print(
+                    f"[Triage Attempt {attempts}] Raw response: {repr(raw_response)}"
+                )  # Debug print
 
                 # If the LLM already gave us a dict, just return it
                 if isinstance(raw_response, dict):
@@ -189,21 +192,25 @@ class tiny_chain:
                 if parsed is not None:
                     return parsed
                 else:
-                    print(f"[Triage Attempt {attempts}] Failed to parse response: {repr(raw_response)}")  # Debug print
+                    print(
+                        f"[Triage Attempt {attempts}] Failed to parse response: {repr(raw_response)}"
+                    )  # Debug print
             except Exception as e:
                 print(f"[Triage Attempt {attempts}] Exception: {e}")  # Debug print
                 # Continue to next attempt
 
             time.sleep(1)
-        
+
         # If we get here, all attempts failed
-        print(f"All {self.max_retries} triage attempts failed. Continuing with all tools execution.")
-        
+        print(
+            f"All {self.max_retries} triage attempts failed. Continuing with all tools execution."
+        )
+
         # Return a default context that encourages using all tools
         return {
             "type": "fallback_context",
             "message": "Triage agent failed to provide a valid response. Using all available tools.",
-            "use_all_tools": True
+            "use_all_tools": True,
         }
 
     def _execute_tool_sequence(self, task: tiny_task, sequence: list):
@@ -217,7 +224,7 @@ class tiny_chain:
         """
         results = []
         tools_used = []  # Track which tools were used
-        
+
         for step_idx, step_info in enumerate(sequence, 1):
             tool_name = step_info.get("tool")
             args = step_info.get("arguments", {})
@@ -229,7 +236,9 @@ class tiny_chain:
             # Lookup the tool
             tool_obj = self.factory.list_tools().get(tool_name)
             if not tool_obj:
-                results.append({"step": step_idx, "error": f"Tool '{tool_name}' not found"})
+                results.append(
+                    {"step": step_idx, "error": f"Tool '{tool_name}' not found"}
+                )
                 continue
 
             # Record that this tool was used
@@ -238,36 +247,40 @@ class tiny_chain:
             # Invoke the tool
             try:
                 step_result = tool_obj.func(**args)
-                results.append({
-                    "step": step_idx,
-                    "tool": tool_name,
-                    "arguments": args,
-                    "result": step_result
-                })
+                results.append(
+                    {
+                        "step": step_idx,
+                        "tool": tool_name,
+                        "arguments": args,
+                        "result": step_result,
+                    }
+                )
             except Exception as e:
-                results.append({
-                    "step": step_idx,
-                    "tool": tool_name,
-                    "arguments": args,
-                    "error": str(e)
-                })
+                results.append(
+                    {
+                        "step": step_idx,
+                        "tool": tool_name,
+                        "arguments": args,
+                        "error": str(e),
+                    }
+                )
 
         # Get all available tools for comparison
         all_tools = [t.name for t in self.factory.list_tools().values()]
         unused_tools = [t for t in all_tools if t not in tools_used]
-        
+
         task.result = {
             "type": "tool_sequence",
             "steps": results,
             "tools_used": tools_used,
             "unused_tools": unused_tools,
-            "all_tools": all_tools
+            "all_tools": all_tools,
         }
         task.status = "completed"
 
     def _execute_single_tool(self, task: tiny_task, triage_result: dict):
         """
-        If the triage says: 
+        If the triage says:
           { "tool": "...", "arguments": {...} }
         """
         tool_name = triage_result["tool"]
@@ -281,11 +294,11 @@ class tiny_chain:
 
         try:
             result = tool_obj.func(**args)
-            
+
             # Get all available tools for comparison
             all_tools = [t.name for t in self.factory.list_tools().values()]
             unused_tools = [t for t in all_tools if t != tool_name]
-            
+
             task.result = {
                 "type": "single_tool",
                 "tool": tool_name,
@@ -293,7 +306,7 @@ class tiny_chain:
                 "result": result,
                 "tools_used": [tool_name],
                 "unused_tools": unused_tools,
-                "all_tools": all_tools
+                "all_tools": all_tools,
             }
             task.status = "completed"
         except Exception as e:
@@ -308,17 +321,17 @@ class tiny_chain:
         try:
             specialized_agent = self.factory.create_dynamic_agent(task.description)
             final_result = specialized_agent.run(task.description)
-            
+
             # Get all available tools for comparison
             all_tools = [t.name for t in self.factory.list_tools().values()]
-            
+
             task.result = {
                 "type": "new_dynamic_agent",
-                "agent_name": specialized_agent.name, # Assuming factory sets a name
+                "agent_name": specialized_agent.name,  # Assuming factory sets a name
                 "result": final_result,
                 "tools_used": all_tools,  # Assume the dynamic agent uses all tools
                 "unused_tools": [],  # No unused tools if dynamic agent uses all
-                "all_tools": all_tools
+                "all_tools": all_tools,
             }
             task.status = "completed"
         except Exception as e:
@@ -332,26 +345,25 @@ class tiny_chain:
         """
         # Get all available tools
         all_tools = list(self.factory.list_tools().values())
-        
+
         if not all_tools:
             task.status = "failed"
             task.error = "No tools available for fallback."
             return
-            
+
         # Create a tool sequence that uses all available tools
         tool_sequence = []
         tools_used = []  # Track which tools were used
-        
+
         # First, try to use search tools
         search_tools = [t for t in all_tools if "search" in t.name.lower()]
         if search_tools:
             for tool in search_tools:
-                tool_sequence.append({
-                    "tool": tool.name,
-                    "arguments": {"keywords": task.description}
-                })
+                tool_sequence.append(
+                    {"tool": tool.name, "arguments": {"keywords": task.description}}
+                )
                 tools_used.append(tool.name)
-                
+
         # Then, try to use browser tools
         browser_tools = [t for t in all_tools if "browser" in t.name.lower()]
         if browser_tools and tool_sequence:  # Only if we have search results
@@ -363,15 +375,18 @@ class tiny_chain:
                     if results and isinstance(results, list) and len(results) > 0:
                         first_url = results[0].get("href")
                         if first_url:
-                            tool_sequence.append({
-                                "tool": tool.name,
-                                "arguments": {"url": first_url, "action": "visit"}
-                            })
+                            tool_sequence.append(
+                                {
+                                    "tool": tool.name,
+                                    "arguments": {"url": first_url, "action": "visit"},
+                                }
+                            )
                             tools_used.append(tool.name)
-                
+
         # Finally, use any remaining tools
-        remaining_tools = [t for t in all_tools 
-                          if t not in search_tools and t not in browser_tools]
+        remaining_tools = [
+            t for t in all_tools if t not in search_tools and t not in browser_tools
+        ]
         for tool in remaining_tools:
             # Try to determine appropriate arguments based on tool parameters
             args = {}
@@ -383,20 +398,17 @@ class tiny_chain:
                 elif param_type == ParamType.BOOLEAN:
                     args[param_name] = True
                 # Add more parameter types as needed
-                
-            tool_sequence.append({
-                "tool": tool.name,
-                "arguments": args
-            })
+
+            tool_sequence.append({"tool": tool.name, "arguments": args})
             tools_used.append(tool.name)
-            
+
         # Get all tool names for comparison
         all_tool_names = [t.name for t in all_tools]
         unused_tools = [t for t in all_tool_names if t not in tools_used]
-        
+
         # Execute the tool sequence
         self._execute_tool_sequence(task, tool_sequence)
-        
+
         # If the task is still not completed, update it with tool usage information
         if task.status != "completed":
             task.result = {
@@ -404,7 +416,7 @@ class tiny_chain:
                 "tools_used": tools_used,
                 "unused_tools": unused_tools,
                 "all_tools": all_tool_names,
-                "error": "Fallback execution failed but tools were attempted"
+                "error": "Fallback execution failed but tools were attempted",
             }
             task.status = "completed"
 
@@ -412,7 +424,7 @@ class tiny_chain:
         """
         Executes ALL tools in sequence, passing outputs from one tool to the next.
         Each tool's output is used to construct meaningful input for the next tool.
-        
+
         Args:
             task: The task to execute
             _unused_context: Kept for compatibility but not used
@@ -423,7 +435,7 @@ class tiny_chain:
             task.status = "failed"
             task.error = "No tools available for execution."
             return
-            
+
         # Initialize our execution sequence and tracking
         tool_sequence = []
         tools_used = []
@@ -433,40 +445,36 @@ class tiny_chain:
             "urls_found": [],
             "search_results": [],
             "browser_results": [],
-            "analysis_results": []
+            "analysis_results": [],
         }
-        
+
         # Execute each tool and feed results forward
         for tool in all_tools:
             try:
                 # Prepare arguments based on previous results
                 args = self._prepare_tool_args(tool, execution_context)
-                
+
                 # Execute the tool
                 result = tool.func(**args)
-                
+
                 # Store the result
-                step_result = {
-                    "tool": tool.name,
-                    "arguments": args,
-                    "result": result
-                }
+                step_result = {"tool": tool.name, "arguments": args, "result": result}
                 tool_sequence.append(step_result)
                 tools_used.append(tool.name)
-                
+
                 # Update execution context with new results
                 self._update_execution_context(execution_context, tool.name, result)
-                
+
             except Exception as e:
                 print(f"Error executing {tool.name}: {e}")
                 # Continue with next tool even if this one fails
-                
+
         # Update task with results
         task.result = {
             "type": "tool_chain",
             "steps": tool_sequence,
             "tools_used": tools_used,
-            "final_context": execution_context
+            "final_context": execution_context,
         }
         task.status = "completed"
 
@@ -475,23 +483,30 @@ class tiny_chain:
         Prepares arguments for a tool based on previous results in the context.
         """
         args = {}
-        
+
         # For search tools
         if "search" in tool.name.lower():
             args["keywords"] = context["task_description"]
-            
+
         # For browser tools
         elif "browser" in tool.name.lower():
             # Use the first unused URL from our collected URLs
-            unused_urls = [url for url in context["urls_found"] 
-                         if url not in [br.get("url") for br in context["browser_results"]]]
+            unused_urls = [
+                url
+                for url in context["urls_found"]
+                if url not in [br.get("url") for br in context["browser_results"]]
+            ]
             if unused_urls:
                 args["url"] = unused_urls[0]
                 args["action"] = "visit"
             else:
                 # If no URLs from search, use the first search result's content
-                args["content"] = str(context["search_results"][0]) if context["search_results"] else context["task_description"]
-                
+                args["content"] = (
+                    str(context["search_results"][0])
+                    if context["search_results"]
+                    else context["task_description"]
+                )
+
         # For analysis/processing tools
         else:
             # Combine all previous results into a meaningful input
@@ -499,7 +514,7 @@ class tiny_chain:
                 "task": context["task_description"],
                 "search_results": context["search_results"],
                 "browser_results": context["browser_results"],
-                "previous_analysis": context["analysis_results"]
+                "previous_analysis": context["analysis_results"],
             }
             # Match the tool's parameter types
             for param_name, param_type in tool.parameters.items():
@@ -509,7 +524,7 @@ class tiny_chain:
                     args[param_name] = len(combined_data["search_results"])
                 elif param_type == ParamType.BOOLEAN:
                     args[param_name] = bool(combined_data["search_results"])
-                    
+
         return args
 
     def _update_execution_context(self, context, tool_name, result):
@@ -524,7 +539,7 @@ class tiny_chain:
                 for item in result["results"]:
                     if isinstance(item, dict) and "href" in item:
                         context["urls_found"].append(item["href"])
-                        
+
         # Handle browser results
         elif "browser" in tool_name.lower():
             context["browser_results"].append(result)
@@ -534,14 +549,11 @@ class tiny_chain:
                     context["urls_found"].extend(result["links"])
                 if "url" in result:
                     context["urls_found"].append(result["url"])
-                    
+
         # Handle other tool results
         else:
-            context["analysis_results"].append({
-                "tool": tool_name,
-                "result": result
-            })
-            
+            context["analysis_results"].append({"tool": tool_name, "result": result})
+
         # Update current_data with latest result
         context["current_data"] = result
 

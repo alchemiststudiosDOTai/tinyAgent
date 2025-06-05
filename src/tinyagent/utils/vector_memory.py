@@ -1,24 +1,27 @@
+import threading
+import time
+import uuid
+from typing import Any, Dict, List, Optional
+
 import chromadb
 from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
-import os
-import time
-import threading
-import uuid
-from typing import Optional, Dict, Any, List, Tuple
+
 from .embedding_provider import EmbeddingProvider
+
 
 class VectorMemory:
     """
     VectorMemory provides a vector-based memory system using ChromaDB as the backend.
     It supports configurable persistence, embedding models, and collection management.
     """
+
     def __init__(
         self,
         persistence_directory: Optional[str] = None,
         embedding_model: str = "all-MiniLM-L6-v2",
         collection_name: str = "tinyagent_memory",
-        embedding_provider: Optional[EmbeddingProvider] = None
+        embedding_provider: Optional[EmbeddingProvider] = None,
     ):
         """
         Initialize the VectorMemory system.
@@ -39,10 +42,12 @@ class VectorMemory:
         self._embedding_cache = {}  # text -> embedding
 
     def _init_chromadb(self):
-        self.chroma_client = chromadb.Client(Settings(
-            persist_directory=self.persistence_directory
-        ))
-        self.collection = self.chroma_client.get_or_create_collection(self.collection_name)
+        self.chroma_client = chromadb.Client(
+            Settings(persist_directory=self.persistence_directory)
+        )
+        self.collection = self.chroma_client.get_or_create_collection(
+            self.collection_name
+        )
 
     def _init_embedding_model(self):
         # Only used if no embedding_provider is given
@@ -77,7 +82,7 @@ class VectorMemory:
         return {
             "role": role,
             "timestamp": time.time(),
-            "token_count": self.count_tokens(content)
+            "token_count": self.count_tokens(content),
         }
 
     @staticmethod
@@ -103,7 +108,7 @@ class VectorMemory:
                         ids=ids,
                         documents=contents,
                         metadatas=metas,
-                        embeddings=embeddings
+                        embeddings=embeddings,
                     )
             else:
                 if not content:
@@ -115,7 +120,7 @@ class VectorMemory:
                     ids=[doc_id],
                     documents=[content],
                     metadatas=[meta],
-                    embeddings=[emb]
+                    embeddings=[emb],
                 )
 
     def fetch(self, query: str, k: int = 5) -> List[Dict[str, Any]]:
@@ -144,7 +149,9 @@ class VectorMemory:
         items.sort(key=lambda x: x["metadata"].get("timestamp", 0), reverse=True)
         return items[:k]
 
-    def fetch_by_similarity(self, query: str, threshold: float = 0.7, max_results: int = 10) -> List[Dict[str, Any]]:
+    def fetch_by_similarity(
+        self, query: str, threshold: float = 0.7, max_results: int = 10
+    ) -> List[Dict[str, Any]]:
         """Return msgs whose cosine-similarity ≥ threshold (≈ 1-distance)."""
         if not query:
             raise ValueError("Query must not be empty.")
@@ -193,10 +200,12 @@ class VectorMemory:
         return {
             "count": count,
             "collection_name": self.collection_name,
-            "persist_directory": self.persistence_directory
+            "persist_directory": self.persistence_directory,
         }
 
-    def _truncate(self, items: List[Dict[str, Any]], max_tokens: int) -> List[Dict[str, Any]]:
+    def _truncate(
+        self, items: List[Dict[str, Any]], max_tokens: int
+    ) -> List[Dict[str, Any]]:
         """Truncate items so total token count does not exceed max_tokens."""
         total = 0
         out = []
@@ -208,9 +217,10 @@ class VectorMemory:
             total += tokens
         return out
 
+
 # Example usage (for testing):
 if __name__ == "__main__":
     vm = VectorMemory()
     print(f"ChromaDB collection: {vm.collection_name}")
     print(f"Persistence dir: {vm.persistence_directory}")
-    print(f"Embedding model: {vm.embedding_model_name}") 
+    print(f"Embedding model: {vm.embedding_model_name}")

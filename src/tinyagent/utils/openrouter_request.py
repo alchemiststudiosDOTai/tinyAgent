@@ -5,10 +5,11 @@ This module provides a utility function to build the API request payload,
 including schema-enforced structured outputs if enabled in config.
 """
 
-from typing import List, Dict, Any, Optional
 import logging
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
 
 def build_openrouter_payload(
     messages: List[Dict[str, str]],
@@ -16,7 +17,7 @@ def build_openrouter_payload(
     context: Optional[Dict[str, Any]] = None,
     model: Optional[str] = None,
     temperature: Optional[float] = None,
-    extra_params: Optional[Dict[str, Any]] = None
+    extra_params: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Build the OpenRouter API request payload.
@@ -32,9 +33,7 @@ def build_openrouter_payload(
     Returns:
         Payload dictionary ready to send to OpenRouter API.
     """
-    payload = {
-        "messages": messages
-    }
+    payload = {"messages": messages}
 
     # Add model if provided or from config
     if model:
@@ -54,7 +53,9 @@ def build_openrouter_payload(
 
     # Inject response_format with schema if enabled
     if config.get("structured_outputs", False):
-        logger.info("\n[OpenRouterRequest] Structured outputs ENABLED. Adding response_format schema to payload.")
+        logger.info(
+            "\n[OpenRouterRequest] Structured outputs ENABLED. Adding response_format schema to payload."
+        )
         payload["response_format"] = {
             "type": "json_schema",
             "json_schema": {
@@ -67,26 +68,24 @@ def build_openrouter_payload(
                         "arguments": {
                             "type": "object",
                             "description": "Tool parameters",
-                            "additionalProperties": False
-                        }
+                            "additionalProperties": False,
+                        },
                     },
                     "required": ["tool", "arguments"],
-                    "additionalProperties": False
-                }
-            }
+                    "additionalProperties": False,
+                },
+            },
         }
         payload["provider"] = {"require_parameters": True}
     else:
-        logger.info("\n[OpenRouterRequest] Structured outputs DISABLED. Building standard payload without schema.")
+        logger.info(
+            "\n[OpenRouterRequest] Structured outputs DISABLED. Building standard payload without schema."
+        )
 
     return payload
 
 
-def make_openrouter_request(
-    config: dict,
-    api_key: str,
-    payload: dict
-) -> dict:
+def make_openrouter_request(config: dict, api_key: str, payload: dict) -> dict:
     """
     Conditionally call OpenRouter using either:
     1) direct requests.post (if structured_outputs is True), or
@@ -99,7 +98,7 @@ def make_openrouter_request(
     logger.debug(f"Using structured_outputs: {config.get('structured_outputs', False)}")
     logger.debug(f"Model in payload: {payload.get('model')}")
     logger.debug(f"API Key present: {bool(api_key)}")
-    
+
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
@@ -111,16 +110,16 @@ def make_openrouter_request(
         logger.debug(f"Making direct request to: {url}")
         logger.debug(f"Request headers: {headers}")
         logger.debug(f"Request payload: {payload}")
-        
+
         response = requests.post(
             url,
             headers=headers,
             json=payload,
-            timeout=30  # Add timeout to prevent hanging
+            timeout=30,  # Add timeout to prevent hanging
         )
         logger.debug(f"Response status: {response.status_code}")
         logger.debug(f"Response content (first 500 chars): {response.text[:500]}")
-        
+
         response.raise_for_status()
         data = response.json()
         return data
@@ -128,13 +127,13 @@ def make_openrouter_request(
         # Use the base URL from config
         base_url = config.get("base_url", "https://openrouter.ai/api/v1")
         logger.debug(f"Using base URL: {base_url}")
-        
+
         client = OpenAI(base_url=base_url, api_key=api_key)
         completion = client.chat.completions.create(
             **payload,
             extra_headers={
                 "HTTP-Referer": "https://tinyagent.xyz",
-            }
+            },
         )
         # Convert SDK response to dict-like for uniform handling
         if hasattr(completion, "model_dump"):

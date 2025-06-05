@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Test the minimal ReactAgent example to ensure it works correctly."""
 
-import pytest
 
 from tinyagent import ReactAgent, tool
 from tinyagent.react.react_agent import Scratchpad

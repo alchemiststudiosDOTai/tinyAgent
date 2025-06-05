@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # publish_to_pip.sh  —  build & upload with **automatic patch‑increment**
 # -----------------------------------------------------------------------------
-# 1. Find highest version among:
+# 1. Find highest version among:
 #       • the latest Git tag   (vX.Y.Z)
 #       • the latest on PyPI   (tiny-agent-os)
-# 2. Increment patch → X.Y.(Z+1)
-# 3. Tag, build, upload to **real** PyPI — no questions asked.
+# 2. Increment patch → X.Y.(Z+1)
+# 3. Build and upload to **real** PyPI (git tagging is manual)
 # -----------------------------------------------------------------------------
 
 set -euo pipefail
@@ -62,9 +62,8 @@ log "Next version    : $VERSION"
 
 export SETUPTOOLS_SCM_PRETEND_VERSION="$VERSION"
 
-# ── tag & push --------------------------------------------------------------
-git tag -m "Release v$VERSION" "v$VERSION"
-git push --tags
+# ── skip git tagging (manual process) ----------------------------------------
+log "Skipping git tag creation (manual process)"
 
 # ── build -------------------------------------------------------------------
 log "Building wheel/sdist"; python3 -m build

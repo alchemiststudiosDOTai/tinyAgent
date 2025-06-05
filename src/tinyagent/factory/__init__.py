@@ -11,8 +11,8 @@ from .dynamic_agent_factory import DynamicAgentFactory
 from .orchestrator import Orchestrator, TaskStatus
 
 __all__ = [
-    'AgentFactory',
-    'DynamicAgentFactory',
-    'Orchestrator',
-    'TaskStatus',
+    "AgentFactory",
+    "DynamicAgentFactory",
+    "Orchestrator",
+    "TaskStatus",
 ]
