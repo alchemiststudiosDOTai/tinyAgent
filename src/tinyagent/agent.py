@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import time
+from pathlib import Path
 from typing import (
     Any,
     Callable,
@@ -42,6 +43,43 @@ from .tool import Tool
 from .utils.type_converter import convert_to_expected_type
 
 # ----------------------------------
+
+
+def _load_env() -> Optional[str]:
+    """
+    Load environment variables from .env file with proper fallback logic.
+    
+    This function replaces the previous buggy logic that incorrectly used
+    os.getenv() with file paths instead of environment variable names.
+    
+    Priority order:
+    1. TINYAGENT_ENV environment variable (explicit override)
+    2. .env file in current working directory  
+    3. .env file in repository root (2 levels up from this file)
+    
+    Returns:
+        Path to the .env file that was loaded, or None if no file was found
+    """
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        logger.warning("python-dotenv not available, skipping .env loading")
+        return None
+    
+    # Priority order for .env file discovery:
+    env_path = (
+        os.getenv("TINYAGENT_ENV")                                   # 1. explicit override
+        or (Path.cwd() / ".env" if (Path.cwd() / ".env").exists() else None)  # 2. CWD .env
+        or (Path(__file__).resolve().parents[2] / ".env" if (Path(__file__).resolve().parents[2] / ".env").exists() else None)  # 3. repo-root fallback
+    )
+    
+    if env_path:
+        load_dotenv(env_path)
+        logger.debug(f"Loaded environment variables from {env_path}")
+        return str(env_path)
+    else:
+        logger.debug("No .env file found in standard locations")
+        return None
 
 
 def get_choices(completion):
@@ -224,26 +262,9 @@ class Agent:
         else:
             self.config = config
 
-        # Try to load environment variables from project root
-        project_root = None
-        try:
-            from dotenv import load_dotenv
-
-            env_path = os.getenv("TINYAGENT_ENV")
-            if not env_path:
-                cwd_env = os.getenv(os.path.join(os.getcwd(), ".env"))
-                if cwd_env:
-                    env_path = cwd_env
-                else:
-                    project_root = os.path.dirname(
-                        os.path.dirname(os.path.abspath(__file__))
-                    )
-                    env_path = os.path.join(project_root, ".env")
-            load_dotenv(env_path)
-            logger.debug(f"Loaded environment variables from {env_path}")
-        except ImportError:
-            logger.warning("python-dotenv not available, skipping .env loading")
-            project_root = None
+        # Load environment variables using helper function
+        env_path = _load_env()
+        project_root = Path(__file__).resolve().parents[2] if env_path else None
 
         # Get API key
         self.api_key = os.getenv(self.ENV_API_KEY)
@@ -991,24 +1012,8 @@ def get_llm(model: Optional[str] = None) -> Callable[[str], str]:
     Raises:
         ConfigurationError: If API key is missing or if base_url is not configured
     """
-    # Try to load environment variables from project root
-    try:
-        from dotenv import load_dotenv
-
-        env_path = os.getenv("TINYAGENT_ENV")
-        if not env_path:
-            cwd_env = os.path.join(os.getcwd(), ".env")
-            if os.path.isfile(cwd_env):
-                env_path = cwd_env
-            else:
-                project_root = os.path.dirname(
-                    os.path.dirname(os.path.abspath(__file__))
-                )
-                env_path = os.path.join(project_root, ".env")
-        load_dotenv(env_path)
-        logger.debug(f"Loaded environment variables from {env_path}")
-    except ImportError:
-        logger.warning("python-dotenv not available, skipping .env loading")
+    # Load environment variables using helper function
+    _load_env()
 
     api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:

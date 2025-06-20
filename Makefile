@@ -1,4 +1,4 @@
-.PHONY: lint format install-lint fix fix-unsafe lint-stats clean test
+.PHONY: lint format install-lint fix fix-unsafe lint-stats clean test test-char test-char-basic test-char-fast
 
 install-lint:
 	pip install -e ".[lint]"
@@ -85,6 +85,9 @@ help:
 	@echo "  make clean         - Clean build artifacts"
 	@echo "  make test          - Run tests"
 	@echo "  make test-fast     - Run tests with fail fast"
+	@echo "  make test-char     - Run character tests for Agent class"
+	@echo "  make test-char-basic - Run basic character tests only"
+	@echo "  make test-char-fast  - Run character tests (stop on first failure)"
 	@echo ""
 	@echo "Current linting status:"
 	@make lint-stats
@@ -98,4 +101,31 @@ test:
 	pytest tests/ -v
 
 test-fast:
-	pytest tests/ -v -x --tb=short 
+	pytest tests/ -v -x --tb=short
+
+test-char:
+	@echo "Running character tests for Agent class..."
+	@if [ -z "$$OPENROUTER_API_KEY" ]; then \
+		echo "Loading OPENROUTER_API_KEY from .env file..."; \
+		export $$(grep -v '^#' .env | xargs) && pytest tests/character-test/ -v; \
+	else \
+		pytest tests/character-test/ -v; \
+	fi
+
+test-char-basic:
+	@echo "Running basic character tests for Agent class..."
+	@if [ -z "$$OPENROUTER_API_KEY" ]; then \
+		echo "Loading OPENROUTER_API_KEY from .env file..."; \
+		export $$(grep -v '^#' .env | xargs) && pytest tests/character-test/test_basic.py -v; \
+	else \
+		pytest tests/character-test/test_basic.py -v; \
+	fi
+
+test-char-fast:
+	@echo "Running character tests (fast mode - stop on first failure)..."
+	@if [ -z "$$OPENROUTER_API_KEY" ]; then \
+		echo "Loading OPENROUTER_API_KEY from .env file..."; \
+		export $$(grep -v '^#' .env | xargs) && pytest tests/character-test/ -v -x --tb=short; \
+	else \
+		pytest tests/character-test/ -v -x --tb=short; \
+	fi 
