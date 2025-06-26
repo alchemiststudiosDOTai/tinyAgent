@@ -48,15 +48,15 @@ from .utils.type_converter import convert_to_expected_type
 def _load_env() -> Optional[str]:
     """
     Load environment variables from .env file with proper fallback logic.
-    
+
     This function replaces the previous buggy logic that incorrectly used
     os.getenv() with file paths instead of environment variable names.
-    
+
     Priority order:
     1. TINYAGENT_ENV environment variable (explicit override)
-    2. .env file in current working directory  
+    2. .env file in current working directory
     3. .env file in repository root (2 levels up from this file)
-    
+
     Returns:
         Path to the .env file that was loaded, or None if no file was found
     """
@@ -65,14 +65,20 @@ def _load_env() -> Optional[str]:
     except ImportError:
         logger.warning("python-dotenv not available, skipping .env loading")
         return None
-    
+
     # Priority order for .env file discovery:
     env_path = (
-        os.getenv("TINYAGENT_ENV")                                   # 1. explicit override
-        or (Path.cwd() / ".env" if (Path.cwd() / ".env").exists() else None)  # 2. CWD .env
-        or (Path(__file__).resolve().parents[2] / ".env" if (Path(__file__).resolve().parents[2] / ".env").exists() else None)  # 3. repo-root fallback
+        os.getenv("TINYAGENT_ENV")  # 1. explicit override
+        or (
+            Path.cwd() / ".env" if (Path.cwd() / ".env").exists() else None
+        )  # 2. CWD .env
+        or (
+            Path(__file__).resolve().parents[2] / ".env"
+            if (Path(__file__).resolve().parents[2] / ".env").exists()
+            else None
+        )  # 3. repo-root fallback
     )
-    
+
     if env_path:
         load_dotenv(env_path)
         logger.debug(f"Loaded environment variables from {env_path}")

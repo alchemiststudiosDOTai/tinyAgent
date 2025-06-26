@@ -45,6 +45,12 @@ pytest_cache/
 coverage.*
 output/
 
+# Ruff cache
+.ruff_cache/
+
+# Aider cache
+.aider.tags.cache.v4/
+
 # Virtual Environment
 venv/
 ENV/
