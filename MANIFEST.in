@@ -1,4 +1,0 @@
-recursive-include src/tinyagent/prompts *.md
-recursive-include src/tinyagent/prompts/system *.md
-recursive-include src/tinyagent/prompts/tools *.md
-recursive-include src/tinyagent/prompts/workflows *.md

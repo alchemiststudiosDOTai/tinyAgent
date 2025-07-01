@@ -1,30 +1,13 @@
-# Environment and configuration
-.pypirc
-.aider*
-.env
-.env.*
-.conf
-config.local.yml
-api-key
-openrouter=*
-*.pem
-*.key
-secrets/
-
-# Project specific
-tinyAgent_output/
-downloads/
-**/node_modules/
-EVAL/
-uv.lock
-
-# Python
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
+
+# C extensions
 *.so
+
+# Distribution / packaging
 .Python
-env/
 build/
 develop-eggs/
 dist/
@@ -36,111 +19,156 @@ lib64/
 parts/
 sdist/
 var/
+wheels/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-.pytest_cache/
-pytest_cache/
-.coverage.*
-coverage.*
-output/
+MANIFEST
 
-# Virtual Environment
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# pdm
+.pdm.toml
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
 venv/
 ENV/
 env.bak/
 venv.bak/
-.venv/
-virtualenv/
-.python-version
 
-# IDEs and editors
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# IDEs
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
-.DS_Store
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-*.sublime-workspace
-*.sublime-project
 
-# Visual artifacts and UI
-node_modules/
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project specific
 *.log
-logs/
 *.sqlite
 *.db
-*.out
-.cache/
-tmp/
-temp/
-.tmp/
+run_example.py
 
-# Jupyter Notebook
-.ipynb_checkpoints
+# Temporary files
+*.tmp
+*.bak
+*.orig
+*~
 
-# Testing
-.coverage
-htmlcov/
-.tox/
-.nox/
-.hypothesis/
-.pytest_cache/
-orgDeploy.sh
+# API keys and secrets
+.env
+.env.*
+*.key
+*.pem
 
-# Compiled files
-*.com
-*.class
-*.dll
-*.exe
-*.o
-*.a
-*.dylib
-
-# Package files
-*.7z
-*.dmg
-*.gz
-*.iso
-*.jar
-*.rar
-*.tar
-*.zip
-
-# OS generated files
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-output/research_results/*.json
-
-# Added by Claude Task Master
-# Logs
-logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-dev-debug.log
-# Dependency directories
-# Environment variables
-# Editor directories and files
-.idea
-.vscode
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-# OS specific
-# Task files
-mcp.json
-roadmap.md
-
-# Added by Claude Task Master
-tasks.json
-tasks/ 
+# OpenAI/LLM related
+.openai/
+api_keys.txt

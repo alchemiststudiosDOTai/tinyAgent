@@ -1,0 +1,25 @@
+{
+  "component": "example_component",
+  "version": "1.0.0",
+  "dependencies": {
+    "internal": ["component_a", "component_b"],
+    "external": ["library_x", "library_y"]
+  },
+  "interfaces": {
+    "public": [
+      {
+        "name": "processData",
+        "signature": "processData(input: DataType): Result",
+        "purpose": "Processes input data and returns result"
+      }
+    ]
+  },
+  "error_patterns": [
+    {
+      "pattern": "NullPointerException in processData",
+      "solution": "Check input validation in line 42",
+      "frequency": 3
+    }
+  ],
+  "last_analyzed": "${TIMESTAMP}"
+}

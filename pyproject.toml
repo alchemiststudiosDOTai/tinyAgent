@@ -1,86 +1,48 @@
-[build-system]
-requires = ["setuptools>=77", "wheel", "setuptools_scm"]
-build-backend = "setuptools.build_meta"
-
 [project]
-name = "tiny_agent_os"
-dynamic = ["version"]
-description = "A streamlined framework for building powerful LLM-powered agents that can solve complex tasks through tool execution, orchestration, and dynamic capability creation."
-requires-python = ">=3.8"
-authors = [{name = "(x) @tunahorse21", email = "info@alchemiststudios.ai"}]
-readme = "README.md"
-license = "BUSL-1.1"
-license-files = ["LICENSE"]
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "Operating System :: OS Independent",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
-]
-
+name = "tinyagent"
+version = "0.1.0"
 dependencies = [
-    "python-dotenv>=1.0.0",
-    "requests>=2.31.0",
-    "openai>=1.0.0",
-    "pyyaml>=6.0.1",
-    "jinja2>=3.1.2",
-    "click>=8.1.6",
-    "rich>=13.7.1",
-    "jsonschema>=4.10.3",
-    "typing-extensions>=4.10.0",
-    "colorama>=0.4.6",
-    "regex>=2023.0.0",
-    "beautifulsoup4>=4.12.0",
-    "aiohttp>=3.8.0",
-    "opentelemetry-api>=1.21.0",
-    "opentelemetry-sdk>=1.21.0",
-    "opentelemetry-instrumentation>=0.42b0",
-    "opentelemetry-exporter-otlp>=1.21.0",
+    "openai>=1.0",
 ]
 
-[project.urls]
-"Homepage" = "https://github.com/alchemiststudiosai/tinyAgent"
-"Bug Tracker" = "https://github.com/alchemiststudiosai/tinyAgent/issues"
-"Documentation" = "https://github.com/alchemiststudiosai/tinyAgent/blob/main/README.md"
+[tool.ruff]
+# Set the maximum line length to 100
+line-length = 100
 
-[project.scripts]
-tinyagent = "tinyagent.cli:main"
-traceboard = "tinyagent.observability.traceboard:main"
-tinyagent-config = "tinyagent.config:cli"
+# Assume Python 3.10
+target-version = "py310"
 
-[tool.setuptools]
-include-package-data = true
-
-[tool.setuptools.packages.find]
-where = ["src"]
-include = ["tinyagent*"]
-
-[tool.setuptools.package-data]
-"tinyagent.prompts" = ["**/*.md"]
-"tinyagent.observability" = ["templates/*.html", "static/*", "config/*.yml"]
-
-[tool.setuptools_scm]
-# Use this section to configure setuptools_scm
-# Writes version to src/tinyagent/_version.py
-version_file = "src/tinyagent/_version.py"
-# Provide a fallback version if git info is unavailable
-fallback_version = "0.1.0"
-
-[project.optional-dependencies]
-rag-local = [
-    "chromadb>=0.4.22",
-    "sentence-transformers>=2.2.2"
-]
-rag-api = [
-    "chromadb>=0.4.22"
-]
-rag = [
-    "tiny_agent_os[rag-local]",
-    "tiny_agent_os[rag-api]"
+# Exclude directories
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    "build",
+    "dist",
 ]
 
-traceboard = [
-    "fastapi>=0.104.0", # Using a known stable version
-    "uvicorn[standard]>=0.23.2", # Standard includes performance extras
-    "jinja2>=3.1.2", # Already in base, but good to list explicitly for clarity
-    "aiosqlite>=0.19.0"  # Add SQLite async support for traceboard
+[tool.ruff.lint]
+# Enable pycodestyle (E), pyflakes (F), and isort (I) rules
+select = ["E", "F", "I"]
+
+# Ignore specific rules
+ignore = [
+    "E501",  # Line too long (handled by formatter)
 ]
+
+[tool.ruff.lint.isort]
+# Use a single line for imports
+force-single-line = false
+# Combine imports from the same module
+combine-as-imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"

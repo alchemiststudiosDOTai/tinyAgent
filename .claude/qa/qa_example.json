@@ -1,0 +1,20 @@
+{
+  "id": "qa_001",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "component": "data_processor",
+  "file": "src/processors/data_processor.ts",
+  "error_type": "TypeMismatchError",
+  "question": "Why is TypeMismatchError thrown when processing user data?",
+  "context": {
+    "error_message": "TypeMismatchError: Expected string, got number",
+    "stack_trace": "at validateInput (data_processor.ts:45)",
+    "input_data": { "userId": 12345, "name": "John" }
+  },
+  "solution": {
+    "fix": "Convert userId to string before validation",
+    "code_change": "const validatedId = String(input.userId);",
+    "reasoning": "The API contract expects userId as string but frontend sends number"
+  },
+  "prevention": "Add runtime type coercion in API gateway",
+  "related_issues": ["qa_002", "qa_015"]
+}
