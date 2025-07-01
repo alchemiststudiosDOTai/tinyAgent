@@ -102,8 +102,8 @@ Found a bug? Have a feature request? [Open an issue](https://github.com/alchemis
 ## License
 
 **Business Source License 1.1**
-- ✅ Free for individuals and small businesses (< $1M revenue)
-- 📧 Enterprise license required for larger companies
+- Free for individuals and small businesses (< $1M revenue)
+- Enterprise license required for larger companies
 
 Contact: [info@alchemiststudios.ai](mailto:info@alchemiststudios.ai)
 
