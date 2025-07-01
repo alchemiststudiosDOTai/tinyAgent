@@ -296,6 +296,10 @@ class TinyCodeAgent:
                 # Try to extract available keys from the error context
                 if "get_weather" in code:
                     error_msg += "Note: get_weather() returns dict with keys: 'temp', 'condition', 'humidity'"
+                elif "fetch_stock_data" in code:
+                    error_msg += "Note: fetch_stock_data() returns dict with keys: 'price', 'change', 'volume', 'high', 'low'"
+                elif "get_exchange_rate" in code:
+                    error_msg += "Note: get_exchange_rate() returns a float value directly"
                 # Report error
                 messages += [
                     {"role": "assistant", "content": reply},

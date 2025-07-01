@@ -13,6 +13,10 @@ You must respond with valid JSON in one of these formats:
 2. To provide a final answer:
 {{"answer": "Your answer here"}}
 
+3. To think out loud (optional):
+{{"scratchpad": "Your reasoning here", "tool": "tool_name", "arguments": {{...}}}}
+{{"scratchpad": "Your reasoning here", "answer": "Your answer"}}
+
 Think step by step. Use tools when needed to gather information before answering."""
 
 BAD_JSON = (

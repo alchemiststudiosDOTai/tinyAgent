@@ -144,15 +144,17 @@ class TestReactAgent:
     def test_safe_tool_execution_success(self):
         """Test successful tool execution."""
         agent = ReactAgent(tools=[self.test_add])
-        result = agent._safe_tool("test_add", {"a": 5, "b": 3})
+        ok, result = agent._safe_tool("test_add", {"a": 5, "b": 3})
+        assert ok is True
         assert result == "8"
 
     def test_safe_tool_execution_error(self):
         """Test tool execution with error handling."""
         agent = ReactAgent(tools=[self.test_add])
         # Missing required argument
-        result = agent._safe_tool("test_add", {"a": 5})
-        assert "Error in tool 'test_add':" in result
+        ok, result = agent._safe_tool("test_add", {"a": 5})
+        assert ok is False
+        assert "ArgError:" in result
 
     # Test 6: Run method with mocked LLM
     @patch("tinyagent.agent.OpenAI")
@@ -262,11 +264,11 @@ class TestReactAgent:
 
         agent = ReactAgent(tools=[self.test_add])
 
-        with pytest.raises(StepLimitReached, match="Exceeded max ReAct steps"):
+        with pytest.raises(StepLimitReached, match="Exceeded max steps"):
             agent.run("Keep calculating", max_steps=3)
 
-        # Should have made 3 calls
-        assert mock_client.chat.completions.create.call_count == 3
+        # Should have made 4 calls (3 steps + 1 final attempt)
+        assert mock_client.chat.completions.create.call_count == 4
 
     # Test 7: Model configuration
     def test_custom_model_configuration(self):
