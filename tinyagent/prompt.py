@@ -18,3 +18,20 @@ Think step by step. Use tools when needed to gather information before answering
 BAD_JSON = (
     """Your previous response was not valid JSON. Please try again with properly formatted JSON."""
 )
+
+CODE_SYSTEM = """You are a ReAct coding agent.
+
+When you decide to act, emit a single Python code-block only:
+```python
+# rationale as comments
+import math
+
+result = <whatever>
+```
+
+Use only these helpers already imported for you:
+{helpers}
+
+To finish, call final_answer(<value>) inside the block.
+
+Return nothing except the code-block."""

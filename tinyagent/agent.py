@@ -23,7 +23,7 @@ from .tools import Tool, get_registry  # our Tool wrapper and registry
 __all__ = ["ReactAgent"]
 
 # ---------------------------------------------------------------------------
-MAX_STEPS: Final = 6
+MAX_STEPS: Final = 10
 TEMP_STEP: Final = 0.2
 
 
@@ -41,7 +41,8 @@ class ReactAgent:
     tools
         Sequence of Tool objects (typically produced by @tool decorator).
     model
-        OpenAI model name. Default ``gpt-4o-mini``.
+        Model name (OpenAI or OpenRouter format). Default ``gpt-4o-mini``.
+        Examples: ``gpt-4``, ``anthropic/claude-3.5-haiku``, ``meta-llama/llama-3.2-3b-instruct``
     api_key
         Optional OpenAI key; falls back to ``OPENAI_API_KEY`` env var.
     """
