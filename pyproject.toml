@@ -1,5 +1,5 @@
 [project]
-name = "tinyagent"
+name = "tiny_agent_os"
 version = "0.1.0"
 dependencies = [
     "openai>=1.0",

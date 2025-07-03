@@ -8,11 +8,31 @@ repos:
       # Run the formatter
       - id: ruff-format
 
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: detect-private-key
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        args: [--ignore-missing-imports, --no-strict-optional]
+
   - repo: local
     hooks:
       - id: pytest
         name: pytest
-        entry: bash -c 'source venv/bin/activate && python -m pytest tests/test_agent.py tests/test_code_agent.py -v'
+        entry: bash -c 'source venv/bin/activate && export $(cat .env | xargs) && python -m pytest tests/test_agent.py tests/test_code_agent.py -v'
         language: system
         pass_filenames: false
         always_run: true

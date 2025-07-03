@@ -76,11 +76,13 @@ class PythonExecutor:
             Set of module names allowed to be imported (e.g., {"math", "json"})
         """
         # Build safe globals with restricted builtins
-        self._globals = {"__builtins__": {k: __builtins__[k] for k in self._SAFE_BUILTINS}}
+        import builtins
+
+        self._globals = {"__builtins__": {k: getattr(builtins, k) for k in self._SAFE_BUILTINS}}
         # Add __import__ for controlled imports
         self._globals["__builtins__"]["__import__"] = self._safe_import
         # Add final_answer function that returns sentinel
-        self._globals["final_answer"] = self._final_answer
+        self._globals["final_answer"] = self._final_answer  # type: ignore[assignment]
         # Track allowed imports
         self._allowed = set(extra_imports or ())
 
@@ -111,7 +113,7 @@ class PythonExecutor:
             exec(code, ns)
 
             # Check if we have a final answer stored
-            if "_final_result" in ns:
+            if "_final_result" in ns and isinstance(ns["_final_result"], _Final):
                 return str(ns["_final_result"].value), True
 
             # Otherwise return stdout
@@ -206,7 +208,7 @@ class TinyCodeAgent:
 
         # Add tools to executor globals
         for name, tool in self._tool_map.items():
-            self._executor._globals[name] = tool.fn
+            self._executor._globals[name] = tool.fn  # type: ignore[assignment]
 
         # Render immutable system prompt once
         self._system_prompt: str = CODE_SYSTEM.format(helpers=", ".join(self._tool_map.keys()))
