@@ -52,7 +52,7 @@ export OPENAI_BASE_URL=https://openrouter.ai/api/v1
 
 Get your key at [openrouter.ai](https://openrouter.ai)
 
-> **Note**: This is a complete rewrite. The old version (0.72) will be frozen soon and maintained for critical fixes only. New development happens here.
+> **Note**: This is a clean rewrite focused on keeping tinyAgent truly tiny. For the legacy codebase (v0.72.x), install with `pip install tiny-agent-os==0.72.18` or see the [`0.72` branch](https://github.com/alchemiststudiosDOTai/tinyAgent/tree/0.72).
 
 ## More Examples
 
