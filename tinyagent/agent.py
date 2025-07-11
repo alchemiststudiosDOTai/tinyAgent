@@ -114,7 +114,7 @@ class ReactAgent:
 
         for step in range(max_steps):
             if verbose:
-                print(f"\n{'='*40} STEP {step + 1}/{max_steps} {'='*40}")
+                print(f"\n{'=' * 40} STEP {step + 1}/{max_steps} {'=' * 40}")
                 print("\nSENDING TO LLM:")
                 for msg in messages[-2:]:
                     content_preview = (
@@ -159,9 +159,9 @@ class ReactAgent:
             # Final answer path
             if "answer" in payload:
                 if verbose:
-                    print(f"\n{'='*80}")
+                    print(f"\n{'=' * 80}")
                     print(f"FINAL ANSWER: {payload['answer']}")
-                    print(f"{'='*80}\n")
+                    print(f"{'=' * 80}\n")
                 return str(payload["answer"])
 
             # Tool invocation path
@@ -192,7 +192,7 @@ class ReactAgent:
 
         # Step limit hit → ask once for best guess
         if verbose:
-            print(f"\n{'='*40} FINAL ATTEMPT {'='*40}")
+            print(f"\n{'=' * 40} FINAL ATTEMPT {'=' * 40}")
             print("[!] Step limit reached. Asking for final answer...")
 
         final_try = self._chat(
@@ -203,9 +203,9 @@ class ReactAgent:
         payload = self._try_parse_json(final_try) or {}
         if "answer" in payload:
             if verbose:
-                print(f"\n{'='*80}")
+                print(f"\n{'=' * 80}")
                 print(f"FINAL ANSWER: {payload['answer']}")
-                print(f"{'='*80}\n")
+                print(f"{'=' * 80}\n")
             return payload["answer"]
         raise StepLimitReached("Exceeded max steps without an answer.")
 

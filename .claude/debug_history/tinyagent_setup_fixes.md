@@ -1,6 +1,6 @@
 # TinyAgent Setup and Example Testing Debug Session
 
-**Date**: 2025-07-01  
+**Date**: 2025-07-01
 **Task**: Test tinyagent library examples and fix setup issues
 
 ## Issues Found and Fixed
@@ -17,7 +17,7 @@
   Available tools:
   {tools}
   ..."""
-  
+
   BAD_JSON = """Your previous response was not valid JSON. Please try again..."""
   ```
 

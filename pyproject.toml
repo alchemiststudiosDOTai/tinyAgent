@@ -30,6 +30,9 @@ Homepage = "https://tinyagent.xyz"
 Repository = "https://github.com/alchemiststudiosDOTai/tinyAgent"
 Issues = "https://github.com/alchemiststudiosDOTai/tinyAgent/issues"
 
+[tool.setuptools]
+packages = ["tinyagent"]
+
 [tool.ruff]
 # Set the maximum line length to 100
 line-length = 100

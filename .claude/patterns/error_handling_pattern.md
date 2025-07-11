@@ -18,11 +18,11 @@ async function robustOperation<T>(
     return { success: true, data: result, context };
   } catch (error) {
     logger.error('Operation failed', { error, context });
-    
+
     if (fallback !== undefined) {
       return { success: false, data: fallback, error, context };
     }
-    
+
     throw new ContextualError(error, context);
   }
 }

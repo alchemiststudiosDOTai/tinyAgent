@@ -255,7 +255,7 @@ class TinyCodeAgent:
 
         for step in range(max_steps):
             if verbose:
-                print(f"\n{'='*40} STEP {step + 1}/{max_steps} {'='*40}")
+                print(f"\n{'=' * 40} STEP {step + 1}/{max_steps} {'=' * 40}")
                 print("\nSENDING TO LLM:")
                 for msg in messages[-2:]:  # Show last 2 messages
                     print(
@@ -280,7 +280,7 @@ class TinyCodeAgent:
                 continue
 
             if verbose:
-                print(f"\nEXTRACTED CODE:\n{'-'*40}\n{code}\n{'-'*40}")
+                print(f"\nEXTRACTED CODE:\n{'-' * 40}\n{code}\n{'-' * 40}")
 
             # Execute code
             try:
@@ -321,9 +321,9 @@ class TinyCodeAgent:
             # Check if we have final answer
             if done:
                 if verbose:
-                    print(f"\n{'='*80}")
+                    print(f"\n{'=' * 80}")
                     print(f"FINAL ANSWER: {result[:MAX_OUTPUT_LENGTH]}")
-                    print(f"{'='*80}\n")
+                    print(f"{'=' * 80}\n")
                 return result[:MAX_OUTPUT_LENGTH]  # Truncate if too long
 
             # Continue with observation

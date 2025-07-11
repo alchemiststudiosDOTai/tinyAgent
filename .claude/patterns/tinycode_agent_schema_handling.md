@@ -10,12 +10,12 @@ When tools return dicts, LLMs often guess wrong field names, leading to KeyError
 @tool
 def get_weather(city: str) -> dict:
     """Get current weather for a city.
-    
+
     Returns dict with keys:
     - temp: int (temperature in Celsius)
     - condition: str (e.g. 'Partly cloudy', 'Sunny', 'Rainy')
     - humidity: int (percentage 0-100)
-    
+
     Example:
         get_weather('Tokyo')
         # Returns: {"temp": 22, "condition": "Partly cloudy", "humidity": 65}

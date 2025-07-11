@@ -2,14 +2,19 @@
 Tests for tinyagent.code_agent
 """
 
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from dotenv import load_dotenv
 
 from tinyagent import tool
 from tinyagent.agent import StepLimitReached
 from tinyagent.code_agent import PythonExecutor, TinyCodeAgent
 from tinyagent.tools import Tool
+
+# Load .env file from project root
+load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
 
 class TestPythonExecutor:
@@ -217,7 +222,7 @@ final_answer(result)
             mock_chat.return_value = """```python
 # Use add tool
 sum_result = add(10, 20)
-# Use multiply tool  
+# Use multiply tool
 product = multiply(sum_result, 2)
 final_answer(product)
 ```"""

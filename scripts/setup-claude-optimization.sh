@@ -27,7 +27,7 @@ print_status() {
 create_directory() {
     local dir_path=$1
     local description=$2
-    
+
     if mkdir -p "${dir_path}" 2>/dev/null; then
         print_status "${GREEN}" "✓ Created: ${description}"
         return 0
@@ -42,7 +42,7 @@ create_readme() {
     local dir_path=$1
     local title=$2
     local description=$3
-    
+
     cat > "${dir_path}/README.md" << EOF
 # ${title}
 
@@ -61,14 +61,14 @@ This directory is part of the Claude-optimized metadata structure designed to en
 ## Last Updated
 ${TIMESTAMP}
 EOF
-    
+
     print_status "${BLUE}" "  Added README.md to ${dir_path}"
 }
 
 # Function to create example metadata file
 create_metadata_example() {
     local dir_path=$1
-    
+
     cat > "${dir_path}/example_component.json" << 'EOF'
 {
   "component": "example_component",
@@ -96,14 +96,14 @@ create_metadata_example() {
   "last_analyzed": "${TIMESTAMP}"
 }
 EOF
-    
+
     print_status "${BLUE}" "  Added example metadata file"
 }
 
 # Function to create pattern example
 create_pattern_example() {
     local dir_path=$1
-    
+
     cat > "${dir_path}/error_handling_pattern.md" << 'EOF'
 # Error Handling Pattern
 
@@ -125,11 +125,11 @@ async function robustOperation<T>(
     return { success: true, data: result, context };
   } catch (error) {
     logger.error('Operation failed', { error, context });
-    
+
     if (fallback !== undefined) {
       return { success: false, data: fallback, error, context };
     }
-    
+
     throw new ContextualError(error, context);
   }
 }
@@ -152,14 +152,14 @@ const result = await robustOperation(
 - Circuit Breaker
 - Retry with Backoff
 EOF
-    
+
     print_status "${BLUE}" "  Added pattern example"
 }
 
 # Function to create cheatsheet example
 create_cheatsheet_example() {
     local dir_path=$1
-    
+
     cat > "${dir_path}/component_cheatsheet.md" << 'EOF'
 # Component Cheatsheet
 
@@ -208,14 +208,14 @@ component.validateConfig()
 - Use connection pooling
 - Enable caching for read-heavy workloads
 EOF
-    
+
     print_status "${BLUE}" "  Added cheatsheet example"
 }
 
 # Function to create QA example
 create_qa_example() {
     local dir_path=$1
-    
+
     cat > "${dir_path}/qa_example.json" << 'EOF'
 {
   "id": "qa_001",
@@ -238,14 +238,14 @@ create_qa_example() {
   "related_issues": ["qa_002", "qa_015"]
 }
 EOF
-    
+
     print_status "${BLUE}" "  Added Q&A example"
 }
 
 # Function to create memory anchor example
 create_memory_anchor_example() {
     local dir_path=$1
-    
+
     cat > "${dir_path}/memory_anchors.md" << 'EOF'
 # Memory Anchors Registry
 
@@ -279,14 +279,14 @@ Reference these anchors in queries like:
 - Remove obsolete anchors during refactoring
 - Update line numbers when code moves
 EOF
-    
+
     print_status "${BLUE}" "  Added memory anchors example"
 }
 
 # Main setup function
 main() {
     print_status "${YELLOW}" "Starting Claude optimization setup..."
-    
+
     # Check if .claude directory already exists and is properly set up
     if [[ -d "${CLAUDE_DIR}" ]]; then
         # Check if all required directories exist
@@ -304,7 +304,7 @@ main() {
             "${CLAUDE_DIR}/scratchpad/archive"
             "${CLAUDE_DIR}/scratchpad/templates"
         )
-        
+
         local all_exist=true
         for dir in "${required_dirs[@]}"; do
             if [[ ! -d "${dir}" ]]; then
@@ -312,7 +312,7 @@ main() {
                 break
             fi
         done
-        
+
         if [[ "${all_exist}" == "true" ]]; then
             print_status "${GREEN}" "✓ ${CLAUDE_DIR} directory already properly set up"
             print_status "${BLUE}" "All required directories present. No action needed."
@@ -322,54 +322,54 @@ main() {
             print_status "${YELLOW}" "Will create missing directories..."
         fi
     fi
-    
+
     # Create main .claude directory
     create_directory "${CLAUDE_DIR}" "Main Claude directory"
-    
+
     # Create metadata structure
     create_directory "${CLAUDE_DIR}/metadata" "Metadata directory"
     create_readme "${CLAUDE_DIR}/metadata" "Metadata Directory" "Contains normalized information about the codebase including dependency graphs, file classifications, and error patterns."
     create_metadata_example "${CLAUDE_DIR}/metadata"
-    
+
     # Create code index
     create_directory "${CLAUDE_DIR}/code_index" "Code index directory"
     create_readme "${CLAUDE_DIR}/code_index" "Code Index" "Pre-analyzed semantic relationships including function call graphs, type relationships, and intent classifications."
-    
+
     # Create debug history
     create_directory "${CLAUDE_DIR}/debug_history" "Debug history directory"
     create_readme "${CLAUDE_DIR}/debug_history" "Debug History" "Historical debugging sessions with error-to-solution pairs, categorized by component and error type."
-    
+
     # Create patterns library
     create_directory "${CLAUDE_DIR}/patterns" "Patterns directory"
     create_readme "${CLAUDE_DIR}/patterns" "Pattern Library" "Canonical implementation patterns including error handling, composition patterns, and reliability metrics."
     create_pattern_example "${CLAUDE_DIR}/patterns"
-    
+
     # Create cheatsheets
     create_directory "${CLAUDE_DIR}/cheatsheets" "Cheatsheets directory"
     create_readme "${CLAUDE_DIR}/cheatsheets" "Cheatsheets" "Quick-reference guides for each component including common operations, pitfalls, and gotchas."
     create_cheatsheet_example "${CLAUDE_DIR}/cheatsheets"
-    
+
     # Create Q&A database
     create_directory "${CLAUDE_DIR}/qa" "Q&A directory"
     create_readme "${CLAUDE_DIR}/qa" "Questions & Answers" "Previously solved problems indexed by component, file, and error type with full context."
     create_qa_example "${CLAUDE_DIR}/qa"
-    
+
     # Create delta summaries
     create_directory "${CLAUDE_DIR}/delta" "Delta summaries directory"
     create_readme "${CLAUDE_DIR}/delta" "Delta Summaries" "Semantic change logs between versions focusing on API changes and behavior modifications."
-    
+
     # Create memory anchors
     create_directory "${CLAUDE_DIR}/anchors" "Memory anchors directory"
     create_readme "${CLAUDE_DIR}/anchors" "Memory Anchors" "UUID-based anchors for precise code reference with semantic structure."
     create_memory_anchor_example "${CLAUDE_DIR}/anchors"
-    
+
     # Create scratchpad directory
     create_directory "${CLAUDE_DIR}/scratchpad" "Scratchpad directory"
     create_directory "${CLAUDE_DIR}/scratchpad/active" "Active scratchpads"
     create_directory "${CLAUDE_DIR}/scratchpad/archive" "Archived scratchpads"
     create_directory "${CLAUDE_DIR}/scratchpad/templates" "Scratchpad templates"
     create_readme "${CLAUDE_DIR}/scratchpad" "AI Agent Scratchpad" "Temporary working notes and thoughts for AI agents during development and debugging sessions."
-    
+
     # Create main README
     cat > "${CLAUDE_DIR}/README.md" << EOF
 # Claude Optimization Layer
@@ -406,7 +406,7 @@ This structure is designed to be used by Claude instances to:
 ## Created
 ${TIMESTAMP}
 EOF
-    
+
     print_status "${GREEN}" "✓ Claude optimization setup complete!"
     print_status "${BLUE}" "Next steps:"
     echo "  1. Review the created structure in ${CLAUDE_DIR}/"

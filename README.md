@@ -54,6 +54,25 @@ Get your key at [openrouter.ai](https://openrouter.ai)
 
 > **Note**: This is a clean rewrite focused on keeping tinyAgent truly tiny. For the legacy codebase (v0.72.x), install with `pip install tiny-agent-os==0.72.18` or see the [`0.72` branch](https://github.com/alchemiststudiosDOTai/tinyAgent/tree/0.72).
 
+## Setting the Model
+
+Pass any OpenRouter model when creating the agent:
+
+```python
+from tinyagent import ReactAgent, tool
+
+# Default model
+agent = ReactAgent(tools=[...])
+
+# Specify a model
+agent = ReactAgent(tools=[...], model="gpt-4o-mini")
+agent = ReactAgent(tools=[...], model="anthropic/claude-3.5-sonnet")
+agent = ReactAgent(tools=[...], model="meta-llama/llama-3.1-70b-instruct")
+
+# TinyCodeAgent works the same way
+agent = TinyCodeAgent(tools=[...], model="gpt-4o-mini")
+```
+
 ## More Examples
 
 ### Multi-step reasoning

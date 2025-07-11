@@ -3,13 +3,18 @@ Tests for tinyagent.agent.ReactAgent
 """
 
 import os
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
+from dotenv import load_dotenv
 
 from tinyagent import ReactAgent, tool
 from tinyagent.agent import StepLimitReached
 from tinyagent.tools import Tool
+
+# Load .env file from project root
+load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
 
 class TestReactAgent:

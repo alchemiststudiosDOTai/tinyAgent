@@ -33,7 +33,7 @@ if "scratchpad" in payload:
 ```python
 def _safe_tool(self, name: str, args: dict[str, Any], verbose: bool = False) -> tuple[bool, Any]:
     tool = self._tool_map[name]
-    
+
     # Basic arg validation using function signature
     from inspect import signature
     try:
@@ -90,7 +90,7 @@ def run(self, question: str, *, max_steps: int = MAX_STEPS, verbose: bool = Fals
         print(f"\nTASK: {question}")
         print(f"\nSYSTEM PROMPT:\n{self._system_prompt}")
         print(f"\nAVAILABLE TOOLS: {list(self._tool_map.keys())}")
-    
+
     # Throughout execution:
     # - Log each step number
     # - Show messages being sent to LLM

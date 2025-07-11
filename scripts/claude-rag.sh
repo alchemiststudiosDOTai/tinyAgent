@@ -48,14 +48,14 @@ build_tools() {
 # Function to build/rebuild the index
 build_index() {
     print_status "${CYAN}" "Building .claude index..."
-    
+
     # Ensure .claude directory exists
     if [[ ! -d "${CLAUDE_DIR}" ]]; then
         print_status "${YELLOW}" "Warning: ${CLAUDE_DIR} directory not found"
         print_status "${YELLOW}" "Run setup-claude-optimization.sh first to create the structure"
         return 1
     fi
-    
+
     # Run the indexer from the main directory (where .claude is)
     "${RAG_DIR}/target/release/build_index"
 }
@@ -63,19 +63,19 @@ build_index() {
 # Function to query the index
 query_index() {
     local query="$*"
-    
+
     if [[ -z "${query}" ]]; then
         print_status "${RED}" "Error: Query required"
         echo "Usage: $(basename "$0") query <search terms>"
         exit 1
     fi
-    
+
     # Check if index exists
     if [[ ! -d "${RAG_DIR}/data/claude_idx" ]]; then
         print_status "${YELLOW}" "Index not found. Building index first..."
         build_index
     fi
-    
+
     # Run the query from the main directory
     "${RAG_DIR}/target/release/retrieve" "$@"
 }
@@ -89,16 +89,16 @@ Usage: $(basename "$0") <command> [options]
 
 Commands:
   build                       Build/rebuild the .claude index
-  
+
   query <terms>               Search the index
                              Options:
                                --category <cat>  Filter by category
                                --limit <n>       Limit results (default: 12)
-  
+
   stats                       Show index statistics
-  
+
   clean                       Remove the index
-  
+
   help                        Show this help message
 
 Examples:
@@ -127,19 +127,19 @@ show_stats() {
         print_status "${RED}" "No index found. Run 'build' first."
         exit 1
     fi
-    
+
     print_status "${CYAN}" "Index Statistics:"
-    
+
     # Count files in .claude
     if [[ -d "${CLAUDE_DIR}" ]]; then
         local file_count=$(find "${CLAUDE_DIR}" -type f -name "*.md" -o -name "*.txt" -o -name "*.json" | wc -l)
         echo "  Source files: ${file_count}"
     fi
-    
+
     # Show index size
     local index_size=$(du -sh "${RAG_DIR}/data/claude_idx" 2>/dev/null | cut -f1)
     echo "  Index size: ${index_size:-unknown}"
-    
+
     # Show categories
     echo "  Categories indexed:"
     for cat in debug_history patterns qa cheatsheets metadata code_index anchors scratchpad delta; do
@@ -163,31 +163,31 @@ clean_index() {
 main() {
     check_rust
     build_tools
-    
+
     local command="${1:-help}"
     shift || true
-    
+
     case "${command}" in
         build)
             build_index
             ;;
-            
+
         query)
             query_index "$@"
             ;;
-            
+
         stats)
             show_stats
             ;;
-            
+
         clean)
             clean_index
             ;;
-            
+
         help)
             show_usage
             ;;
-            
+
         *)
             print_status "${RED}" "Unknown command: ${command}"
             show_usage
