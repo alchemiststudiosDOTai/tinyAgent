@@ -38,6 +38,14 @@ That's it! The agent automatically:
 
 ## Installation
 
+### Option A: UV (Recommended - 10x Faster)
+```bash
+uv venv                    # Creates .venv/
+source .venv/bin/activate  # Activate environment
+uv pip install tiny_agent_os
+```
+
+### Option B: Traditional pip
 ```bash
 pip install tiny_agent_os
 ```
@@ -98,6 +106,27 @@ Behind the scenes:
 1. Agent calculates 40% of 15 → 6
 2. Subtracts 6 from 15 → 9
 3. Returns a natural language answer
+
+### Web Search Tool
+Built-in web search capabilities with Brave Search API:
+
+```python
+from tinyagent import ReactAgent
+from tinyagent.base_tools import web_search, search_summary
+
+# Use search_summary for concise results
+agent = ReactAgent(tools=[search_summary])
+result = agent.run("What are the latest Python web frameworks?")
+
+# Or use web_search for full JSON data
+agent = ReactAgent(tools=[web_search, search_summary])
+result = agent.run("Compare FastAPI vs Django performance")
+```
+
+Set your Brave API key:
+```bash
+export BRAVE_SEARCH_API_KEY=your_brave_api_key
+```
 
 ## Key Features
 

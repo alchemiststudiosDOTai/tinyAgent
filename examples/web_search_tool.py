@@ -9,20 +9,18 @@ from tinyagent import ReactAgent
 from tinyagent.base_tools import search_summary, web_search
 
 if __name__ == "__main__":
-    # Demo usage
-    print("Testing web search tool:")
-    result = web_search("python web scraping libraries")
-    print(
-        f"Direct call result keys: {list(result.keys()) if isinstance(result, dict) else type(result)}"
-    )
+    # Quick test - search for Python frameworks
+    print("=== Testing Web Search Tool ===")
+    summary = search_summary("FastAPI vs Django 2024")
+    print(f"Search summary:\n{summary}\n")
 
-    # Test with ReactAgent (pass functions directly - they're decorated with @tool)
-    agent = ReactAgent(tools=[web_search, search_summary], model="gpt-4o-mini")  # type: ignore[arg-type]
+    # Test with ReactAgent for more complex queries
+    agent = ReactAgent(tools=[web_search, search_summary], model="gpt-4o-mini")
 
-    print("\nTesting with ReactAgent:")
+    print("=== Testing with ReactAgent ===")
     answer = agent.run(
-        "Search for information about the latest Python web frameworks and summarize what you find",
-        max_steps=5,
-        verbose=True,
+        "What are the pros and cons of FastAPI compared to Flask?",
+        max_steps=3,
+        verbose=False,
     )
-    print(f"Agent response: {answer}")
+    print(f"Agent answer: {answer}")
