@@ -271,10 +271,12 @@ deploy_to_pypi() {
     cd "$PROJECT_ROOT"
     source "$VENV_PATH/bin/activate"
 
-    # Use .pypirc file for authentication with project-specific repository
+    # Extract project-specific token and upload
+    local token=$(grep -A2 "\[tiny-agent-os\]" /root/.pypirc | grep "password" | cut -d'=' -f2 | tr -d ' ')
     twine upload \
-        --repository tiny-agent-os \
-        --config-file /root/.pypirc \
+        --repository-url https://upload.pypi.org/legacy/ \
+        --username __token__ \
+        --password "$token" \
         dist/*
 
     log_success "Successfully deployed to Production PyPI"
