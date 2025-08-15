@@ -16,7 +16,7 @@ tinyagent/
 - **STOP** - Read existing code before writing anything
 - **SEARCH** codebase for patterns and dependencies
 - **NEVER** assume libraries exist - check imports first
-- **PRE-COMMIT HOOKS** these must NEVER be skipped, you will be punished for skipping
+- **PRE-COMMIT HOOKS** these must NEVER be skipped, you will be punished for skipping the hooks
 
 ### 2. Development Workflow
 ```bash
