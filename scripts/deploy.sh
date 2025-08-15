@@ -163,8 +163,8 @@ security_check() {
         fi
     done
 
-    # Check for hardcoded secrets in code
-    if grep -r -E "(api_key|password|secret|token).*=.*['\"][^'\"]{20,}" --include="*.py" "$PROJECT_ROOT/tinyagent/" 2>/dev/null; then
+    # Check for hardcoded secrets in code (exclude environment variable reads)
+    if grep -r -E "(api_key|password|secret|token).*=.*['\"][^'\"]{20,}" --include="*.py" "$PROJECT_ROOT/tinyagent/" 2>/dev/null | grep -v "os.environ.get\|getenv\|env.get" | head -1 | grep -q .; then
         log_error "Potential hardcoded secrets found in source code"
         exit 1
     fi
