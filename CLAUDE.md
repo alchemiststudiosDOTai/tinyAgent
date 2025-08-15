@@ -1,82 +1,124 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## Project Map
+```
+tinyagent/
+├── agent.py      # ReactAgent - orchestrates ReAct loop
+├── tools.py      # @tool decorator & global registry
+├── prompt.py     # System/error prompt templates
+├── tests/        # Test suite
+└── examples/     # Demo scripts
+```
 
-## Core Architecture
+## Critical Instructions
 
-TinyAgent implements a minimal ReAct (Reasoning + Acting) agent framework with three core components:
+### 1. ALWAYS Start With Context
+- **STOP** - Read existing code before writing anything
+- **SEARCH** codebase for patterns and dependencies
+- **NEVER** assume libraries exist - check imports first
 
-1. **ReactAgent** (`agent.py`) - Orchestrates the ReAct loop, handling tool calls and responses
-2. **Tool Registry** (`tools.py`) - Global registry with `@tool` decorator for automatic function registration
-3. **Prompts** (`prompt.py`) - System and error prompt templates
-
-Key relationships:
-- Functions decorated with `@tool` are automatically registered and available to agents
-- ReactAgent accepts both raw functions and Tool objects
-- The agent communicates via JSON for structured tool calling
-
-## Development Commands
-
+### 2. Development Workflow
 ```bash
-# Setup development environment
-python3 -m venv venv
-source venv/bin/activate
-pip install -e .
-pip install pytest pre-commit
+# BEFORE any changes
+pytest tests/test_agent.py -v
 
-# Install pre-commit hooks
-pre-commit install
+# DURING development
+ruff check . --fix && ruff format .
 
-# Run tests
+# AFTER changes
+pytest tests/test_agent.py -v
+pre-commit run --all-files
+```
+
+### 3. Testing Protocol
+**MANDATORY**: Tests MUST pass before committing
+```bash
+# Run all tests
 pytest tests/test_agent.py -v
 
 # Run specific test
 pytest tests/test_agent.py::TestReactAgent::test_agent_initialization_with_function_tools -v
 
-# Run linting and formatting
-ruff check . --fix
-ruff format .
-
-# Run all pre-commit checks
-pre-commit run --all-files
-
-# Run examples (requires OPENAI_API_KEY)
-python examples/calc_demo.py
+# Setup if needed
+python3 -m venv venv && source venv/bin/activate
+pip install -e . && pip install pytest pre-commit
 ```
 
-## Critical Implementation Details
+### 4. Code Standards
 
-### Tool Registration Pattern
-The `@tool` decorator returns the original function but registers it in a global registry. When passing tools to ReactAgent:
-- Raw functions are looked up in the registry during `__post_init__`
-- Tool objects are used directly
-- Invalid tools raise ValueError
+#### Python Rules
+- **USE** type hints ALWAYS
+- **MATCH** existing patterns exactly
+- **NO** print statements in production code
+- **RUN** `ruff check . --fix` after EVERY change
 
-### API Configuration
-- Uses OpenAI v1 API (`from openai import OpenAI`)
-- Supports OpenRouter via `OPENAI_BASE_URL` environment variable
-- API key sourced from: constructor argument > `OPENAI_API_KEY` env var
+#### Tool Registration
+- Functions with `@tool` decorator auto-register in global registry
+- ReactAgent accepts raw functions OR Tool objects
+- Invalid tools raise ValueError during `__post_init__`
 
-### Message Format
-The agent uses "user" role for tool responses (not "tool" role) to maintain compatibility with OpenRouter:
+### 5. Critical Implementation Details
+
+#### API Configuration
+- Uses OpenAI v1 API: `from openai import OpenAI`
+- OpenRouter support via `OPENAI_BASE_URL` env var
+- API key: constructor arg > `OPENAI_API_KEY` env var
+
+#### Message Format
+**CRITICAL**: Use "user" role for tool responses (OpenRouter compatibility):
 ```python
 {"role": "user", "content": f"Tool '{name}' returned: {result}"}
 ```
 
-### Testing Approach
-Tests use mocked OpenAI responses to verify agent behavior without API calls. Key patterns:
-- Registry cleanup in setup/teardown
-- Mock response chains for multi-step interactions
-- Temperature adjustment verification for retry logic
+#### Import Pattern
+```python
+# CORRECT
+from tinyagent.tools import tool
+from tinyagent.agent import ReactAgent
 
-## Project-Specific Configurations
+# WRONG
+from .tool import tool
+from .react import ReactAgent
+```
 
-- **Ruff**: Line length 100, Python 3.10+, configured in `pyproject.toml`
-- **Pre-commit**: Runs ruff (lint + format) and pytest on `test_agent.py`
-- **Environment**: Uses `.env` file for API configuration (OpenRouter setup)
+### 6. Common Commands
+```bash
+# Setup
+pre-commit install
 
-## Common Issues and Solutions
+# Development
+python examples/calc_demo.py    # Test examples
+ruff check . --fix             # Fix linting
+ruff format .                  # Format code
 
-1. **Import errors**: Check that imports use `tinyagent.tools` (not `.tool`) and `tinyagent.agent` (not `.react`)
-2. **Tool registration**: Ensure `@tool` decorated functions are imported before creating agents
-3. **API compatibility**: Message format must use "user" role for tool responses with OpenRouter
+# Testing
+pytest tests/test_agent.py -v          # All tests
+pre-commit run --all-files             # Full check
+```
+
+### 7. Project Configuration
+- **Ruff**: Line length 100, Python 3.10+
+- **Pre-commit**: Runs ruff + pytest on test_agent.py
+- **Environment**: Uses `.env` for API keys
+
+### 8. Error Handling
+- **NEVER** swallow errors silently
+- **ALWAYS** check tool registration before agent creation
+- **STOP** and ask if registry/import issues occur
+
+## Workflow Checklist
+
+1. □ Read existing code patterns
+2. □ Check imports and dependencies
+3. □ Run tests before changes
+4. □ Implement following existing patterns
+5. □ Run ruff check/format
+6. □ Run tests after changes
+7. □ Verify pre-commit hooks pass
+
+## CRITICAL REMINDERS
+
+**TEST FIRST** - No exceptions
+**RUFF ALWAYS** - Before committing
+**MATCH PATTERNS** - Follow existing code style exactly
+**ASK IF UNSURE** - User prefers questions over mistakes
