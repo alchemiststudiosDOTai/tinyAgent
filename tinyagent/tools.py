@@ -43,7 +43,7 @@ class Tool:
         return str(self.fn(*bound.args, **bound.kwargs))
 
 
-class _ToolRegistry(MutableMapping[str, Tool]):
+class ToolRegistry(MutableMapping[str, Tool]):
     """Dict-like registry with a handy `.register` decorator."""
 
     def __init__(self) -> None:
@@ -94,16 +94,16 @@ class _ToolRegistry(MutableMapping[str, Tool]):
 
 
 # Default registry instance + decorator alias
-_REGISTRY = _ToolRegistry()
-tool = _REGISTRY.register
+REGISTRY = ToolRegistry()
+tool = REGISTRY.register
 
 
 # Public helpers ---------------------------------------------------------
 def freeze_registry() -> None:
     """Freeze the default registry."""
-    _REGISTRY.freeze()
+    REGISTRY.freeze()
 
 
 def get_registry() -> Mapping[str, Tool]:
     """Return a read-only view of the default registry."""
-    return _REGISTRY.view()
+    return REGISTRY.view()

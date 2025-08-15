@@ -33,7 +33,7 @@ MAX_OUTPUT_LENGTH: Final = 2000
 
 
 @dataclass
-class _Final:
+class FinalResult:
     """Sentinel class for final_answer() results."""
 
     value: Any
@@ -42,7 +42,7 @@ class _Final:
 class PythonExecutor:
     """Very small, very strict sandbox for Python code execution."""
 
-    _SAFE_BUILTINS = {
+    SAFE_BUILTINS = {
         "abs",
         "all",
         "any",
@@ -78,7 +78,7 @@ class PythonExecutor:
         # Build safe globals with restricted builtins
         import builtins
 
-        self._globals = {"__builtins__": {k: getattr(builtins, k) for k in self._SAFE_BUILTINS}}
+        self._globals = {"__builtins__": {k: getattr(builtins, k) for k in self.SAFE_BUILTINS}}
         # Add __import__ for controlled imports
         self._globals["__builtins__"]["__import__"] = self._safe_import
         # Add final_answer function that returns sentinel
@@ -113,7 +113,7 @@ class PythonExecutor:
             exec(code, ns)
 
             # Check if we have a final answer stored
-            if "_final_result" in ns and isinstance(ns["_final_result"], _Final):
+            if "_final_result" in ns and isinstance(ns["_final_result"], FinalResult):
                 return str(ns["_final_result"].value), True
 
             # Otherwise return stdout
@@ -133,7 +133,7 @@ class PythonExecutor:
         import inspect
 
         frame = inspect.currentframe().f_back
-        frame.f_globals["_final_result"] = _Final(value)
+        frame.f_globals["_final_result"] = FinalResult(value)
         return value
 
     def _check_imports(self, code: str) -> None:

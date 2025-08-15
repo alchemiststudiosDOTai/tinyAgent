@@ -17,7 +17,10 @@ def find_python_files(root_path: Path) -> list[Path]:
     # Walk through all files recursively
     for file_path in root_path.rglob("*.py"):
         # Skip files in venv directories
-        if "venv" in file_path.parts:
+        if any(
+            part.startswith(".") or part in ["venv", ".venv", "build", "dist", "__pycache__"]
+            for part in file_path.parts
+        ):
             continue
         python_files.append(file_path)
 
@@ -57,11 +60,18 @@ def check_line_counts(files: list[Path], max_lines: int = 500) -> bool:
 
 def main():
     """Main function to run the pre-commit hook."""
-    # Get the repository root (current working directory)
-    repo_root = Path.cwd()
-
-    # Find all Python files
-    python_files = find_python_files(repo_root)
+    if len(sys.argv) > 1:
+        # If files are passed as arguments, check only those files
+        python_files = []
+        for arg in sys.argv[1:]:
+            file_path = Path(arg)
+            if file_path.suffix == ".py":
+                python_files.append(file_path)
+    else:
+        # Get the repository root (current working directory)
+        repo_root = Path.cwd()
+        # Find all Python files
+        python_files = find_python_files(repo_root)
 
     # Check line counts
     if not check_line_counts(python_files):
