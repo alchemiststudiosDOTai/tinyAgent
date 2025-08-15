@@ -112,14 +112,14 @@ Built-in web search capabilities with Brave Search API:
 
 ```python
 from tinyagent import ReactAgent
-from tinyagent.base_tools import web_search, search_summary
+from tinyagent.base_tools import web_search
 
-# Use search_summary for concise results
-agent = ReactAgent(tools=[search_summary])
+# Simple web search with formatted results
+agent = ReactAgent(tools=[web_search])
 result = agent.run("What are the latest Python web frameworks?")
 
-# Or use web_search for full JSON data
-agent = ReactAgent(tools=[web_search, search_summary])
+# Works great for research and comparisons
+agent = ReactAgent(tools=[web_search])
 result = agent.run("Compare FastAPI vs Django performance")
 ```
 
