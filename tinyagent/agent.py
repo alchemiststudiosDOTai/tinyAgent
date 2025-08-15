@@ -40,9 +40,9 @@ class ReactAgent:
     Parameters
     ----------
     tools
-        Sequence of Tool objects (typically produced by @tool decorator).
+        Sequence of Tool objects
     model
-        Model name (OpenAI or OpenRouter format). Default ``gpt-4o-mini``.
+        Model name (OpenAI format). Default ``gpt-4o-mini``.
         Examples: ``gpt-4``, ``anthropic/claude-3.5-haiku``, ``meta-llama/llama-3.2-3b-instruct``
     api_key
         Optional OpenAI key; falls back to ``OPENAI_API_KEY`` env var.
@@ -72,6 +72,13 @@ class ReactAgent:
                 raise ValueError(f"Invalid tool: {item}")
 
         # Initialize OpenAI client
+        try:
+            from dotenv import load_dotenv
+
+            load_dotenv()
+        except ImportError:
+            pass  # dotenv not installed, skip
+
         api_key = self.api_key or os.getenv("OPENAI_API_KEY")
         base_url = os.getenv("OPENAI_BASE_URL")
         self.client = OpenAI(api_key=api_key, base_url=base_url)

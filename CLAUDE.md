@@ -20,28 +20,42 @@ tinyagent/
 ### 2. Development Workflow
 ```bash
 # BEFORE any changes
-pytest tests/test_agent.py -v
+source .venv/bin/activate && pytest tests/api_test/test_agent.py -v
 
 # DURING development
 ruff check . --fix && ruff format .
 
 # AFTER changes
-pytest tests/test_agent.py -v
+pytest tests/api_test/test_agent.py -v
 pre-commit run --all-files
 ```
 
-### 3. Testing Protocol
+### 3. Setup & Testing Protocol
 **MANDATORY**: Tests MUST pass before committing
+
+#### Setup Options
+
+**Option A: UV (Recommended - 10x Faster)**
 ```bash
-# Run all tests
-pytest tests/test_agent.py -v
+uv venv                    # Creates .venv/
+source .venv/bin/activate  # Activate environment
+uv pip install -e .       # Install project
+uv pip install pytest pre-commit  # Install dev deps
+```
 
-# Run specific test
-pytest tests/test_agent.py::TestReactAgent::test_agent_initialization_with_function_tools -v
-
-# Setup if needed
+**Option B: Traditional venv**
+```bash
 python3 -m venv venv && source venv/bin/activate
 pip install -e . && pip install pytest pre-commit
+```
+
+#### Testing Commands
+```bash
+# Run all tests
+pytest tests/api_test/test_agent.py -v
+
+# Run specific test
+pytest tests/api_test/test_agent.py::TestReactAgent::test_agent_initialization_with_function_tools -v
 ```
 
 ### 4. Code Standards
@@ -84,15 +98,15 @@ from .react import ReactAgent
 ### 6. Common Commands
 ```bash
 # Setup
-pre-commit install
+source .venv/bin/activate && pre-commit install
 
 # Development
-python examples/calc_demo.py    # Test examples
+python examples/react_demo.py   # Test examples
 ruff check . --fix             # Fix linting
 ruff format .                  # Format code
 
 # Testing
-pytest tests/test_agent.py -v          # All tests
+pytest tests/api_test/test_agent.py -v # All tests
 pre-commit run --all-files             # Full check
 ```
 
