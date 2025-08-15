@@ -133,8 +133,8 @@ validate_pypi_credentials() {
             exit 1
         fi
     else
-        if ! grep -q "\[pypi\]" "/root/.pypirc"; then
-            log_error "PyPI section not found in /root/.pypirc"
+        if ! grep -q "\[tiny-agent-os\]" "/root/.pypirc"; then
+            log_error "tiny-agent-os section not found in /root/.pypirc"
             exit 1
         fi
     fi
@@ -271,9 +271,9 @@ deploy_to_pypi() {
     cd "$PROJECT_ROOT"
     source "$VENV_PATH/bin/activate"
 
-    # Use .pypirc file for authentication
+    # Use .pypirc file for authentication with project-specific repository
     twine upload \
-        --repository pypi \
+        --repository tiny-agent-os \
         --config-file /root/.pypirc \
         dist/*
 
