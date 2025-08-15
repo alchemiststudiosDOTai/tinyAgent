@@ -1,0 +1,64 @@
+# TinyAgent Deployment Configuration Template
+# Copy this to .deployment-config and fill in your values
+# DO NOT commit .deployment-config to version control
+
+# =============================================================================
+# PyPI Configuration
+# =============================================================================
+
+# Production PyPI
+PYPI_API_TOKEN=pypi-your-production-token-here
+PYPI_USERNAME=__token__
+
+# Test PyPI
+TESTPYPI_API_TOKEN=pypi-your-test-token-here
+TESTPYPI_USERNAME=__token__
+
+# =============================================================================
+# Build Configuration
+# =============================================================================
+
+# Skip tests during deployment (not recommended)
+SKIP_TESTS=false
+
+# Enable verbose output
+VERBOSE=true
+
+# Clean build artifacts after deployment
+AUTO_CLEANUP=true
+
+# =============================================================================
+# Git Configuration
+# =============================================================================
+
+# Auto-create git tags on production deployment
+AUTO_TAG=true
+
+# Auto-push tags to remote
+AUTO_PUSH_TAGS=false
+
+# =============================================================================
+# Security Configuration
+# =============================================================================
+
+# Enable additional security checks
+ENABLE_SECURITY_SCAN=true
+
+# Require clean git working directory
+REQUIRE_CLEAN_GIT=true
+
+# Check for hardcoded secrets
+CHECK_SECRETS=true
+
+# =============================================================================
+# Notification Configuration (Optional)
+# =============================================================================
+
+# Slack webhook for deployment notifications
+# SLACK_WEBHOOK_URL=https://hooks.slack.com/...
+
+# Discord webhook for deployment notifications
+# DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+
+# Email notifications
+# NOTIFICATION_EMAIL=team@example.com

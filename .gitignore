@@ -172,3 +172,10 @@ run_example.py
 # OpenAI/LLM related
 .openai/
 api_keys.txt
+
+# PyPI deployment credentials
+.pypi-token
+.testpypi-token
+.deployment-config
+.pypirc
+twine.ini
