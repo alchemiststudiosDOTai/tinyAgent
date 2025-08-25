@@ -5,6 +5,13 @@ Example usage of web search tool from tinyagent.base_tools.
 Requires BRAVE_SEARCH_API_KEY environment variable.
 """
 
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not installed, skip
+
 from tinyagent import ReactAgent
 from tinyagent.base_tools import web_search
 

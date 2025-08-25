@@ -9,6 +9,13 @@ This example demonstrates:
 5. Graceful step limit handling
 """
 
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not installed, skip
+
 from tinyagent import ReactAgent, tool
 
 
