@@ -17,8 +17,8 @@ from typing import Any, Final
 
 from openai import OpenAI
 
-from .prompt import BAD_JSON, SYSTEM  # prompt.py holds the two template strings
-from .tools import Tool, get_registry  # our Tool wrapper and registry
+from ..prompt import BAD_JSON, SYSTEM  # prompt.py holds the two template strings
+from ..tools import Tool, get_registry  # our Tool wrapper and registry
 
 __all__ = ["ReactAgent"]
 

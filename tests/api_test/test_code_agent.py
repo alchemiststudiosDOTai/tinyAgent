@@ -9,8 +9,8 @@ import pytest
 from dotenv import load_dotenv
 
 from tinyagent import tool
-from tinyagent.agent import StepLimitReached
-from tinyagent.code_agent import PythonExecutor, TinyCodeAgent
+from tinyagent.agents.agent import StepLimitReached
+from tinyagent.agents.code_agent import PythonExecutor, TinyCodeAgent
 from tinyagent.tools import Tool
 
 # Load .env file from project root

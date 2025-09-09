@@ -6,8 +6,9 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from tinyagent import ReactAgent, tool
-from tinyagent.agent import StepLimitReached
+from tinyagent import tool
+from tinyagent.agents import ReactAgent
+from tinyagent.agents.agent import StepLimitReached
 
 
 class TestReactAgentAdvanced:
@@ -81,7 +82,7 @@ class TestReactAgentAdvanced:
         assert "test_no_args" in agent._tool_map
 
     # Test 2: Scratchpad handling
-    @patch("tinyagent.agent.OpenAI")
+    @patch("tinyagent.agents.agent.OpenAI")
     def test_scratchpad_with_final_answer(self, mock_openai_class):
         """Test scratchpad handling with final answer."""
         mock_client = Mock()
@@ -101,7 +102,7 @@ class TestReactAgentAdvanced:
         assert result == "42"
         assert mock_client.chat.completions.create.call_count == 1
 
-    @patch("tinyagent.agent.OpenAI")
+    @patch("tinyagent.agents.agent.OpenAI")
     def test_scratchpad_with_tool_call(self, mock_openai_class):
         """Test scratchpad followed by tool invocation."""
         mock_client = Mock()
@@ -127,7 +128,7 @@ class TestReactAgentAdvanced:
         assert result == "The result is 4"
         assert mock_client.chat.completions.create.call_count == 2
 
-    @patch("tinyagent.agent.OpenAI")
+    @patch("tinyagent.agents.agent.OpenAI")
     def test_scratchpad_alone_continues_execution(self, mock_openai_class):
         """Test that scratchpad alone prompts continuation."""
         mock_client = Mock()
@@ -148,7 +149,7 @@ class TestReactAgentAdvanced:
         assert mock_client.chat.completions.create.call_args_list[1].kwargs["temperature"] == 0.2
 
     # Test 3: Tool execution edge cases
-    @patch("tinyagent.agent.OpenAI")
+    @patch("tinyagent.agents.agent.OpenAI")
     def test_tool_raises_exception(self, mock_openai_class):
         """Test handling when tool raises exception."""
         mock_client = Mock()
@@ -176,7 +177,7 @@ class TestReactAgentAdvanced:
         messages = mock_client.chat.completions.create.call_args_list[1].kwargs["messages"]
         assert "Error: ToolError: Tool execution failed!" in messages[-1]["content"]
 
-    @patch("tinyagent.agent.OpenAI")
+    @patch("tinyagent.agents.agent.OpenAI")
     def test_tool_returns_none(self, mock_openai_class):
         """Test handling when tool returns None."""
         mock_client = Mock()
@@ -197,7 +198,7 @@ class TestReactAgentAdvanced:
         messages = mock_client.chat.completions.create.call_args_list[1].kwargs["messages"]
         assert "Observation: None" in messages[-1]["content"]
 
-    @patch("tinyagent.agent.OpenAI")
+    @patch("tinyagent.agents.agent.OpenAI")
     def test_tool_output_truncation(self, mock_openai_class):
         """Test that long tool output is truncated."""
         mock_client = Mock()
@@ -222,7 +223,7 @@ class TestReactAgentAdvanced:
         assert len(messages[-1]["content"]) < 600
         assert messages[-1]["content"].endswith("…")
 
-    @patch("tinyagent.agent.OpenAI")
+    @patch("tinyagent.agents.agent.OpenAI")
     def test_tool_with_no_arguments(self, mock_openai_class):
         """Test tool that requires no arguments."""
         mock_client = Mock()
@@ -240,7 +241,7 @@ class TestReactAgentAdvanced:
         assert result == "No args worked"
 
     # Test 4: Temperature management
-    @patch("tinyagent.agent.OpenAI")
+    @patch("tinyagent.agents.agent.OpenAI")
     def test_temperature_increases_on_errors(self, mock_openai_class):
         """Test temperature increases with each error."""
         mock_client = Mock()
@@ -264,7 +265,7 @@ class TestReactAgentAdvanced:
         assert calls[2].kwargs["temperature"] == 0.4
 
     # Test 5: Verbose mode
-    @patch("tinyagent.agent.OpenAI")
+    @patch("tinyagent.agents.agent.OpenAI")
     def test_verbose_mode_output(self, mock_openai_class, capsys):
         """Test verbose mode prints expected output."""
         mock_client = Mock()
@@ -284,7 +285,7 @@ class TestReactAgentAdvanced:
         assert "FINAL ANSWER: 42" in captured.out
 
     # Test 6: Complex error recovery
-    @patch("tinyagent.agent.OpenAI")
+    @patch("tinyagent.agents.agent.OpenAI")
     def test_recovery_after_multiple_errors(self, mock_openai_class):
         """Test recovery after JSON and tool errors."""
         mock_client = Mock()
@@ -315,7 +316,7 @@ class TestReactAgentAdvanced:
         assert mock_client.chat.completions.create.call_count == 4
 
     # Test 7: Final answer behavior
-    @patch("tinyagent.agent.OpenAI")
+    @patch("tinyagent.agents.agent.OpenAI")
     def test_final_answer_after_max_steps(self, mock_openai_class):
         """Test final answer request after hitting step limit."""
         mock_client = Mock()
@@ -349,7 +350,7 @@ class TestReactAgentAdvanced:
         final_messages = mock_client.chat.completions.create.call_args_list[3].kwargs["messages"]
         assert final_messages[-1]["content"] == "Return your best final answer now."
 
-    @patch("tinyagent.agent.OpenAI")
+    @patch("tinyagent.agents.agent.OpenAI")
     def test_final_answer_attempt_fails(self, mock_openai_class):
         """Test when final answer attempt also fails to provide answer."""
         mock_client = Mock()
@@ -397,7 +398,7 @@ class TestReactAgentAdvanced:
         assert agent._system_prompt == "Modified prompt"
 
     # Test 9: Edge cases
-    @patch("tinyagent.agent.OpenAI")
+    @patch("tinyagent.agents.agent.OpenAI")
     def test_empty_tool_arguments(self, mock_openai_class):
         """Test tool call with explicitly empty arguments."""
         mock_client = Mock()
@@ -416,7 +417,7 @@ class TestReactAgentAdvanced:
 
         assert result == "Handled null args"
 
-    @patch("tinyagent.agent.OpenAI")
+    @patch("tinyagent.agents.agent.OpenAI")
     def test_unicode_in_responses(self, mock_openai_class):
         """Test handling of unicode characters in responses."""
         mock_client = Mock()
@@ -431,7 +432,7 @@ class TestReactAgentAdvanced:
 
         assert result == "Hello 世界! 🌍"
 
-    @patch("tinyagent.agent.OpenAI")
+    @patch("tinyagent.agents.agent.OpenAI")
     def test_very_long_question(self, mock_openai_class):
         """Test handling of very long question input."""
         mock_client = Mock()
@@ -452,7 +453,7 @@ class TestReactAgentAdvanced:
         messages = mock_client.chat.completions.create.call_args.kwargs["messages"]
         assert long_question in messages[1]["content"]
 
-    @patch("tinyagent.agent.OpenAI")
+    @patch("tinyagent.agents.agent.OpenAI")
     def test_special_json_characters_in_response(self, mock_openai_class):
         """Test handling of special characters that could break JSON."""
         mock_client = Mock()

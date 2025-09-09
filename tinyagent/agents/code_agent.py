@@ -21,9 +21,9 @@ from typing import Any, Final, Sequence
 
 from openai import OpenAI
 
+from ..prompt import CODE_SYSTEM
+from ..tools import Tool
 from .agent import StepLimitReached
-from .prompt import CODE_SYSTEM
-from .tools import Tool
 
 __all__ = ["PythonExecutor", "TinyCodeAgent"]
 
@@ -183,7 +183,7 @@ class TinyCodeAgent:
             raise ValueError("TinyCodeAgent requires at least one tool.")
 
         # Get the registry to look up Tool objects for functions
-        from .tools import get_registry
+        from ..tools import get_registry
 
         registry = get_registry()
 
