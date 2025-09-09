@@ -149,10 +149,10 @@ class TestTinyCodeAgent:
     def setup_method(self):
         """Setup test fixtures."""
         # Clear any existing tools from registry
-        from tinyagent.tools import _REGISTRY
+        from tinyagent.tools import REGISTRY
 
-        _REGISTRY._data.clear()
-        _REGISTRY._frozen = False
+        REGISTRY._data.clear()
+        REGISTRY._frozen = False
 
         # Create test tools
         @tool
@@ -183,10 +183,10 @@ class TestTinyCodeAgent:
 
     def teardown_method(self):
         """Clean up after tests."""
-        from tinyagent.tools import _REGISTRY
+        from tinyagent.tools import REGISTRY
 
-        _REGISTRY._data.clear()
-        _REGISTRY._frozen = False
+        REGISTRY._data.clear()
+        REGISTRY._frozen = False
 
     def test_agent_initialization(self):
         """Test agent initialization."""
