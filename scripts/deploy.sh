@@ -120,21 +120,28 @@ validate_pypi_credentials() {
     local target="$1"
     log_info "Validating PyPI credentials for $target..."
 
-    # Check for .pypirc file in root directory
-    if [[ ! -f "/root/.pypirc" ]]; then
-        log_error "PyPI credentials file not found: /root/.pypirc"
+    # Check for .pypirc file in root or user directory
+    if [[ ! -f "/root/.pypirc" ]] && [[ ! -f "$HOME/.pypirc" ]]; then
+        log_error "PyPI credentials file not found"
         exit 1
+    fi
+
+    # Set pypirc path
+    if [[ -f "/root/.pypirc" ]]; then
+        PYPIRC_PATH="/root/.pypirc"
+    else
+        PYPIRC_PATH="$HOME/.pypirc"
     fi
 
     # Validate .pypirc has correct sections
     if [[ "$target" == "testpypi" ]]; then
-        if ! grep -q "\[testpypi\]" "/root/.pypirc"; then
-            log_error "TestPyPI section not found in /root/.pypirc"
+        if ! grep -q "\[testpypi\]" "$PYPIRC_PATH"; then
+            log_error "TestPyPI section not found in $PYPIRC_PATH"
             exit 1
         fi
     else
-        if ! grep -q "\[tiny-agent-os\]" "/root/.pypirc"; then
-            log_error "tiny-agent-os section not found in /root/.pypirc"
+        if ! grep -q "\[pypi\]" "$PYPIRC_PATH"; then
+            log_error "pypi section not found in $PYPIRC_PATH"
             exit 1
         fi
     fi
@@ -258,7 +265,7 @@ deploy_to_testpypi() {
     # Use .pypirc file for authentication
     twine upload \
         --repository testpypi \
-        --config-file /root/.pypirc \
+        --config-file "$PYPIRC_PATH" \
         dist/*
 
     log_success "Successfully deployed to Test PyPI"
@@ -272,11 +279,10 @@ deploy_to_pypi() {
     source "$VENV_PATH/bin/activate"
 
     # Extract project-specific token and upload
-    local token=$(grep -A2 "\[tiny-agent-os\]" /root/.pypirc | grep "password" | cut -d'=' -f2 | tr -d ' ')
+    local token=$(grep -A2 "\[pypi\]" "$PYPIRC_PATH" | grep "password" | cut -d'=' -f2 | tr -d ' ')
     twine upload \
-        --repository-url https://upload.pypi.org/legacy/ \
-        --username __token__ \
-        --password "$token" \
+        --repository pypi \
+        --config-file "$PYPIRC_PATH" \
         dist/*
 
     log_success "Successfully deployed to Production PyPI"
