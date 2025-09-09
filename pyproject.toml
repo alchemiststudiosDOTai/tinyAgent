@@ -33,8 +33,18 @@ Homepage = "https://tinyagent.xyz"
 Repository = "https://github.com/alchemiststudiosDOTai/tinyAgent"
 Issues = "https://github.com/alchemiststudiosDOTai/tinyAgent/issues"
 
-[tool.setuptools]
-packages = ["tinyagent"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["tinyagent*"]
+
+[tool.setuptools.package-data]
+tinyagent = ["py.typed"]
+
+[tool.setuptools.package-dir]
+"" = "."
+
+[tool.setuptools.include-package-data]
+true = true
 
 [tool.ruff]
 # Set the maximum line length to 100

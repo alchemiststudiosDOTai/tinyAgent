@@ -1,0 +1,10 @@
+include README.md
+include CLAUDE.md
+include LICENSE
+include *.txt
+include *.yaml
+include *.yml
+recursive-include examples *.py
+recursive-include documentation *.md
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]

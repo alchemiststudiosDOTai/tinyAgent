@@ -62,6 +62,18 @@ Get your key at [openrouter.ai](https://openrouter.ai)
 
 > **Note**: This is a clean rewrite focused on keeping tinyAgent truly tiny. For the legacy codebase (v0.72.x), install with `pip install tiny-agent-os==0.72.18` or see the [`0.72` branch](https://github.com/alchemiststudiosDOTai/tinyAgent/tree/0.72).
 
+## Package Structure
+
+As of v0.73, tinyAgent's internal structure has been reorganized for better maintainability:
+
+- `tinyagent/agent.py` → `tinyagent/agents/agent.py` (ReactAgent)
+- `tinyagent/code_agent.py` → `tinyagent/agents/code_agent.py` (TinyCodeAgent)
+
+The public API remains unchanged - you can still import directly from `tinyagent`:
+```python
+from tinyagent import ReactAgent, TinyCodeAgent, tool
+```
+
 ## Setting the Model
 
 Pass any OpenRouter model when creating the agent:

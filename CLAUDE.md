@@ -3,11 +3,17 @@
 ## Project Map
 ```
 tinyagent/
-├── agent.py      # ReactAgent - orchestrates ReAct loop
+├── agents/
+│   ├── agent.py      # ReactAgent - orchestrates ReAct loop
+│   └── code_agent.py # TinyCodeAgent - Python code executor
 ├── tools.py      # @tool decorator & global registry
 ├── prompt.py     # System/error prompt templates
 ├── tests/        # Test suite
-└── examples/     # Demo scripts
+└── examples/
+    ├── simple_demo.py    # Minimal setup and basic usage
+    ├── react_demo.py     # Enhanced features (scratchpad, error recovery, observations)
+    ├── code_demo.py      # Python code execution capabilities
+    └── web_search_tool.py # Web search integration example
 ```
 
 ## Critical Instructions
@@ -87,9 +93,12 @@ pytest tests/api_test/test_agent.py::TestReactAgent::test_agent_initialization_w
 
 #### Import Pattern
 ```python
-# CORRECT
+# CORRECT - Import from main package (public API)
 from tinyagent.tools import tool
-from tinyagent.agent import ReactAgent
+from tinyagent import ReactAgent
+
+# CORRECT - Import from agents subpackage (internal structure)
+from tinyagent.agents.agent import ReactAgent
 
 # WRONG
 from .tool import tool
@@ -102,9 +111,12 @@ from .react import ReactAgent
 source .venv/bin/activate && pre-commit install
 
 # Development
-python examples/react_demo.py   # Test examples
-ruff check . --fix             # Fix linting
-ruff format .                  # Format code
+python examples/simple_demo.py     # Basic usage demo
+python examples/react_demo.py     # Enhanced features demo
+python examples/code_demo.py      # Code execution demo
+python examples/web_search_tool.py # Web search demo
+ruff check . --fix               # Fix linting
+ruff format .                    # Format code
 
 # Testing
 pytest tests/api_test/test_agent.py -v # All tests
