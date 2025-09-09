@@ -43,8 +43,8 @@ tinyagent = ["py.typed"]
 [tool.setuptools.package-dir]
 "" = "."
 
-[tool.setuptools.include-package-data]
-true = true
+[tool.setuptools]
+include-package-data = true
 
 [tool.ruff]
 # Set the maximum line length to 100
