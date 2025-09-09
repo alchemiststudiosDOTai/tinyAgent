@@ -9,8 +9,9 @@ from unittest.mock import Mock, patch
 import pytest
 from dotenv import load_dotenv
 
-from tinyagent import ReactAgent, tool
-from tinyagent.agent import StepLimitReached
+from tinyagent import tool
+from tinyagent.agents import ReactAgent
+from tinyagent.agents.agent import StepLimitReached
 from tinyagent.tools import Tool
 
 # Load .env file from project root
@@ -162,7 +163,7 @@ class TestReactAgent:
         assert "ArgError:" in result
 
     # Test 6: Run method with mocked LLM
-    @patch("tinyagent.agent.OpenAI")
+    @patch("tinyagent.agents.agent.OpenAI")
     def test_run_with_direct_answer(self, mock_openai_class):
         """Test run method when LLM provides direct answer."""
         # Setup mock
@@ -179,7 +180,7 @@ class TestReactAgent:
         assert result == "42"
         assert mock_client.chat.completions.create.call_count == 1
 
-    @patch("tinyagent.agent.OpenAI")
+    @patch("tinyagent.agents.agent.OpenAI")
     def test_run_with_tool_call(self, mock_openai_class):
         """Test run method with tool invocation."""
         # Setup mock
@@ -204,7 +205,7 @@ class TestReactAgent:
         assert result == "The sum is 8"
         assert mock_client.chat.completions.create.call_count == 2
 
-    @patch("tinyagent.agent.OpenAI")
+    @patch("tinyagent.agents.agent.OpenAI")
     def test_run_with_invalid_json_retry(self, mock_openai_class):
         """Test run method handling invalid JSON with retry."""
         # Setup mock
@@ -233,7 +234,7 @@ class TestReactAgent:
         assert first_call.kwargs["temperature"] == 0.0
         assert second_call.kwargs["temperature"] == 0.2
 
-    @patch("tinyagent.agent.OpenAI")
+    @patch("tinyagent.agents.agent.OpenAI")
     def test_run_with_unknown_tool(self, mock_openai_class):
         """Test run method with unknown tool name."""
         # Setup mock
@@ -252,7 +253,7 @@ class TestReactAgent:
 
         assert result == "Unknown tool 'unknown_tool'."
 
-    @patch("tinyagent.agent.OpenAI")
+    @patch("tinyagent.agents.agent.OpenAI")
     def test_run_exceeds_max_steps(self, mock_openai_class):
         """Test that StepLimitReached is raised when max steps exceeded."""
         # Setup mock
@@ -287,7 +288,7 @@ class TestReactAgent:
         assert agent.model == "gpt-4o-mini"
 
     # Test 8: Integration test
-    @patch("tinyagent.agent.OpenAI")
+    @patch("tinyagent.agents.agent.OpenAI")
     def test_integration_multiple_tool_calls(self, mock_openai_class):
         """Test complex interaction with multiple tool calls."""
         # Setup mock
