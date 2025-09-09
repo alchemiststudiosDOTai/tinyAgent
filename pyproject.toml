@@ -3,7 +3,7 @@ requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "tiny_agent_os"
+name = "tiny-agent-os"
 version = "0.73.3"
 description = "A streamlined framework for building powerful LLM-powered agents that actually work"
 readme = "README.md"

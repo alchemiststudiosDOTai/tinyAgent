@@ -18,7 +18,7 @@ readonly NC='\033[0m' # No Color
 # Configuration
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-readonly PACKAGE_NAME="tiny_agent_os"
+readonly PACKAGE_NAME="tiny-agent-os"
 readonly PYPROJECT_FILE="$PROJECT_ROOT/pyproject.toml"
 readonly VENV_PATH="$PROJECT_ROOT/.venv"
 
