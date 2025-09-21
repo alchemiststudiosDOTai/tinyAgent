@@ -140,6 +140,9 @@ Set your Brave API key:
 export BRAVE_SEARCH_API_KEY=your_brave_api_key
 ```
 
+For a scraping-based approach using the Jina Reader endpoint, see `examples/jina_reader_demo.py`.
+Optionally set `JINA_API_KEY` in your environment to include an `Authorization` header.
+
 ## Key Features
 
 ### ReactAgent
