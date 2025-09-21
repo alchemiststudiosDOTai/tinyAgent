@@ -109,8 +109,8 @@ class PythonExecutor:
             # Create namespace copy to avoid pollution
             ns = self._globals.copy()
 
-            # Execute code
-            exec(code, ns)
+            # Execute code in controlled globals; sandbox restricts builtins and imports
+            exec(code, ns)  # nosec B102: execution occurs in restricted sandbox by design
 
             # Check if we have a final answer stored
             if "_final_result" in ns and isinstance(ns["_final_result"], FinalResult):

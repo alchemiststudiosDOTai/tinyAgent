@@ -24,18 +24,18 @@ except ImportError:
     # dotenv is optional for examples
     pass
 
-from typing import Final
 import os
 import sys
 import threading
 import time
 import typing
 from contextlib import contextmanager
+from typing import Final, Sequence, cast
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from tinyagent import ReactAgent, tool
-
+from tinyagent.tools import Tool
 
 JINA_READER_BASE: Final[str] = "https://r.jina.ai/"
 
@@ -66,7 +66,7 @@ def jina_scrape(url: str) -> str:
 
     req = Request(reader_url, headers=headers)
     try:
-        with urlopen(req, timeout=20) as resp:  # type: ignore[arg-type]
+        with urlopen(req, timeout=20) as resp:  # nosec B310: fixed host over HTTPS; scheme validated  # type: ignore[arg-type]
             if resp.status != 200:
                 raise RuntimeError(f"Jina Reader returned status {resp.status}")
             data = resp.read()
@@ -78,7 +78,7 @@ def jina_scrape(url: str) -> str:
 
 
 @contextmanager
-def spinner(label: str = "Searching") -> typing.Iterator[None]:  
+def spinner(label: str = "Searching") -> typing.Iterator[None]:
     stop = threading.Event()
 
     def _run() -> None:
@@ -101,7 +101,7 @@ def spinner(label: str = "Searching") -> typing.Iterator[None]:
 
 
 def main() -> None:
-    agent = ReactAgent(tools=[jina_scrape])
+    agent = ReactAgent(tools=cast("Sequence[Tool]", [jina_scrape]))
 
     print("Jina Reader Demo - Interactive Scraper")
     print("=" * 50)
@@ -110,8 +110,7 @@ def main() -> None:
         if query.lower() == "quit":
             break
         prompt = (
-            f"Scrape the content from {query} and provide a concise summary "
-            f"with key points."
+            f"Scrape the content from {query} and provide a concise summary " f"with key points."
         )
         with spinner("Searching"):
             result = agent.run(prompt)
