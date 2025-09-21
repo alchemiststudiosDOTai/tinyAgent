@@ -14,6 +14,10 @@ tinyagent/
     ├── react_demo.py     # Enhanced features (scratchpad, error recovery, observations)
     ├── code_demo.py      # Python code execution capabilities
     └── web_search_tool.py # Web search integration example
+documentation/
+├── modules/
+│   ├── tools.md            # Comprehensive tools guide
+│   └── tools_one_pager.md  # One-page tools quickstart
 ```
 
 ## Critical Instructions

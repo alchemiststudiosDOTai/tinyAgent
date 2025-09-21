@@ -156,7 +156,7 @@ Every function can be a tool. Keep them:
 - **Typed** - Use type hints for parameters
 - **Documented** - Docstrings help the LLM understand usage
 
-For a comprehensive guide on creating tools with patterns and best practices, see the [tool creation documentation](documentation/modules/tools.md).
+For a comprehensive guide on creating tools with patterns and best practices, see the [tool creation documentation](documentation/modules/tools.md). For a concise overview, read the [one-page tools guide](documentation/modules/tools_one_pager.md).
 
 ## Status
 
