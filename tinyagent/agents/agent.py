@@ -21,6 +21,7 @@ from openai import OpenAI
 from ..exceptions import StepLimitReached
 from ..finalizer import Finalizer
 from ..prompt import BAD_JSON, SYSTEM  # prompt.py holds the two template strings
+from ..prompt_loader import get_prompt_fallback
 from ..tools import Tool, get_registry  # our Tool wrapper and registry
 from ..types import RunResult
 
@@ -46,11 +47,15 @@ class ReactAgent:
         Examples: ``gpt-4``, ``anthropic/claude-3.5-haiku``, ``meta-llama/llama-3.2-3b-instruct``
     api_key
         Optional OpenAI key; falls back to ``OPENAI_API_KEY`` env var.
+    prompt_file
+        Optional path to a text file containing the system prompt.
+        If provided, will load prompt from file. Falls back to default prompt if file loading fails.
     """
 
     tools: Sequence[Tool]
     model: str = "gpt-4o-mini"
     api_key: str | None = None
+    prompt_file: str | None = None
 
     # ------------------------------------------------------------------
     def __post_init__(self) -> None:
@@ -76,8 +81,11 @@ class ReactAgent:
         base_url = os.getenv("OPENAI_BASE_URL")
         self.client = OpenAI(api_key=api_key, base_url=base_url)
 
+        # Get the base system prompt (from file or default)
+        base_prompt = get_prompt_fallback(SYSTEM, self.prompt_file)
+
         # Render immutable system prompt once
-        self._system_prompt: str = SYSTEM.format(
+        self._system_prompt: str = base_prompt.format(
             tools="\n".join(
                 f"- {t.name}: {t.doc or '<no description>'} | args={t.signature}"
                 for t in self._tool_map.values()
