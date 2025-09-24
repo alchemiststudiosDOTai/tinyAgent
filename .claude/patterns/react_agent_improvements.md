@@ -72,13 +72,20 @@ if verbose:
     print("[!] Step limit reached. Asking for final answer...")
 
 final_try = self._chat(
-    messages + [{"role": "user", "content": "Return your best final answer now."}], 0
+    messages + [{"role": "user", "content": "Return your best final answer now."}],
+    verbose=verbose,
 )
 payload = self._try_parse_json(final_try) or {}
 if "answer" in payload:
-    return payload["answer"]
+    # Use Finalizer for consistent tracking
+    from ..finalizer import Finalizer
+    finalizer = Finalizer()
+    finalizer.set(str(payload["answer"]), source="final_attempt")
+    return str(payload["answer"])
 raise StepLimitReached("Exceeded max steps without an answer.")
 ```
+
+**Note**: This pattern has been enhanced with unified final answer logic using `Finalizer` class and `RunResult` return type for better execution tracking.
 
 ### 6. Verbose Logging
 ```python

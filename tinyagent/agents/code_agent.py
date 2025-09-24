@@ -13,17 +13,21 @@ from __future__ import annotations
 import ast
 import contextlib
 import io
+import json
 import os
 import re
 import textwrap
+import time
 from dataclasses import dataclass
 from typing import Any, Final, Sequence
 
 from openai import OpenAI
 
+from ..exceptions import StepLimitReached
+from ..finalizer import Finalizer
 from ..prompt import CODE_SYSTEM
 from ..tools import Tool
-from .agent import StepLimitReached
+from ..types import RunResult
 
 __all__ = ["PythonExecutor", "TinyCodeAgent"]
 
@@ -215,7 +219,14 @@ class TinyCodeAgent:
         if self.system_suffix:
             self._system_prompt += "\n\n" + self.system_suffix
 
-    def run(self, task: str, *, max_steps: int = MAX_STEPS, verbose: bool = False) -> str:
+    def run(
+        self,
+        task: str,
+        *,
+        max_steps: int = MAX_STEPS,
+        verbose: bool = False,
+        return_result: bool = False,
+    ) -> str | RunResult:
         """
         Execute the Python-based ReAct loop.
 
@@ -225,20 +236,26 @@ class TinyCodeAgent:
             The task/question to solve
         max_steps
             Maximum number of reasoning steps
-
         verbose
             If True, print detailed logs of execution
+        return_result
+            If True, return RunResult with metadata; if False, return string (default)
 
         Returns
         -------
-        str
-            The final answer
+        str | RunResult
+            The final answer (string) or RunResult with metadata
 
         Raises
         ------
         StepLimitReached
             If no answer is found within max_steps
         """
+        # Initialize execution tracking
+        start_time = time.time()
+        finalizer = Finalizer()
+        steps_taken = 0
+
         messages: list[dict[str, str]] = [
             {"role": "system", "content": self._system_prompt},
             {"role": "user", "content": task},
@@ -254,8 +271,9 @@ class TinyCodeAgent:
             print(f"\nALLOWED IMPORTS: {list(self._executor._allowed)}")
 
         for step in range(max_steps):
+            steps_taken = step + 1
             if verbose:
-                print(f"\n{'=' * 40} STEP {step + 1}/{max_steps} {'=' * 40}")
+                print(f"\n{'=' * 40} STEP {steps_taken}/{max_steps} {'=' * 40}")
                 print("\nSENDING TO LLM:")
                 for msg in messages[-2:]:  # Show last 2 messages
                     print(
@@ -320,11 +338,25 @@ class TinyCodeAgent:
 
             # Check if we have final answer
             if done:
+                answer_value = result[:MAX_OUTPUT_LENGTH]  # Truncate if too long
+                finalizer.set(answer_value, source="normal")
+
                 if verbose:
                     print(f"\n{'=' * 80}")
-                    print(f"FINAL ANSWER: {result[:MAX_OUTPUT_LENGTH]}")
+                    print(f"FINAL ANSWER: {answer_value}")
                     print(f"{'=' * 80}\n")
-                return result[:MAX_OUTPUT_LENGTH]  # Truncate if too long
+
+                # Return based on requested format
+                if return_result:
+                    duration = time.time() - start_time
+                    return RunResult(
+                        output=answer_value,
+                        final_answer=finalizer.get(),
+                        state="completed",
+                        steps_taken=steps_taken,
+                        duration_seconds=duration,
+                    )
+                return answer_value
 
             # Continue with observation
             messages += [
@@ -332,7 +364,92 @@ class TinyCodeAgent:
                 {"role": "user", "content": f"Observation:\n{result}\n"},
             ]
 
-        raise StepLimitReached("Exceeded max ReAct steps without an answer.")
+        # Step limit hit → ask once for best guess (similar to ReactAgent)
+        if verbose:
+            print(f"\n{'=' * 40} FINAL ATTEMPT {'=' * 40}")
+            print("[!] Step limit reached. Asking for final answer...")
+
+        final_try = self._chat(
+            messages + [{"role": "user", "content": "Return your best final answer now."}],
+            verbose=verbose,
+        )
+
+        # Try to extract final answer from response
+        duration = time.time() - start_time
+
+        # First try to parse as JSON (like ReactAgent)
+        try:
+            payload = json.loads(final_try)
+            if isinstance(payload, dict) and "answer" in payload:
+                answer_value = str(payload["answer"])
+                finalizer.set(answer_value, source="final_attempt")
+
+                if verbose:
+                    print(f"\n{'=' * 80}")
+                    print(f"FINAL ANSWER: {answer_value}")
+                    print(f"{'=' * 80}\n")
+
+                # Return based on requested format
+                if return_result:
+                    return RunResult(
+                        output=answer_value,
+                        final_answer=finalizer.get(),
+                        state="step_limit_reached",
+                        steps_taken=steps_taken,
+                        duration_seconds=duration,
+                    )
+                return answer_value
+        except json.JSONDecodeError:
+            pass
+
+        # Try to extract code block and execute it for final answer
+        code_match = re.search(r"```python\n(.*?)\n```", final_try, re.DOTALL)
+        if code_match:
+            code = code_match.group(1).strip()
+            try:
+                if verbose:
+                    print("\nEXECUTING FINAL ATTEMPT CODE...")
+                result, done = self._executor.run(code)
+                if done:
+                    answer_value = result[:MAX_OUTPUT_LENGTH]
+                    finalizer.set(answer_value, source="final_attempt")
+
+                    if verbose:
+                        print(f"\n{'=' * 80}")
+                        print(f"FINAL ANSWER: {answer_value}")
+                        print(f"{'=' * 80}\n")
+
+                    # Return based on requested format
+                    if return_result:
+                        return RunResult(
+                            output=answer_value,
+                            final_answer=finalizer.get(),
+                            state="step_limit_reached",
+                            steps_taken=steps_taken,
+                            duration_seconds=duration,
+                        )
+                    return answer_value
+            except Exception as e:
+                if verbose:
+                    print(f"\n[!] FINAL ATTEMPT EXECUTION ERROR: {e}")
+
+        # No final answer obtained
+        error = StepLimitReached(
+            "Exceeded max ReAct steps without an answer.",
+            steps_taken=steps_taken,
+            final_attempt_made=True,
+        )
+
+        if return_result:
+            return RunResult(
+                output="",
+                final_answer=None,
+                state="step_limit_reached",
+                steps_taken=steps_taken,
+                duration_seconds=duration,
+                error=error,
+            )
+        raise error
 
     def _chat(self, messages: list[dict[str, str]], verbose: bool = False) -> str:
         """Single LLM call; OpenAI-compatible."""

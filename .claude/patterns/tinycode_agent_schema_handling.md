@@ -46,7 +46,9 @@ agent = TinyCodeAgent(
 - Specific error messages guide quick correction
 
 ## Example Implementation
-See: tinyagent/code_agent.py lines 283-296, tinyagent/examples/code_agent_demo.py
+See: tinyagent/agents/code_agent.py lines 364-464 (enhanced with final attempt logic), tinyagent/examples/code_demo.py
+
+**Note**: TinyCodeAgent now includes unified final answer handling similar to ReactAgent, with `Finalizer` integration and optional `RunResult` return type for detailed execution tracking.
 
 ## Key Takeaway
 Give LLMs unambiguous field names upfront (via docstrings) rather than letting them guess.

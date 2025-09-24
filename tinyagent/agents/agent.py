@@ -11,14 +11,18 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Final
 
 from openai import OpenAI
 
+from ..exceptions import StepLimitReached
+from ..finalizer import Finalizer
 from ..prompt import BAD_JSON, SYSTEM  # prompt.py holds the two template strings
 from ..tools import Tool, get_registry  # our Tool wrapper and registry
+from ..types import RunResult
 
 __all__ = ["ReactAgent"]
 
@@ -26,10 +30,6 @@ __all__ = ["ReactAgent"]
 MAX_STEPS: Final = 10
 TEMP_STEP: Final = 0.2
 MAX_OBS_LEN: Final = 500  # truncate tool output to avoid prompt blow-up
-
-
-class StepLimitReached(RuntimeError):
-    """Raised when no answer is produced within MAX_STEPS."""
 
 
 @dataclass(kw_only=True)
@@ -85,7 +85,14 @@ class ReactAgent:
         )
 
     # ------------------------------------------------------------------
-    def run(self, question: str, *, max_steps: int = MAX_STEPS, verbose: bool = False) -> str:
+    def run(
+        self,
+        question: str,
+        *,
+        max_steps: int = MAX_STEPS,
+        verbose: bool = False,
+        return_result: bool = False,
+    ) -> str | RunResult:
         """
         Execute the loop and return the final answer or raise StepLimitReached.
 
@@ -97,7 +104,14 @@ class ReactAgent:
             Maximum number of reasoning steps
         verbose
             If True, print detailed execution logs
+        return_result
+            If True, return RunResult with metadata; if False, return string (default)
         """
+        # Initialize execution tracking
+        start_time = time.time()
+        finalizer = Finalizer()
+        steps_taken = 0
+
         messages: list[dict[str, str]] = [
             {"role": "system", "content": self._system_prompt},
             {"role": "user", "content": question},
@@ -113,8 +127,9 @@ class ReactAgent:
             print(f"\nAVAILABLE TOOLS: {list(self._tool_map.keys())}")
 
         for step in range(max_steps):
+            steps_taken = step + 1
             if verbose:
-                print(f"\n{'=' * 40} STEP {step + 1}/{max_steps} {'=' * 40}")
+                print(f"\n{'=' * 40} STEP {steps_taken}/{max_steps} {'=' * 40}")
                 print("\nSENDING TO LLM:")
                 for msg in messages[-2:]:
                     content_preview = (
@@ -158,11 +173,25 @@ class ReactAgent:
 
             # Final answer path
             if "answer" in payload:
+                answer_value = str(payload["answer"])
+                finalizer.set(answer_value, source="normal")
+
                 if verbose:
                     print(f"\n{'=' * 80}")
-                    print(f"FINAL ANSWER: {payload['answer']}")
+                    print(f"FINAL ANSWER: {answer_value}")
                     print(f"{'=' * 80}\n")
-                return str(payload["answer"])
+
+                # Return based on requested format
+                if return_result:
+                    duration = time.time() - start_time
+                    return RunResult(
+                        output=answer_value,
+                        final_answer=finalizer.get(),
+                        state="completed",
+                        steps_taken=steps_taken,
+                        duration_seconds=duration,
+                    )
+                return answer_value
 
             # Tool invocation path
             name = payload.get("tool")
@@ -201,13 +230,45 @@ class ReactAgent:
             verbose=verbose,
         )
         payload = self._try_parse_json(final_try) or {}
+        duration = time.time() - start_time
+
         if "answer" in payload:
+            answer_value = str(payload["answer"])
+            finalizer.set(answer_value, source="final_attempt")
+
             if verbose:
                 print(f"\n{'=' * 80}")
-                print(f"FINAL ANSWER: {payload['answer']}")
+                print(f"FINAL ANSWER: {answer_value}")
                 print(f"{'=' * 80}\n")
-            return payload["answer"]
-        raise StepLimitReached("Exceeded max steps without an answer.")
+
+            # Return based on requested format
+            if return_result:
+                return RunResult(
+                    output=answer_value,
+                    final_answer=finalizer.get(),
+                    state="step_limit_reached",
+                    steps_taken=steps_taken,
+                    duration_seconds=duration,
+                )
+            return answer_value
+
+        # No final answer obtained
+        error = StepLimitReached(
+            "Exceeded max steps without an answer.",
+            steps_taken=steps_taken,
+            final_attempt_made=True,
+        )
+
+        if return_result:
+            return RunResult(
+                output="",
+                final_answer=None,
+                state="step_limit_reached",
+                steps_taken=steps_taken,
+                duration_seconds=duration,
+                error=error,
+            )
+        raise error
 
     # ------------------------------------------------------------------
     def _chat(

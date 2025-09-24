@@ -8,7 +8,7 @@ import pytest
 
 from tinyagent import tool
 from tinyagent.agents import ReactAgent
-from tinyagent.agents.agent import StepLimitReached
+from tinyagent.exceptions import StepLimitReached
 
 
 class TestReactAgentAdvanced:

@@ -95,4 +95,3 @@ def read_file(path: str) -> str:
 - The operation should be auditable in logs as a discrete step.
 
 That’s it — decorate, type, document, and plug into `ReactAgent`.
-

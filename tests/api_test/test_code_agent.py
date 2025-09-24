@@ -9,8 +9,8 @@ import pytest
 from dotenv import load_dotenv
 
 from tinyagent import tool
-from tinyagent.agents.agent import StepLimitReached
 from tinyagent.agents.code_agent import PythonExecutor, TinyCodeAgent
+from tinyagent.exceptions import StepLimitReached
 from tinyagent.tools import Tool
 
 # Load .env file from project root
@@ -331,8 +331,62 @@ print("Still thinking...")
             with pytest.raises(StepLimitReached):
                 agent.run("Solve this", max_steps=3)
 
-            # Should have made 3 attempts
-            assert mock_chat.call_count == 3
+            # Should have made 4 attempts (3 regular steps + 1 final attempt)
+            assert mock_chat.call_count == 4
+
+    def test_final_attempt_with_answer(self):
+        """Test that final attempt can provide an answer."""
+        agent = TinyCodeAgent(tools=self.tools)
+
+        with patch.object(agent, "_chat") as mock_chat:
+            # First 3 calls return non-final code, final attempt returns answer
+            responses = [
+                """```python
+print("Step 1")
+```""",
+                """```python
+print("Step 2")
+```""",
+                """```python
+print("Step 3")
+```""",
+                """```python
+final_answer("Final attempt answer")
+```""",
+            ]
+            mock_chat.side_effect = responses
+
+            result = agent.run("Solve this", max_steps=3)
+
+            # Should get the final attempt answer
+            assert result == "Final attempt answer"
+            assert mock_chat.call_count == 4
+
+    def test_final_attempt_with_json_answer(self):
+        """Test that final attempt can provide JSON answer."""
+        agent = TinyCodeAgent(tools=self.tools)
+
+        with patch.object(agent, "_chat") as mock_chat:
+            # First 3 calls return non-final code, final attempt returns JSON
+            responses = [
+                """```python
+print("Step 1")
+```""",
+                """```python
+print("Step 2")
+```""",
+                """```python
+print("Step 3")
+```""",
+                """{"answer": "JSON final answer"}""",
+            ]
+            mock_chat.side_effect = responses
+
+            result = agent.run("Solve this", max_steps=3)
+
+            # Should get the JSON final answer
+            assert result == "JSON final answer"
+            assert mock_chat.call_count == 4
 
     def test_invalid_code_format(self):
         """Test handling of invalid code format."""

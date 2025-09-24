@@ -9,17 +9,17 @@ This file maintains a registry of memory anchors used throughout the codebase fo
 ## Active Anchors
 
 ### Core System Anchors
-- `CLAUDE-ANCHOR-a1b2c3d4-MAIN-ENTRY`: Main application entry point (src/index.ts:1)
-- `CLAUDE-ANCHOR-e5f6g7h8-ERROR-HANDLER`: Global error handler (src/errors/handler.ts:15)
-- `CLAUDE-ANCHOR-i9j0k1l2-CONFIG-LOADER`: Configuration loading logic (src/config/loader.ts:42)
+- `CLAUDE-ANCHOR-7f8a9b0c-AGENT-MAIN`: ReactAgent main execution loop (tinyagent/agents/agent.py:85)
+- `CLAUDE-ANCHOR-1d2e3f4g-CODE-AGENT`: TinyCodeAgent execution logic (tinyagent/agents/code_agent.py:219)
+- `CLAUDE-ANCHOR-5h6i7j8k-TOOL-REGISTRY`: Global tool registration system (tinyagent/tools.py:45)
 
 ### Critical Functions
-- `CLAUDE-ANCHOR-m3n4o5p6-AUTH-CHECK`: Authentication verification (src/auth/verify.ts:78)
-- `CLAUDE-ANCHOR-q7r8s9t0-DATA-VALIDATE`: Data validation pipeline (src/validate/pipeline.ts:23)
+- `CLAUDE-ANCHOR-9l0m1n2o-FINALIZER`: Final answer tracking (tinyagent/finalizer.py:12)
+- `CLAUDE-ANCHOR-3p4q5r6s-STEP-LIMIT`: Step limit handling (tinyagent/exceptions.py:18)
+- `CLAUDE-ANCHOR-7t8u9v0w-RUN-RESULT`: Execution result structure (tinyagent/types.py:25)
 
 ### Known Problem Areas
-- `CLAUDE-ANCHOR-u1v2w3x4-MEMORY-LEAK`: Potential memory leak location (src/cache/manager.ts:156)
-- `CLAUDE-ANCHOR-y5z6a7b8-RACE-CONDITION`: Race condition in async handler (src/async/handler.ts:89)
+- `CLAUDE-ANCHOR-2x3y4z5a-FINAL-ATTEMPT`: Edge case in final answer parsing (tinyagent/agents/code_agent.py:364)
 
 ## Usage
 Reference these anchors in queries like:
