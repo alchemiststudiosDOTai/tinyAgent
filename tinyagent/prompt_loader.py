@@ -5,10 +5,8 @@ Simple utility for loading prompts from text files.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Optional
-
 
 __all__ = ["load_prompt_from_file"]
 
@@ -33,10 +31,10 @@ def load_prompt_from_file(file_path: str) -> Optional[str]:
         If the specified file does not exist
     PermissionError
         If the file cannot be read due to permissions
-    UnicodeDecodeError
-        If the file cannot be decoded as text
+    ValueError
+        If the file cannot be decoded as text or has other issues
     """
-    if not file_path:
+    if not file_path or not file_path.strip():
         return None
 
     # Convert to Path object for better handling
@@ -51,12 +49,14 @@ def load_prompt_from_file(file_path: str) -> Optional[str]:
         raise ValueError(f"Path is not a file: {file_path}")
 
     # Check file extension (basic validation for text files)
-    if path.suffix and path.suffix.lower() not in ['.txt', '.md', '.prompt']:
-        raise ValueError(f"File type '{path.suffix}' not supported. Use .txt, .md, or .prompt files")
+    if path.suffix and path.suffix.lower() not in [".txt", ".md", ".prompt"]:
+        raise ValueError(
+            f"File type '{path.suffix}' not supported. Use .txt, .md, or .prompt files"
+        )
 
     try:
         # Read the file content
-        content = path.read_text(encoding='utf-8').strip()
+        content = path.read_text(encoding="utf-8").strip()
 
         # Return empty string for empty files (None is for loading failures)
         if not content:
@@ -66,8 +66,8 @@ def load_prompt_from_file(file_path: str) -> Optional[str]:
 
     except PermissionError:
         raise PermissionError(f"Permission denied reading file: {file_path}")
-    except UnicodeDecodeError as e:
-        raise UnicodeDecodeError(f"File encoding error for {file_path}: {e}")
+    except UnicodeDecodeError:
+        raise ValueError(f"File encoding error for {file_path}")
 
 
 def get_prompt_fallback(system_prompt: str, file_path: str | None = None) -> str:
@@ -92,10 +92,14 @@ def get_prompt_fallback(system_prompt: str, file_path: str | None = None) -> str
     try:
         prompt_content = load_prompt_from_file(file_path)
         if prompt_content is not None:
+            # If the loaded prompt is empty, use the system prompt
+            if not prompt_content.strip():
+                return system_prompt
             return prompt_content
-    except (FileNotFoundError, PermissionError, ValueError, UnicodeDecodeError):
+    except (FileNotFoundError, PermissionError, ValueError):
         # Log the error but continue with fallback
         import logging
+
         logging.warning(f"Failed to load prompt from {file_path}, using system prompt")
 
     return system_prompt

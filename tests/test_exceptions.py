@@ -2,7 +2,6 @@
 Tests for tinyagent.exceptions module.
 """
 
-
 from tinyagent.exceptions import InvalidFinalAnswer, MultipleFinalAnswers, StepLimitReached
 
 
@@ -112,7 +111,7 @@ class TestExceptionIntegration:
     def test_exception_chaining(self):
         """Test exception chaining scenarios."""
         original_error = ValueError("Original error")
-        
+
         # Test InvalidFinalAnswer with chained exception
         exc = InvalidFinalAnswer(
             "Validation failed",
@@ -128,14 +127,14 @@ class TestExceptionIntegration:
             "temperature": 0.0,
             "messages": ["msg1", "msg2"],
         }
-        
+
         exc = StepLimitReached(
             "Context test",
             steps_taken=5,
             final_attempt_made=True,
             context=context,
         )
-        
+
         # Context should be preserved exactly
         assert exc.context == context
         assert exc.context["step"] == 5

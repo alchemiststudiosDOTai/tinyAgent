@@ -21,10 +21,10 @@ __all__ = ["FinalAnswer", "RunResult"]
 class FinalAnswer:
     """
     Represents a final answer from an agent with metadata.
-    
+
     This class encapsulates the final answer value along with metadata
     about how it was obtained (e.g., through normal execution or final attempt).
-    
+
     Parameters
     ----------
     value : Any
@@ -36,12 +36,12 @@ class FinalAnswer:
     metadata : dict[str, Any]
         Additional metadata about the answer
     """
-    
+
     value: Any
     source: Literal["normal", "final_attempt"] = "normal"
     timestamp: float = None
     metadata: dict[str, Any] = None
-    
+
     def __post_init__(self):
         """Set default values for mutable fields."""
         if self.timestamp is None:
@@ -54,10 +54,10 @@ class FinalAnswer:
 class RunResult:
     """
     Complete result of an agent execution with state tracking.
-    
+
     This class provides a structured way to return not just the final answer,
     but also execution metadata like step count, timing, and final state.
-    
+
     Parameters
     ----------
     output : str
@@ -75,7 +75,7 @@ class RunResult:
     metadata : dict[str, Any]
         Additional execution metadata
     """
-    
+
     output: str
     final_answer: FinalAnswer | None = None
     state: Literal["completed", "step_limit_reached", "error"] = "completed"
@@ -83,7 +83,7 @@ class RunResult:
     duration_seconds: float = 0.0
     error: Exception | None = None
     metadata: dict[str, Any] = None
-    
+
     def __post_init__(self):
         """Set default values for mutable fields."""
         if self.metadata is None:

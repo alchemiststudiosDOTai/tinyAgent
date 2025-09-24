@@ -5,7 +5,7 @@ Custom exception classes for agent execution and final answer handling.
 Public surface
 --------------
 StepLimitReached      – exception
-MultipleFinalAnswers  – exception  
+MultipleFinalAnswers  – exception
 InvalidFinalAnswer    – exception
 """
 
@@ -19,11 +19,11 @@ __all__ = ["StepLimitReached", "MultipleFinalAnswers", "InvalidFinalAnswer"]
 class StepLimitReached(RuntimeError):
     """
     Raised when no answer is produced within the maximum number of steps.
-    
+
     This exception is raised by both ReactAgent and TinyCodeAgent when they
     exceed their step limit without producing a final answer, even after
     attempting a final answer attempt.
-    
+
     Parameters
     ----------
     message : str
@@ -35,7 +35,7 @@ class StepLimitReached(RuntimeError):
     context : dict[str, Any], optional
         Additional context about the execution state
     """
-    
+
     def __init__(
         self,
         message: str = "Exceeded max steps without an answer.",
@@ -53,11 +53,11 @@ class StepLimitReached(RuntimeError):
 class MultipleFinalAnswers(RuntimeError):
     """
     Raised when an agent attempts to set multiple final answers.
-    
+
     This exception enforces the constraint that each agent execution
     can only produce one final answer. It's raised by the Finalizer
     when set() is called more than once.
-    
+
     Parameters
     ----------
     message : str
@@ -67,7 +67,7 @@ class MultipleFinalAnswers(RuntimeError):
     attempted_answer : Any, optional
         The answer that was attempted to be set as a duplicate
     """
-    
+
     def __init__(
         self,
         message: str = "Multiple final answers attempted.",
@@ -83,10 +83,10 @@ class MultipleFinalAnswers(RuntimeError):
 class InvalidFinalAnswer(ValueError):
     """
     Raised when a final answer fails validation.
-    
+
     This exception is raised when a final answer doesn't meet the expected
     format or validation criteria (e.g., malformed JSON, missing required fields).
-    
+
     Parameters
     ----------
     message : str
@@ -96,7 +96,7 @@ class InvalidFinalAnswer(ValueError):
     validation_error : Exception, optional
         The underlying validation error, if any
     """
-    
+
     def __init__(
         self,
         message: str = "Final answer failed validation.",

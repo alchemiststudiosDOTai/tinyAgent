@@ -109,9 +109,7 @@ def main() -> None:
         query = input("Enter a URL to scrape (or 'quit'): ").strip()
         if query.lower() == "quit":
             break
-        prompt = (
-            f"Scrape the content from {query} and provide a concise summary " f"with key points."
-        )
+        prompt = f"Scrape the content from {query} and provide a concise summary with key points."
         with spinner("Searching"):
             result = agent.run(prompt)
         print(f"\nResult:\n{result}\n")
