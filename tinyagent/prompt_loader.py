@@ -49,9 +49,9 @@ def load_prompt_from_file(file_path: str) -> Optional[str]:
         raise ValueError(f"Path is not a file: {file_path}")
 
     # Check file extension (basic validation for text files)
-    if path.suffix and path.suffix.lower() not in [".txt", ".md", ".prompt"]:
+    if path.suffix and path.suffix.lower() not in [".txt", ".md", ".prompt", ".xml"]:
         raise ValueError(
-            f"File type '{path.suffix}' not supported. Use .txt, .md, or .prompt files"
+            f"File type '{path.suffix}' not supported. Use .txt, .md, .prompt, or .xml files"
         )
 
     try:

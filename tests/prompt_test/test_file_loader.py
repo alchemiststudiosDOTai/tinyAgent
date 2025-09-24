@@ -59,6 +59,23 @@ class TestLoadPromptFromFile:
         finally:
             os.unlink(temp_file)
 
+    def test_load_xml_file(self):
+        """Test loading from an XML file."""
+        xml_content = """<?xml version="1.0" encoding="UTF-8"?>
+<prompt>
+    <system>You are a helpful assistant.</system>
+    <instructions>Follow these guidelines...</instructions>
+</prompt>"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".xml", delete=False) as f:
+            f.write(xml_content)
+            temp_file = f.name
+
+        try:
+            result = load_prompt_from_file(temp_file)
+            assert result == xml_content
+        finally:
+            os.unlink(temp_file)
+
     def test_file_not_found(self):
         """Test handling of missing file."""
         with pytest.raises(FileNotFoundError, match="Prompt file not found"):

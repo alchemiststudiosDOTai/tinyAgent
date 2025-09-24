@@ -10,7 +10,7 @@ Finalizer  – class
 from __future__ import annotations
 
 import threading
-from typing import Any
+from typing import Any, Literal
 
 from .exceptions import MultipleFinalAnswers
 from .types import FinalAnswer
@@ -53,7 +53,7 @@ class Finalizer:
         self,
         value: Any,
         *,
-        source: str = "normal",
+        source: Literal["normal", "final_attempt"] = "normal",
         metadata: dict[str, Any] | None = None,
     ) -> None:
         """
