@@ -178,6 +178,10 @@ class TinyCodeAgent:
     prompt_file
         Optional path to a text file containing the system prompt.
         If provided, will load prompt from file. Falls back to default prompt if file loading fails.
+
+    Note
+    ----
+    Uses temperature=0 for all LLM calls to ensure consistent Python code generation
     """
 
     tools: Sequence[Tool]
@@ -252,12 +256,12 @@ class TinyCodeAgent:
         Returns
         -------
         str | RunResult
-            The final answer (string) or RunResult with metadata
+            The final answer, or RunResult with metadata if return_result=True
 
         Raises
         ------
         StepLimitReached
-            If no answer is found within max_steps
+            If no answer is found within max_steps and return_result=False
         """
         # Initialize execution tracking
         start_time = time.time()
@@ -346,25 +350,25 @@ class TinyCodeAgent:
 
             # Check if we have final answer
             if done:
-                answer_value = result[:MAX_OUTPUT_LENGTH]  # Truncate if too long
-                finalizer.set(answer_value, source="normal")
+                result_value = str(result)[:MAX_OUTPUT_LENGTH]  # Truncate if too long
+                finalizer.set(result_value, source="normal")
 
                 if verbose:
                     print(f"\n{'=' * 80}")
-                    print(f"FINAL ANSWER: {answer_value}")
+                    print(f"FINAL ANSWER: {result_value}")
                     print(f"{'=' * 80}\n")
 
                 # Return based on requested format
                 if return_result:
                     duration = time.time() - start_time
                     return RunResult(
-                        output=answer_value,
+                        output=result_value,
                         final_answer=finalizer.get(),
                         state="completed",
                         steps_taken=steps_taken,
                         duration_seconds=duration,
                     )
-                return answer_value
+                return result_value
 
             # Continue with observation
             messages += [
@@ -372,80 +376,11 @@ class TinyCodeAgent:
                 {"role": "user", "content": f"Observation:\n{result}\n"},
             ]
 
-        # Step limit hit → ask once for best guess (similar to ReactAgent)
-        if verbose:
-            print(f"\n{'=' * 40} FINAL ATTEMPT {'=' * 40}")
-            print("[!] Step limit reached. Asking for final answer...")
-
-        final_try = self._chat(
-            messages + [{"role": "user", "content": "Return your best final answer now."}],
-            verbose=verbose,
-        )
-
-        # Try to extract final answer from response
         duration = time.time() - start_time
-
-        # First try to parse as JSON (like ReactAgent)
-        try:
-            payload = json.loads(final_try)
-            if isinstance(payload, dict) and "answer" in payload:
-                answer_value = str(payload["answer"])
-                finalizer.set(answer_value, source="final_attempt")
-
-                if verbose:
-                    print(f"\n{'=' * 80}")
-                    print(f"FINAL ANSWER: {answer_value}")
-                    print(f"{'=' * 80}\n")
-
-                # Return based on requested format
-                if return_result:
-                    return RunResult(
-                        output=answer_value,
-                        final_answer=finalizer.get(),
-                        state="step_limit_reached",
-                        steps_taken=steps_taken,
-                        duration_seconds=duration,
-                    )
-                return answer_value
-        except json.JSONDecodeError:
-            pass
-
-        # Try to extract code block and execute it for final answer
-        code_match = re.search(r"```python\n(.*?)\n```", final_try, re.DOTALL)
-        if code_match:
-            code = code_match.group(1).strip()
-            try:
-                if verbose:
-                    print("\nEXECUTING FINAL ATTEMPT CODE...")
-                result, done = self._executor.run(code)
-                if done:
-                    answer_value = result[:MAX_OUTPUT_LENGTH]
-                    finalizer.set(answer_value, source="final_attempt")
-
-                    if verbose:
-                        print(f"\n{'=' * 80}")
-                        print(f"FINAL ANSWER: {answer_value}")
-                        print(f"{'=' * 80}\n")
-
-                    # Return based on requested format
-                    if return_result:
-                        return RunResult(
-                            output=answer_value,
-                            final_answer=finalizer.get(),
-                            state="step_limit_reached",
-                            steps_taken=steps_taken,
-                            duration_seconds=duration,
-                        )
-                    return answer_value
-            except Exception as e:
-                if verbose:
-                    print(f"\n[!] FINAL ATTEMPT EXECUTION ERROR: {e}")
-
-        # No final answer obtained
         error = StepLimitReached(
             "Exceeded max ReAct steps without an answer.",
             steps_taken=steps_taken,
-            final_attempt_made=True,
+            final_attempt_made=False,
         )
 
         if return_result:

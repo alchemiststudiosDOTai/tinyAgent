@@ -166,6 +166,7 @@ class ReactAgent:
                 continue
 
             # Handle scratchpad - log it, then remove from payload
+            # The scratchpad field allows the model to plan/think before taking action
             if "scratchpad" in payload:
                 if verbose:
                     print(f"\n[SCRATCHPAD]: {payload['scratchpad']}")
