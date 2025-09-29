@@ -13,7 +13,6 @@ from __future__ import annotations
 import ast
 import contextlib
 import io
-import json
 import os
 import re
 import textwrap
@@ -23,12 +22,12 @@ from typing import Any, Final, Sequence
 
 from openai import OpenAI
 
-from ..exceptions import StepLimitReached
-from ..finalizer import Finalizer
-from ..prompt import CODE_SYSTEM
-from ..prompt_loader import get_prompt_fallback
-from ..tools import Tool
-from ..types import RunResult
+from ..core.exceptions import StepLimitReached
+from ..core.finalizer import Finalizer
+from ..core.registry import Tool
+from ..core.types import RunResult
+from ..prompts.loader import get_prompt_fallback
+from ..prompts.templates import CODE_SYSTEM
 
 __all__ = ["PythonExecutor", "TinyCodeAgent"]
 
@@ -196,7 +195,7 @@ class TinyCodeAgent:
             raise ValueError("TinyCodeAgent requires at least one tool.")
 
         # Get the registry to look up Tool objects for functions
-        from ..tools import get_registry
+        from ..core.registry import get_registry
 
         registry = get_registry()
 

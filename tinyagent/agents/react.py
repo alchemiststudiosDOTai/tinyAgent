@@ -18,19 +18,19 @@ from typing import Any, Final
 
 from openai import OpenAI
 
-from ..exceptions import StepLimitReached
-from ..finalizer import Finalizer
-from ..prompt import BAD_JSON, SYSTEM  # prompt.py holds the two template strings
-from ..prompt_loader import get_prompt_fallback
-from ..tools import Tool, get_registry  # our Tool wrapper and registry
-from ..types import RunResult
+from ..core.exceptions import StepLimitReached
+from ..core.finalizer import Finalizer
+from ..core.registry import Tool, get_registry
+from ..core.types import RunResult
+from ..prompts.loader import get_prompt_fallback
+from ..prompts.templates import BAD_JSON, SYSTEM
 
 __all__ = ["ReactAgent"]
 
 # ---------------------------------------------------------------------------
 MAX_STEPS: Final = 10
 TEMP_STEP: Final = 0.2
-MAX_OBS_LEN: Final = 500  # truncate tool output to avoid prompt blow-up
+MAX_OBS_LEN: Final = 500  # added this to not bnlow up the prompt
 
 
 @dataclass(kw_only=True)
@@ -57,7 +57,6 @@ class ReactAgent:
     api_key: str | None = None
     prompt_file: str | None = None
 
-    # ------------------------------------------------------------------
     def __post_init__(self) -> None:
         if not self.tools:
             raise ValueError("ReactAgent requires at least one tool.")

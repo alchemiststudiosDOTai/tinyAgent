@@ -9,7 +9,7 @@ import os
 
 import requests
 
-from tinyagent.tools import tool
+from core.registry import tool
 
 
 @tool
