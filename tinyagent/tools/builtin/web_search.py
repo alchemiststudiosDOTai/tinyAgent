@@ -8,7 +8,6 @@ Requires BRAVE_SEARCH_API_KEY environment variable.
 import os
 
 import requests
-
 from core.registry import tool
 
 
