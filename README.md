@@ -149,12 +149,27 @@ Optionally set `JINA_API_KEY` in your environment to include an `Authorization` 
 - **Multi-step reasoning** - Breaks down complex problems automatically
 - **Clean API** - Simple, ergonomic interface
 - **Error handling** - Built-in retry logic and graceful failures
+- **Custom prompts** - Load system prompts from text files for easy customization
+
+### TinyCodeAgent
+- **Python execution** - Write and execute Python code to solve problems
+- **Sandboxed** - Safe execution environment with restricted imports
+- **Custom prompts** - Load system prompts from text files for easy customization
 
 ### Tools Philosophy
 Every function can be a tool. Keep them:
 - **Atomic** - Do one thing well
 - **Typed** - Use type hints for parameters
 - **Documented** - Docstrings help the LLM understand usage
+
+### File-Based Prompts
+Both ReactAgent and TinyCodeAgent support loading custom system prompts from text files:
+- **Simple** - Just pass `prompt_file="path/to/prompt.txt"` to the agent
+- **Flexible** - Supports `.txt`, `.md`, and `.prompt` file extensions
+- **Safe** - Graceful fallback to default prompts if files are missing or invalid
+- **Powerful** - Customize agent behavior without code changes
+
+For examples, see `examples/file_prompt_demo.py`.
 
 For a comprehensive guide on creating tools with patterns and best practices, see the [tool creation documentation](documentation/modules/tools.md). For a concise overview, read the [one-page tools guide](documentation/modules/tools_one_pager.md).
 

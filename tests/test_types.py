@@ -49,15 +49,15 @@ class TestFinalAnswer:
         # String
         answer1 = FinalAnswer(value="string answer")
         assert answer1.value == "string answer"
-        
+
         # Dict
         answer2 = FinalAnswer(value={"key": "value"})
         assert answer2.value == {"key": "value"}
-        
+
         # Number
         answer3 = FinalAnswer(value=42)
         assert answer3.value == 42
-        
+
         # List
         answer4 = FinalAnswer(value=[1, 2, 3])
         assert answer4.value == [1, 2, 3]
@@ -82,7 +82,7 @@ class TestRunResult:
         final_answer = FinalAnswer(value="answer")
         error = Exception("test error")
         metadata = {"key": "value"}
-        
+
         result = RunResult(
             output="test output",
             final_answer=final_answer,
@@ -92,7 +92,7 @@ class TestRunResult:
             error=error,
             metadata=metadata,
         )
-        
+
         assert result.output == "test output"
         assert result.final_answer == final_answer
         assert result.state == "error"
@@ -122,7 +122,7 @@ class TestRunResult:
             final_answer=final_answer,
             state="step_limit_reached",
         )
-        
+
         assert result.final_answer == final_answer
         assert result.final_answer.value == "test answer"
         assert result.final_answer.source == "final_attempt"

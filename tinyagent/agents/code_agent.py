@@ -26,6 +26,7 @@ from openai import OpenAI
 from ..exceptions import StepLimitReached
 from ..finalizer import Finalizer
 from ..prompt import CODE_SYSTEM
+from ..prompt_loader import get_prompt_fallback
 from ..tools import Tool
 from ..types import RunResult
 
@@ -174,6 +175,9 @@ class TinyCodeAgent:
         Additional modules to allow in Python code (e.g., ["math", "json"])
     system_suffix
         Optional text to append to system prompt (e.g., example calls)
+    prompt_file
+        Optional path to a text file containing the system prompt.
+        If provided, will load prompt from file. Falls back to default prompt if file loading fails.
     """
 
     tools: Sequence[Tool]
@@ -181,6 +185,7 @@ class TinyCodeAgent:
     api_key: str | None = None
     extra_imports: Sequence[str] = ()
     system_suffix: str = ""
+    prompt_file: str | None = None
 
     def __post_init__(self) -> None:
         if not self.tools:
@@ -214,8 +219,11 @@ class TinyCodeAgent:
         for name, tool in self._tool_map.items():
             self._executor._globals[name] = tool.fn  # type: ignore[assignment]
 
+        # Get the base system prompt (from file or default)
+        base_prompt = get_prompt_fallback(CODE_SYSTEM, self.prompt_file)
+
         # Render immutable system prompt once
-        self._system_prompt: str = CODE_SYSTEM.format(helpers=", ".join(self._tool_map.keys()))
+        self._system_prompt: str = base_prompt.format(helpers=", ".join(self._tool_map.keys()))
         if self.system_suffix:
             self._system_prompt += "\n\n" + self.system_suffix
 
