@@ -1,9 +1,16 @@
-from .agents.agent import ReactAgent
-from .agents.code_agent import PythonExecutor, TinyCodeAgent
-from .exceptions import InvalidFinalAnswer, MultipleFinalAnswers, StepLimitReached
-from .finalizer import Finalizer
-from .tools import freeze_registry, get_registry, tool
-from .types import FinalAnswer, RunResult
+from .agents.code import PythonExecutor, TinyCodeAgent
+from .agents.react import ReactAgent
+from .core import (
+    FinalAnswer,
+    Finalizer,
+    InvalidFinalAnswer,
+    MultipleFinalAnswers,
+    RunResult,
+    StepLimitReached,
+    freeze_registry,
+    get_registry,
+    tool,
+)
 
 __all__ = [
     "tool",

@@ -8,8 +8,7 @@ Requires BRAVE_SEARCH_API_KEY environment variable.
 import os
 
 import requests
-
-from tinyagent.tools import tool
+from core.registry import tool
 
 
 @tool

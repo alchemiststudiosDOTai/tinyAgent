@@ -1,6 +1,6 @@
 """tinyagent.agents package exports."""
 
-from .agent import ReactAgent
-from .code_agent import TinyCodeAgent
+from .code import PythonExecutor, TinyCodeAgent
+from .react import ReactAgent
 
-__all__ = ["ReactAgent", "TinyCodeAgent"]
+__all__ = ["ReactAgent", "TinyCodeAgent", "PythonExecutor"]
