@@ -2,7 +2,7 @@
 Tests for tinyagent.exceptions module.
 """
 
-from tinyagent.exceptions import InvalidFinalAnswer, MultipleFinalAnswers, StepLimitReached
+from tinyagent import InvalidFinalAnswer, MultipleFinalAnswers, StepLimitReached
 
 
 class TestStepLimitReached:

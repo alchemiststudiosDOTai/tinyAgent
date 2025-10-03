@@ -8,7 +8,7 @@ version = "0.73.3"
 description = "A streamlined framework for building powerful LLM-powered agents that actually work"
 readme = "README.md"
 authors = [{name = "alchemiststudios.ai"}]
-license = {text = "Business Source License 1.1"}
+license = "BUSL-1.1"
 requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -87,3 +87,9 @@ python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
+
+[tool.hatch.envs.default]
+python = "3.12"
+
+[tool.hatch.envs.default.scripts]
+test = "pytest -v"

@@ -3,14 +3,37 @@
 import os
 import tempfile
 
-from tinyagent import ReactAgent
-from tinyagent.tools import tool
+import pytest
+
+from tinyagent import ReactAgent, tool
+from tinyagent.core.registry import REGISTRY
 
 
 @tool
 def simple_test_tool(x: int) -> int:
     """Simple test tool that returns x + 1."""
     return x + 1
+
+
+@pytest.fixture(autouse=True)
+def _ensure_simple_tool_registered() -> None:
+    """Guarantee the test tool is registered for each scenario."""
+    original_frozen = REGISTRY._frozen
+    original_data = dict(REGISTRY._data)
+
+    if not isinstance(REGISTRY._data, dict):
+        REGISTRY._data = dict(REGISTRY._data)
+    REGISTRY._frozen = False
+    REGISTRY.register(simple_test_tool)
+
+    yield
+
+    REGISTRY._data = original_data
+    if original_frozen:
+        REGISTRY._frozen = False
+        REGISTRY.freeze()
+    else:
+        REGISTRY._frozen = False
 
 
 class TestReactAgentWithPromptFile:

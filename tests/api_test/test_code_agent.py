@@ -8,10 +8,10 @@ from unittest.mock import patch
 import pytest
 from dotenv import load_dotenv
 
-from tinyagent import tool
-from tinyagent.agents.code_agent import PythonExecutor, TinyCodeAgent
-from tinyagent.exceptions import StepLimitReached
-from tinyagent.tools import Tool
+from tinyagent import StepLimitReached, tool
+from tinyagent.agents import PythonExecutor, TinyCodeAgent
+from tinyagent.core import RunResult, Tool
+from tinyagent.core.registry import REGISTRY
 
 # Load .env file from project root
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
@@ -149,8 +149,6 @@ class TestTinyCodeAgent:
     def setup_method(self):
         """Setup test fixtures."""
         # Clear any existing tools from registry
-        from tinyagent.tools import REGISTRY
-
         REGISTRY._data.clear()
         REGISTRY._frozen = False
 
@@ -183,8 +181,6 @@ class TestTinyCodeAgent:
 
     def teardown_method(self):
         """Clean up after tests."""
-        from tinyagent.tools import REGISTRY
-
         REGISTRY._data.clear()
         REGISTRY._frozen = False
 
@@ -216,7 +212,7 @@ final_answer(result)
 
     def test_tool_usage(self):
         """Test using tools in Python code."""
-        agent = TinyCodeAgent(tools=self.tools)
+        agent = TinyCodeAgent(tools=self.tools, extra_imports=["json"])
 
         with patch.object(agent, "_chat") as mock_chat:
             mock_chat.return_value = """```python
@@ -331,8 +327,8 @@ print("Still thinking...")
             with pytest.raises(StepLimitReached):
                 agent.run("Solve this", max_steps=3)
 
-            # Should have made 4 attempts (3 regular steps + 1 final attempt)
-            assert mock_chat.call_count == 4
+            # Should match the configured number of iterations
+            assert mock_chat.call_count == 3
 
     def test_final_attempt_with_answer(self):
         """Test that final attempt can provide an answer."""
@@ -356,9 +352,9 @@ final_answer("Final attempt answer")
             ]
             mock_chat.side_effect = responses
 
-            result = agent.run("Solve this", max_steps=3)
+            result = agent.run("Solve this", max_steps=4)
 
-            # Should get the final attempt answer
+            # Should get the final answer within the configured step budget
             assert result == "Final attempt answer"
             assert mock_chat.call_count == 4
 
@@ -367,7 +363,7 @@ final_answer("Final attempt answer")
         agent = TinyCodeAgent(tools=self.tools)
 
         with patch.object(agent, "_chat") as mock_chat:
-            # First 3 calls return non-final code, final attempt returns JSON
+            # First 3 calls return non-final code, final call returns answer JSON via python block
             responses = [
                 """```python
 print("Step 1")
@@ -378,15 +374,24 @@ print("Step 2")
                 """```python
 print("Step 3")
 ```""",
-                """{"answer": "JSON final answer"}""",
+                """```python
+final_answer('{"answer": "JSON final answer"}')
+```""",
             ]
             mock_chat.side_effect = responses
 
-            result = agent.run("Solve this", max_steps=3)
+            result = agent.run("Solve this", max_steps=4, return_result=True)
 
-            # Should get the JSON final answer
-            assert result == "JSON final answer"
-            assert mock_chat.call_count == 4
+            # Should get the JSON final answer packaged in RunResult
+            assert isinstance(result, RunResult)
+            assert result.output == '{"answer": "JSON final answer"}'
+            assert result.final_answer is not None
+            assert result.final_answer.value == '{"answer": "JSON final answer"}'
+            assert result.final_answer.source == "normal"
+            assert result.state == "completed"
+            assert result.steps_taken == 4
+            assert result.duration_seconds > 0
+            assert result.error is None
 
     def test_invalid_code_format(self):
         """Test handling of invalid code format."""

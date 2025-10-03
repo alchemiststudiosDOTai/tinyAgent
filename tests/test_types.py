@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from tinyagent.types import FinalAnswer, RunResult
+from tinyagent import FinalAnswer, RunResult
 
 
 class TestFinalAnswer:

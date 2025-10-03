@@ -3,14 +3,38 @@
 import os
 import tempfile
 
-from tinyagent.agents.code_agent import TinyCodeAgent
-from tinyagent.tools import tool
+import pytest
+
+from tinyagent import tool
+from tinyagent.agents import TinyCodeAgent
+from tinyagent.core.registry import REGISTRY
 
 
 @tool
 def calculator_tool(expression: str) -> float:
     """Simple calculator tool."""
     return eval(expression)  # Note: eval is dangerous but acceptable for testing
+
+
+@pytest.fixture(autouse=True)
+def _ensure_calculator_tool_registered() -> None:
+    """Ensure the calculator tool is present in the registry for each test."""
+    original_frozen = REGISTRY._frozen
+    original_data = dict(REGISTRY._data)
+
+    if not isinstance(REGISTRY._data, dict):
+        REGISTRY._data = dict(REGISTRY._data)
+    REGISTRY._frozen = False
+    REGISTRY.register(calculator_tool)
+
+    yield
+
+    REGISTRY._data = original_data
+    if original_frozen:
+        REGISTRY._frozen = False
+        REGISTRY.freeze()
+    else:
+        REGISTRY._frozen = False
 
 
 class TestTinyCodeAgentWithPromptFile:

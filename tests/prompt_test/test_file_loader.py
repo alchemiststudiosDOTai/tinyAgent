@@ -2,10 +2,11 @@
 
 import os
 import tempfile
+from pathlib import Path
 
 import pytest
 
-from tinyagent.prompt_loader import get_prompt_fallback, load_prompt_from_file
+from tinyagent.prompts.loader import get_prompt_fallback, load_prompt_from_file
 
 
 class TestLoadPromptFromFile:
@@ -99,20 +100,23 @@ class TestLoadPromptFromFile:
         finally:
             os.unlink(temp_file)
 
-    def test_permission_error(self):
+    def test_permission_error(self, monkeypatch):
         """Test handling of permission errors."""
-        # Create a file and make it unreadable
+        # Create a file and simulate permission denial
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             f.write("restricted content")
             temp_file = f.name
 
         try:
-            # Make file unreadable
-            os.chmod(temp_file, 0o000)
+
+            def _raise_permission(*_args, **_kwargs):
+                raise PermissionError("Permission denied")
+
+            monkeypatch.setattr(Path, "read_text", _raise_permission)
+
             with pytest.raises(PermissionError, match="Permission denied"):
                 load_prompt_from_file(temp_file)
         finally:
-            os.chmod(temp_file, 0o644)  # Restore permissions
             os.unlink(temp_file)
 
     def test_encoding_error(self):
@@ -169,19 +173,22 @@ class TestGetPromptFallback:
         result = get_prompt_fallback("default prompt", "")
         assert result == "default prompt"
 
-    def test_with_permission_error(self):
+    def test_with_permission_error(self, monkeypatch):
         """Test with permission error - should fallback."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             f.write("restricted content")
             temp_file = f.name
 
         try:
-            # Make file unreadable
-            os.chmod(temp_file, 0o000)
+
+            def _raise_permission(*_args, **_kwargs):
+                raise PermissionError("Permission denied")
+
+            monkeypatch.setattr(Path, "read_text", _raise_permission)
+
             result = get_prompt_fallback("default prompt", temp_file)
             assert result == "default prompt"
         finally:
-            os.chmod(temp_file, 0o644)  # Restore permissions
             os.unlink(temp_file)
 
     def test_with_encoding_error(self):

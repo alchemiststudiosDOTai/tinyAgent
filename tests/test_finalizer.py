@@ -8,9 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
-from tinyagent.exceptions import MultipleFinalAnswers
-from tinyagent.finalizer import Finalizer
-from tinyagent.types import FinalAnswer
+from tinyagent import FinalAnswer, Finalizer, MultipleFinalAnswers
 
 
 class TestFinalizer:
