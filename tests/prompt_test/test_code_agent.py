@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+from collections.abc import Iterator
 
 import pytest
 
@@ -17,7 +18,7 @@ def calculator_tool(expression: str) -> float:
 
 
 @pytest.fixture(autouse=True)
-def _ensure_calculator_tool_registered() -> None:
+def _ensure_calculator_tool_registered() -> Iterator[None]:
     """Ensure the calculator tool is present in the registry for each test."""
     original_frozen = REGISTRY._frozen
     original_data = dict(REGISTRY._data)

@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+from collections.abc import Iterator
 
 import pytest
 
@@ -16,7 +17,7 @@ def simple_test_tool(x: int) -> int:
 
 
 @pytest.fixture(autouse=True)
-def _ensure_simple_tool_registered() -> None:
+def _ensure_simple_tool_registered() -> Iterator[None]:
     """Guarantee the test tool is registered for each scenario."""
     original_frozen = REGISTRY._frozen
     original_data = dict(REGISTRY._data)

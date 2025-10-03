@@ -1,23 +1,70 @@
 #!/usr/bin/env python3
-"""
-File-based prompt loading demo for tinyAgent.
+"""File-based prompt loading demo for tinyAgent."""
 
-This example demonstrates how to use custom prompt files with both ReactAgent and TinyCodeAgent.
-"""
-
+import ast
+import operator
 import os
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
+from typing import Final
 
-from tinyagent import ReactAgent
+from tinyagent import ReactAgent, tool
 from tinyagent.agents.code_agent import TinyCodeAgent
-from tinyagent.tools import tool
+
+_BINARY_OPERATORS: Final[dict[type[ast.operator], Callable[[float, float], float]]] = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.Pow: operator.pow,
+    ast.Mod: operator.mod,
+}
+
+_UNARY_OPERATORS: Final[dict[type[ast.unaryop], Callable[[float], float]]] = {
+    ast.UAdd: operator.pos,
+    ast.USub: operator.neg,
+}
+
+
+def _safe_arithmetic(expression: str) -> float:
+    """Evaluate a basic arithmetic expression using a restricted AST interpreter."""
+
+    def _evaluate(node: ast.AST) -> float:
+        if isinstance(node, ast.Expression):
+            return _evaluate(node.body)
+
+        if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+            return float(node.value)
+
+        if isinstance(node, ast.BinOp):
+            binary_operator_type = type(node.op)
+            if binary_operator_type not in _BINARY_OPERATORS:
+                msg = f"Unsupported operator: {binary_operator_type.__name__}"
+                raise ValueError(msg)
+            left = _evaluate(node.left)
+            right = _evaluate(node.right)
+            return _BINARY_OPERATORS[binary_operator_type](left, right)
+
+        if isinstance(node, ast.UnaryOp):
+            unary_operator_type = type(node.op)
+            if unary_operator_type not in _UNARY_OPERATORS:
+                msg = f"Unsupported unary operator: {unary_operator_type.__name__}"
+                raise ValueError(msg)
+            operand = _evaluate(node.operand)
+            return _UNARY_OPERATORS[unary_operator_type](operand)
+
+        msg = f"Unsupported expression: {ast.dump(node, include_attributes=False)}"
+        raise ValueError(msg)
+
+    parsed = ast.parse(expression, mode="eval")
+    return _evaluate(parsed)
 
 
 @tool
 def calculate(expression: str) -> float:
-    """Simple calculator tool for basic math expressions."""
-    return eval(expression)  # Note: In production, use a safer expression evaluator
+    """Evaluate arithmetic expressions using a constrained interpreter."""
+    return _safe_arithmetic(expression)
 
 
 @tool

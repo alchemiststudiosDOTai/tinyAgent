@@ -35,7 +35,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from tinyagent import ReactAgent, tool
-from tinyagent.tools import Tool
+from tinyagent.core.registry import Tool
 
 JINA_READER_BASE: Final[str] = "https://r.jina.ai/"
 

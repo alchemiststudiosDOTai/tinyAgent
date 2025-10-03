@@ -7,7 +7,7 @@ Requires BRAVE_SEARCH_API_KEY environment variable.
 
 import os
 
-import requests
+import requests  # type: ignore[import-untyped]  # requests lacks type hints but is required at runtime
 from core.registry import tool
 
 
