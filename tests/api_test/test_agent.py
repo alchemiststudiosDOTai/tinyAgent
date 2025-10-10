@@ -228,7 +228,9 @@ class TestReactAgent:
         first_call = mock_client.chat.completions.create.call_args_list[0]
         second_call = mock_client.chat.completions.create.call_args_list[1]
         assert first_call.kwargs["temperature"] == 0.7  # Default temperature
-        assert second_call.kwargs["temperature"] == 0.9  # 0.7 + 0.2
+        assert (
+            abs(second_call.kwargs["temperature"] - 0.9) < 0.001
+        )  # 0.7 + 0.2 (allowing float precision)
 
     @patch("tinyagent.agents.react.OpenAI")
     def test_run_with_unknown_tool(self, mock_openai_class):
