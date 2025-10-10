@@ -50,12 +50,15 @@ class ReactAgent:
     prompt_file
         Optional path to a text file containing the system prompt.
         If provided, will load prompt from file. Falls back to default prompt if file loading fails.
+    temperature
+        Temperature for LLM responses. Default ``0.7``.
     """
 
     tools: Sequence[Tool]
     model: str = "gpt-4o-mini"
     api_key: str | None = None
     prompt_file: str | None = None
+    temperature: float = 0.7
 
     def __post_init__(self) -> None:
         if not self.tools:
