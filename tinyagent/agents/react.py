@@ -126,7 +126,7 @@ class ReactAgent:
             {"role": "system", "content": self._system_prompt},
             {"role": "user", "content": question},
         ]
-        temperature = 0.0
+        temperature = self.temperature
 
         if verbose:
             print("\n" + "=" * 80)
