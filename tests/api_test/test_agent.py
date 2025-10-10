@@ -227,8 +227,8 @@ class TestReactAgent:
         # Check that temperature increased
         first_call = mock_client.chat.completions.create.call_args_list[0]
         second_call = mock_client.chat.completions.create.call_args_list[1]
-        assert first_call.kwargs["temperature"] == 0.0
-        assert second_call.kwargs["temperature"] == 0.2
+        assert first_call.kwargs["temperature"] == 0.7  # Default temperature
+        assert second_call.kwargs["temperature"] == 0.9  # 0.7 + 0.2
 
     @patch("tinyagent.agents.react.OpenAI")
     def test_run_with_unknown_tool(self, mock_openai_class):
@@ -321,3 +321,38 @@ class TestReactAgent:
 
         assert result == "The result is 20"
         assert mock_client.chat.completions.create.call_count == 3
+
+    # Test 9: Temperature parameter
+    @patch("tinyagent.agents.react.OpenAI")
+    def test_agent_temperature_parameter(self, mock_openai_class):
+        """Test that agent uses custom temperature parameter."""
+        # Setup mock
+        mock_client = Mock()
+        mock_openai_class.return_value = mock_client
+
+        mock_response = Mock()
+        mock_response.choices = [Mock(message=Mock(content='{"answer": "42"}'))]
+        mock_client.chat.completions.create.return_value = mock_response
+
+        # Test with default temperature
+        agent_default = ReactAgent(tools=[self.test_add])
+        result_default = agent_default.run("What is the answer?")
+
+        assert result_default == "42"
+        call_args = mock_client.chat.completions.create.call_args
+        assert call_args.kwargs["temperature"] == 0.7  # Default temperature
+
+        # Reset mock for next test
+        mock_client.reset_mock()
+
+        # Test with custom temperature
+        agent_custom = ReactAgent(tools=[self.test_add], temperature=0.5)
+        result_custom = agent_custom.run("What is the answer?")
+
+        assert result_custom == "42"
+        call_args = mock_client.chat.completions.create.call_args
+        assert call_args.kwargs["temperature"] == 0.5  # Custom temperature
+
+        # Verify agents have correct temperature attributes
+        assert agent_default.temperature == 0.7
+        assert agent_custom.temperature == 0.5
