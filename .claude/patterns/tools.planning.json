@@ -1,0 +1,11 @@
+{
+  "$schema": "https://claude-kb.io/schema/pattern/v1",
+  "component": "tools.planning",
+  "patterns": [
+    {
+      "name": "Builtin planning tools",
+      "description": "Simple create/update/get plan tool trio"
+    }
+  ],
+  "last_updated": "2025-10-15T21:32:39.968444377Z"
+}

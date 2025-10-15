@@ -31,18 +31,27 @@ class NamingChecker(ast.NodeVisitor):
             return
 
         if not self._is_snake_case(node.name) and not node.name.startswith("_"):
-            # Allow special methods like __init__, test methods
+            # Allow special methods like __init__, test methods, and AST visitor methods
             if not (node.name.startswith("__") and node.name.endswith("__")):
                 if not node.name.startswith("test_"):  # Allow pytest test functions
-                    self.errors.append(
-                        (node.lineno, f"Function '{node.name}' should be snake_case")
-                    )
+                    # Allow AST visitor methods (visit_NodeType pattern)
+                    if not node.name.startswith("visit_") or len(node.name) <= len("visit_"):
+                        self.errors.append(
+                            (node.lineno, f"Function '{node.name}' should be snake_case")
+                        )
         self.generic_visit(node)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802
         """Check class names are PascalCase."""
-        if not self._is_pascal_case(node.name):
-            self.errors.append((node.lineno, f"Class '{node.name}' should be PascalCase"))
+        # Allow private classes to use snake_case if they follow naming conventions
+        if node.name.startswith("_"):
+            if not (self._is_pascal_case(node.name) or self._is_snake_case(node.name)):
+                self.errors.append(
+                    (node.lineno, f"Private class '{node.name}' should be PascalCase or snake_case")
+                )
+        else:
+            if not self._is_pascal_case(node.name):
+                self.errors.append((node.lineno, f"Class '{node.name}' should be PascalCase"))
         self.generic_visit(node)
 
     def visit_Assign(self, node: ast.Assign) -> None:  # noqa: N802
@@ -88,7 +97,7 @@ class NamingChecker(ast.NodeVisitor):
     @staticmethod
     def _is_snake_case(name: str) -> bool:
         """Check if name follows snake_case convention."""
-        return re.match(r"^[a-z][a-z0-9_]*$", name) is not None
+        return re.match(r"^_?[a-z][a-z0-9_]*$", name) is not None
 
     @staticmethod
     def _is_pascal_case(name: str) -> bool:

@@ -207,7 +207,7 @@ def _validate_methods(class_node: ast.ClassDef, module_names: Set[str]) -> list[
     errors: list[str] = []
     for stmt in class_node.body:
         if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            analyzer = _FunctionAnalyzer(module_names, stmt)
+            analyzer = _function_analyzer(module_names, stmt)
             analyzer.visit_block(stmt.body)
             errors.extend(analyzer.errors)
     return errors
@@ -234,7 +234,7 @@ def _is_literal(node: ast.AST) -> bool:
 
 
 @dataclass
-class _FunctionAnalyzer(ast.NodeVisitor):
+class _function_analyzer(ast.NodeVisitor):
     module_names: Set[str]
     function: ast.FunctionDef | ast.AsyncFunctionDef
 

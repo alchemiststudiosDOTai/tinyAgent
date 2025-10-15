@@ -1,126 +1,134 @@
 {
   "version": "1.0.0",
-  "timestamp": "2025-10-15T21:23:27.387853123Z",
+  "timestamp": "2025-10-15T21:43:13.848250555Z",
   "files": {
+    "patterns/tools.planning.json": {
+      "hash": "aee4c199ef90afa8ef29d44a3f6858c9766933ff38053a33b8921995c9fb40bd",
+      "last_modified": "2025-10-15T21:32:39Z"
+    },
+    "delta/2025-09-21-jina-spinner.md": {
+      "hash": "44ee43de8d0a7d49713554452076f7111fcb727e90fc5bd6e176c1afd6ef5c32",
+      "last_modified": "2025-09-22T19:16:34Z"
+    },
     "patterns/tests.temperature.json": {
-      "hash": "2390b6f3f55f09e96c5debc54e1c64067de22bc0eee025545933927a9e2d5e81",
-      "last_modified": "2025-10-15T21:23:09Z"
-    },
-    "debug_history/tinyagent_setup_fixes.md": {
-      "hash": "dae3683beff7c5d27499de43b8e3026efe6ca7352dd524571f492b26c71be323",
-      "last_modified": "2025-07-11T16:56:23Z"
-    },
-    "qa/tinyagent.json": {
-      "hash": "1d494d4ce2fd13c0f4a49e4e15cad69cefe6d615aa13f222678ff3ae53e4edec",
-      "last_modified": "2025-10-15T20:46:51Z"
-    },
-    "patterns/docs.tools.json": {
-      "hash": "671be2e953836991a3debc1220c441b208854dbf93630c6212c17c8bcf85cfb1",
-      "last_modified": "2025-10-15T21:12:06Z"
-    },
-    "patterns/tools.validation.json": {
-      "hash": "7b8e331062380a91ae5a07bd61ac67ea6b528d0a8eec45b28a0aaf06e0e87ff2",
-      "last_modified": "2025-10-15T21:12:06Z"
-    },
-    "patterns/react_agent_improvements.md": {
-      "hash": "e94ff7180cc81bbd3ff77f9870ac4c99338bab22261959f8935bb771c9223780",
-      "last_modified": "2025-09-29T20:09:12Z"
-    },
-    "scratchpad/README.md": {
-      "hash": "e0c26a2671de563c280a0503420b6852119fd02ebde05293e107df06d618eff5",
-      "last_modified": "2025-07-11T17:21:17Z"
-    },
-    "qa/qa_example.json": {
-      "hash": "42566b435ae8def2af14e933f3dba2f1f8e22b333561637654a8dd94a6034fb3",
-      "last_modified": "2025-07-11T17:21:17Z"
-    },
-    "cheatsheets/component_cheatsheet.md": {
-      "hash": "3fff1e4978b6850512394567037d3258c728c66329a859151ece1d2360dff9ef",
-      "last_modified": "2025-07-11T17:21:17Z"
+      "hash": "be941cdcb80d31c16c8c88f991cc82951b08ddb8401d73bacf8660e19df8e033",
+      "last_modified": "2025-10-15T21:26:22Z"
     },
     "patterns/tinycode_agent_schema_handling.md": {
       "hash": "c8f100670d6d3da7174338efaa35bc2416bfe27e852240969e0645963b761a55",
       "last_modified": "2025-09-29T20:09:12Z"
     },
-    "anchors/README.md": {
-      "hash": "aa9bdb9b71a81d76b99814956fb19297a7d53b75b618500a5ecae337d6e362b7",
-      "last_modified": "2025-07-11T17:21:17Z"
-    },
-    "patterns/tests.validation.json": {
-      "hash": "0eef5687bee4a855bd67da644ae2f8c27cc77340d8521187c892ca266b8e0603",
-      "last_modified": "2025-10-15T21:23:18Z"
-    },
-    "patterns/README.md": {
-      "hash": "4171e640f298b5133d3c4872a9b970916fc740c2914bb6add23989009b89cc94",
-      "last_modified": "2025-07-11T17:21:17Z"
-    },
-    "delta/2025-10-03-packaging-cleanup.md": {
-      "hash": "5b63cbe02fa137e2c3542f33d8ed38b4b36791650966432cbe123bc497781243",
-      "last_modified": "2025-10-03T17:06:15Z"
-    },
-    "metadata/README.md": {
-      "hash": "5554131548392684515da86467a18863ea0e941b083c3644cbf4c91a89644a7b",
-      "last_modified": "2025-07-11T17:21:17Z"
+    "patterns/react_agent_improvements.md": {
+      "hash": "e94ff7180cc81bbd3ff77f9870ac4c99338bab22261959f8935bb771c9223780",
+      "last_modified": "2025-09-29T20:09:12Z"
     },
     "cheatsheets/README.md": {
       "hash": "cb1bbcd1e2f59a7933d8c57bcbd2b704f24d4a6f79f7af5bea658a7b8d53a400",
-      "last_modified": "2025-07-11T17:21:17Z"
-    },
-    "debug_history/README.md": {
-      "hash": "a1a9a47b0d5af384e61bc6cdbf566231d4e7a3c2b72c8602c1016b8c56c88ddb",
-      "last_modified": "2025-07-11T17:21:17Z"
-    },
-    "anchors/memory_anchors.md": {
-      "hash": "71e9d083d12f8646a1dc5dc197968f94c1d7fdd2755c94bc7e61fbf5525f6c0b",
-      "last_modified": "2025-09-29T20:09:12Z"
-    },
-    "delta/README.md": {
-      "hash": "27ab41934b9a40ca78f3230c772feadd8802a744a8e9ec941c640629786e8d58",
       "last_modified": "2025-07-11T17:21:17Z"
     },
     "patterns/error_handling_pattern.md": {
       "hash": "8730396d3405487735c7db56b0e3033dc5c454b42f07a51142b9a83a4aaec2c4",
       "last_modified": "2025-07-11T17:21:17Z"
     },
-    "metadata/example_component.json": {
-      "hash": "2621a3129100f5c0ac4ed3a60cf2d476cb546c59d084c1c5e0a338ba9c420075",
-      "last_modified": "2025-07-11T17:21:17Z"
-    },
-    "settings.local.json": {
-      "hash": "b3d22046b096e8d0ca1af827567ef92dd07f2134ae095f37455db3b5f50fc75e",
-      "last_modified": "2025-10-15T20:27:26Z"
-    },
-    "delta/2025-09-21-jina-example.md": {
-      "hash": "52c7d8abedd92aefad741fb339a7fb79194416ad696048409a9147c84e2fc595",
-      "last_modified": "2025-09-22T19:16:34Z"
-    },
-    "README.md": {
-      "hash": "5dc0d4037d500f4d043f35b0c447268371d2d636fca43da1f694ac349ffe0492",
-      "last_modified": "2025-07-11T17:21:17Z"
-    },
-    "patterns/tools.py.json": {
-      "hash": "19cc119bd0fc17f50f6eb73403cc70806d2e70121291a349bfe4972e1c089894",
-      "last_modified": "2025-10-15T20:28:00Z"
-    },
-    "code_index/README.md": {
-      "hash": "b25edffc331590269bfe75a3af4990cb0b35d1e3f4e018ceb793127e2b41d4ae",
-      "last_modified": "2025-07-11T17:21:17Z"
-    },
-    "qa/README.md": {
-      "hash": "d76d1027f68aee5055027ccf9e1c2e7c9ca07bb67f72c2b44c50f7bffcc3ce5d",
+    "scratchpad/README.md": {
+      "hash": "e0c26a2671de563c280a0503420b6852119fd02ebde05293e107df06d618eff5",
       "last_modified": "2025-07-11T17:21:17Z"
     },
     "delta/2025-09-21-bandit.md": {
       "hash": "1d7957539bffa6252c3f625fbab45adfc1cd66e1b7504a80b53fee4b0d953953",
       "last_modified": "2025-09-22T19:16:34Z"
     },
-    "delta/2025-09-21-jina-spinner.md": {
-      "hash": "44ee43de8d0a7d49713554452076f7111fcb727e90fc5bd6e176c1afd6ef5c32",
-      "last_modified": "2025-09-22T19:16:34Z"
+    "metadata/README.md": {
+      "hash": "5554131548392684515da86467a18863ea0e941b083c3644cbf4c91a89644a7b",
+      "last_modified": "2025-07-11T17:21:17Z"
+    },
+    "delta/2025-10-03-packaging-cleanup.md": {
+      "hash": "5b63cbe02fa137e2c3542f33d8ed38b4b36791650966432cbe123bc497781243",
+      "last_modified": "2025-10-03T17:06:15Z"
+    },
+    "qa/README.md": {
+      "hash": "d76d1027f68aee5055027ccf9e1c2e7c9ca07bb67f72c2b44c50f7bffcc3ce5d",
+      "last_modified": "2025-07-11T17:21:17Z"
+    },
+    "patterns/tool.validation.json": {
+      "hash": "8378d48bfe5d0d47edbb84e49ae5b66a5597c850539e3962d436d6f6f05e3f12",
+      "last_modified": "2025-10-15T21:43:13Z"
+    },
+    "metadata/example_component.json": {
+      "hash": "2621a3129100f5c0ac4ed3a60cf2d476cb546c59d084c1c5e0a338ba9c420075",
+      "last_modified": "2025-07-11T17:21:17Z"
+    },
+    "qa/qa_example.json": {
+      "hash": "42566b435ae8def2af14e933f3dba2f1f8e22b333561637654a8dd94a6034fb3",
+      "last_modified": "2025-07-11T17:21:17Z"
     },
     "scratchpad/active/task_analyze_src_vs_tinyagent_directories_2025-07-11_12-28-23.md": {
       "hash": "bf80cb6763d0f825d760b4e7a6056d87e5dcb7e3a4e908b6e0bc204dd94323fa",
       "last_modified": "2025-07-11T22:45:15Z"
+    },
+    "code_index/README.md": {
+      "hash": "b25edffc331590269bfe75a3af4990cb0b35d1e3f4e018ceb793127e2b41d4ae",
+      "last_modified": "2025-07-11T17:21:17Z"
+    },
+    "patterns/tools.validation.json": {
+      "hash": "7b8e331062380a91ae5a07bd61ac67ea6b528d0a8eec45b28a0aaf06e0e87ff2",
+      "last_modified": "2025-10-15T21:12:06Z"
+    },
+    "settings.local.json": {
+      "hash": "b3d22046b096e8d0ca1af827567ef92dd07f2134ae095f37455db3b5f50fc75e",
+      "last_modified": "2025-10-15T20:27:26Z"
+    },
+    "patterns/tests.validation.json": {
+      "hash": "2eb02d72d736f7f7e7d151147d25038c0f32c3d14c8b0899a6a4b32f227e9373",
+      "last_modified": "2025-10-15T21:26:22Z"
+    },
+    "delta/2025-09-21-jina-example.md": {
+      "hash": "52c7d8abedd92aefad741fb339a7fb79194416ad696048409a9147c84e2fc595",
+      "last_modified": "2025-09-22T19:16:34Z"
+    },
+    "patterns/docs.tools.json": {
+      "hash": "671be2e953836991a3debc1220c441b208854dbf93630c6212c17c8bcf85cfb1",
+      "last_modified": "2025-10-15T21:12:06Z"
+    },
+    "anchors/memory_anchors.md": {
+      "hash": "71e9d083d12f8646a1dc5dc197968f94c1d7fdd2755c94bc7e61fbf5525f6c0b",
+      "last_modified": "2025-09-29T20:09:12Z"
+    },
+    "patterns/README.md": {
+      "hash": "4171e640f298b5133d3c4872a9b970916fc740c2914bb6add23989009b89cc94",
+      "last_modified": "2025-07-11T17:21:17Z"
+    },
+    "patterns/tools.py.json": {
+      "hash": "19cc119bd0fc17f50f6eb73403cc70806d2e70121291a349bfe4972e1c089894",
+      "last_modified": "2025-10-15T20:28:00Z"
+    },
+    "delta/README.md": {
+      "hash": "27ab41934b9a40ca78f3230c772feadd8802a744a8e9ec941c640629786e8d58",
+      "last_modified": "2025-07-11T17:21:17Z"
+    },
+    "debug_history/tinyagent_setup_fixes.md": {
+      "hash": "dae3683beff7c5d27499de43b8e3026efe6ca7352dd524571f492b26c71be323",
+      "last_modified": "2025-07-11T16:56:23Z"
+    },
+    "debug_history/README.md": {
+      "hash": "a1a9a47b0d5af384e61bc6cdbf566231d4e7a3c2b72c8602c1016b8c56c88ddb",
+      "last_modified": "2025-07-11T17:21:17Z"
+    },
+    "cheatsheets/component_cheatsheet.md": {
+      "hash": "3fff1e4978b6850512394567037d3258c728c66329a859151ece1d2360dff9ef",
+      "last_modified": "2025-07-11T17:21:17Z"
+    },
+    "README.md": {
+      "hash": "5dc0d4037d500f4d043f35b0c447268371d2d636fca43da1f694ac349ffe0492",
+      "last_modified": "2025-07-11T17:21:17Z"
+    },
+    "anchors/README.md": {
+      "hash": "aa9bdb9b71a81d76b99814956fb19297a7d53b75b618500a5ecae337d6e362b7",
+      "last_modified": "2025-07-11T17:21:17Z"
+    },
+    "qa/tinyagent.json": {
+      "hash": "1d494d4ce2fd13c0f4a49e4e15cad69cefe6d615aa13f222678ff3ae53e4edec",
+      "last_modified": "2025-10-15T20:46:51Z"
     }
   }
 }

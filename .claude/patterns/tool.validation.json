@@ -1,0 +1,11 @@
+{
+  "$schema": "https://claude-kb.io/schema/pattern/v1",
+  "component": "tool.validation",
+  "patterns": [
+    {
+      "name": "AST visitor naming convention",
+      "description": "Pre-commit hooks failed on naming violations in validation.py for AST visitor methods and private class"
+    }
+  ],
+  "last_updated": "2025-10-15T21:43:13.628180633Z"
+}
