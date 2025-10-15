@@ -1,0 +1,11 @@
+{
+  "$schema": "https://claude-kb.io/schema/qa/v1",
+  "component": "tinyagent",
+  "questions": [
+    {
+      "q": "Why does ReactAgent loop infinitely?",
+      "a": "The ReAct loop lacks a termination condition and step limit, causing infinite loops when the agent can't reach a conclusion."
+    }
+  ],
+  "last_updated": "2025-10-15T20:27:44.790750508Z"
+}
