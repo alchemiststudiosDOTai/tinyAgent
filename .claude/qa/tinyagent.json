@@ -5,7 +5,11 @@
     {
       "q": "Why does ReactAgent loop infinitely?",
       "a": "The ReAct loop lacks a termination condition and step limit, causing infinite loops when the agent can't reach a conclusion."
+    },
+    {
+      "q": "Why does ReactAgent loop infinitely?",
+      "a": "The ReAct loop lacks a termination condition and step limit. Add max_steps parameter to prevent infinite loops."
     }
   ],
-  "last_updated": "2025-10-15T20:27:44.790750508Z"
+  "last_updated": "2025-10-15T20:28:31.976645403Z"
 }

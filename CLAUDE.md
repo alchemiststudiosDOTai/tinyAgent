@@ -1,4 +1,61 @@
-# CLAUDE.md
+Core Workflow
+
+Reason before acting. Follow the ReAct pattern — always explain why before doing.
+Example:
+Reason: I need to verify if this feature has baseline tests.
+Act: Search tests/ for existing coverage.
+No vague objectives. Never write code until the problem is explicitly defined.
+Small diffs, frequent commits. Ship incremental progress, not monoliths.
+Ask or infer. If the goal is unclear, clarify or apply best practices — but never assume silently.
+Sync .claude after every material change. Keeping the knowledge base current is part of your job. Use the claude-kb CLI to maintain KB entries: add new patterns/components, update existing documentation, validate schema integrity, and sync the manifest to track changes across commits.
+
+**KB Workflow**
+- Capture every meaningful fix, feature, or debugging pattern immediately with `claude-kb add` (pick the right entry type, set `--component`, keep the summary actionable, and include error + solution context).
+- If you are iterating on an existing pattern, prefer `claude-kb update` so history stays linear; the command fails loudly if the entry is missing—stop and audit instead of recreating it.
+- Once the entry is accurate, run `claude-kb sync --verbose` to refresh `.claude/manifest.json` and surface drift against the repo.
+- Finish with `claude-kb validate` to guarantee schema integrity before you move on; do not skip even for small edits.
+- When cleaning up stale knowledge, use `claude-kb delete …` and immediately re-run `sync` + `validate` so Git reflects the removal.
+- Treat the KB like production code: review diffs, keep entries typed, and never leave `.claude/` out of sync with the changes you just shipped.
+
+.claude layout
+The tool keeps everything under .claude/ and will create the folders on demand:
+
+.claude/
+  metadata/      component summaries
+  debug_history/ debugging timelines
+  qa/            question & answer entries
+  code_index/    file references
+  patterns/      reusable fixes or snippets
+  cheatsheets/   quick reference sections
+  manifest.json  last sync snapshot
+Everyday workflow
+# create a typed entry
+claude-kb add pattern --component ui.auth --summary "Retry login" \
+  --error "Explain retry UX" --solution "Link to pattern doc"
+
+# modify an existing entry (errors when the item is missing)
+claude-kb update pattern --component ui.auth \
+  --error "Retry login" --solution "Updated copy"
+
+# list or validate your KB
+claude-kb list --type pattern
+claude-kb validate
+
+# sync manifest and inspect git drift
+claude-kb sync --verbose
+claude-kb diff --since HEAD~3
+
+# remove stale data
+claude-kb delete pattern --component ui.auth
+
+- **STOP** - Read existing code before writing anything
+- **SEARCH** codebase for patterns and dependencies
+- **NEVER** assume libraries exist - check imports first
+- **PRE-COMMIT HOOKS** these must be ran, they can be skipped, if the issue is minor
+
+
+
+
 
 ## Project Map
 ```
@@ -20,13 +77,7 @@ documentation/
 │   └── tools_one_pager.md  # One-page tools quickstart
 ```
 
-## Critical Instructions
 
-### 1. ALWAYS Start With Context
-- **STOP** - Read existing code before writing anything
-- **SEARCH** codebase for patterns and dependencies
-- **NEVER** assume libraries exist - check imports first
-- **PRE-COMMIT HOOKS** these must NEVER be skipped, you will be punished for skipping the hooks
 
 ### 2. Development Workflow
 ```bash
@@ -46,19 +97,9 @@ pre-commit run --all-files
 
 #### Setup Options
 
-**Option A: UV (Recommended - 10x Faster)**
 ```bash
 uv venv                    # Creates .venv/
 source .venv/bin/activate  # Activate environment
-uv pip install -e .       # Install project
-uv pip install pytest pre-commit  # Install dev deps
-```
-
-**Option B: Traditional venv**
-```bash
-python3 -m venv venv && source venv/bin/activate
-pip install -e . && pip install pytest pre-commit
-```
 
 #### Testing Commands
 ```bash
@@ -139,13 +180,19 @@ pre-commit run --all-files             # Full check
 
 ## Workflow Checklist
 
-1. □ Read existing code patterns
-2. □ Check imports and dependencies
-3. □ Run tests before changes
-4. □ Implement following existing patterns
-5. □ Run ruff check/format
-6. □ Run tests after changes
-7. □ Verify pre-commit hooks pass
+- Confirm context and dependencies before touching code.
+
+| Step    | Principle                                   | Tooling Focus            |
+| ------- | ------------------------------------------- | ------------------------ |
+| Define  | Explicit problem definition before any code | Issue / PR description   |
+| Test    | Golden baseline plus failing test first     | `pytest`, `hatch run test` |
+| Build   | Small, typed, composable change             | `ruff`, `mypy`           |
+| Document | Keep `.claude` and docs in sync             | `claude-kb add/sync/validate`, docs update |
+| Review  | Peer review or self-inspection              | PR checklist             |
+
+- Run `ruff check --fix .` and `ruff format .` before committing.
+- Re-run the targeted pytest suite before and after changes.
+- Verify pre-commit hooks pass (use `git commit -n` only if instructed).
 
 ## CRITICAL REMINDERS
 

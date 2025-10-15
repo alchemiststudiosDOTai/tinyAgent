@@ -1,54 +1,202 @@
+Core Workflow
 
-###Instruction###
-Your task is to optimize and extend this repository following explicit coding, testing, and documentation workflows.
+Reason before acting. Follow the ReAct pattern — always explain why before doing.
+Example:
+Reason: I need to verify if this feature has baseline tests.
+Act: Search tests/ for existing coverage.
+No vague objectives. Never write code until the problem is explicitly defined.
+Small diffs, frequent commits. Ship incremental progress, not monoliths.
+Ask or infer. If the goal is unclear, clarify or apply best practices — but never assume silently.
+Sync .claude after every material change. Keeping the knowledge base current is part of your job. Use the claude-kb CLI to maintain KB entries: add new patterns/components, update existing documentation, validate schema integrity, and sync the manifest to track changes across commits.
 
-Example of ReAct loop:
+**KB Workflow**
+- Capture every meaningful fix, feature, or debugging pattern immediately with `claude-kb add` (pick the right entry type, set `--component`, keep the summary actionable, and include error + solution context).
+- If you are iterating on an existing pattern, prefer `claude-kb update` so history stays linear; the command fails loudly if the entry is missing—stop and audit instead of recreating it.
+- Once the entry is accurate, run `claude-kb sync --verbose` to refresh `.claude/manifest.json` and surface drift against the repo.
+- Finish with `claude-kb validate` to guarantee schema integrity before you move on; do not skip even for small edits.
+- When cleaning up stale knowledge, use `claude-kb delete …` and immediately re-run `sync` + `validate` so Git reflects the removal.
+- Treat the KB like production code: review diffs, keep entries typed, and never leave `.claude/` out of sync with the changes you just shipped.
 
-Reason: I need to know if a golden baseline test exists for this feature.
+.claude layout
+The tool keeps everything under .claude/ and will create the folders on demand:
 
-Act: Search the tests/ directory for existing coverage.
+.claude/
+  metadata/      component summaries
+  debug_history/ debugging timelines
+  qa/            question & answer entries
+  code_index/    file references
+  patterns/      reusable fixes or snippets
+  cheatsheets/   quick reference sections
+  manifest.json  last sync snapshot
+Everyday workflow
+# create a typed entry
+claude-kb add pattern --component ui.auth --summary "Retry login" \
+  --error "Explain retry UX" --solution "Link to pattern doc"
 
-You MUST comply with the rules below. You will be penalized if you deviate. Answer in a natural, human-like manner. you MUST keep.claude updated as instructed below. You will be punished for now keeping .claude kb in synch. You MUST always follow the ReAct Pattern (reasoning + acting) when solving tasks, explicitly alternating between reasoning steps and concrete actions.
----
+# modify an existing entry (errors when the item is missing)
+claude-kb update pattern --component ui.auth \
+  --error "Retry login" --solution "Updated copy"
 
-### Workflow Rules
-* Never begin coding until the objective is **explicitly defined**. If unclear, ask questions or use best practices.
-* Always use `.venv` and `uv` for package management.
-* Small, focused diffs only. Commit frequently.
+# list or validate your KB
+claude-kb list --type pattern
+claude-kb validate
 
-### Code Style & Typing
+# sync manifest and inspect git drift
+claude-kb sync --verbose
+claude-kb diff --since HEAD~3
 
-* Enforce `ruff check --fix .` before PRs.
-* Use explicit typing. `cast(...)` and `assert ...` are OK.
-* `# type: ignore` only with strong justification.
+# remove stale data
+claude-kb delete pattern --component ui.auth
 
-### Error Handling
+- **STOP** - Read existing code before writing anything
+- **SEARCH** codebase for patterns and dependencies
+- **NEVER** assume libraries exist - check imports first
+- **PRE-COMMIT HOOKS** these must be ran, they can be skipped, if the issue is minor
 
-* Fail fast, fail loud. No silent fallbacks.
-* Minimize branching: every `if`/`try` must be justified.
 
-### Dependencies
 
-* Avoid new core dependencies. Tiny deps OK if widely reused.
 
-### Testing (TDD Red → Green → Blue)
 
-1. If a test doesn’t exist, create a **golden baseline test first**.
-2. Add a failing test for the new feature.
-3. Implement until tests pass.
-4. Refactor cleanly.
+## Project Map
+```
+tinyagent/
+├── agents/
+│   ├── agent.py      # ReactAgent - orchestrates ReAct loop
+│   └── code_agent.py # TinyCodeAgent - Python code executor
+├── tools.py      # @tool decorator & global registry
+├── prompt.py     # System/error prompt templates
+├── tests/        # Test suite
+└── examples/
+    ├── simple_demo.py    # Minimal setup and basic usage
+    ├── react_demo.py     # Enhanced features (scratchpad, error recovery, observations)
+    ├── code_demo.py      # Python code execution capabilities
+    └── web_search_tool.py # Web search integration example
+documentation/
+├── modules/
+│   ├── tools.md            # Comprehensive tools guide
+│   └── tools_one_pager.md  # One-page tools quickstart
+```
 
-* Run with: `hatch run test`.
 
-### Documentation
 
-* Keep concise and actionable.
-* Update when behavior changes.
-* Avoid duplication.
+### 2. Development Workflow
+```bash
+# BEFORE any changes
+source .venv/bin/activate && pytest tests/api_test/test_agent.py -v
 
-### Scope & Maintenance
+# DURING development
+ruff check . --fix && ruff format .
 
-* Backward compatibility only if low maintenance cost.
-* Delete dead code (never guard it).
-* Always run `ruff .`.
-* Use `git commit -n` if pre-commit hooks block rollback.
+# AFTER changes
+pytest tests/api_test/test_agent.py -v
+pre-commit run --all-files
+```
+
+### 3. Setup & Testing Protocol
+**MANDATORY**: Tests MUST pass before committing
+
+#### Setup Options
+
+```bash
+uv venv                    # Creates .venv/
+source .venv/bin/activate  # Activate environment
+
+#### Testing Commands
+```bash
+# Run all tests
+pytest tests/api_test/test_agent.py -v
+
+# Run specific test
+pytest tests/api_test/test_agent.py::TestReactAgent::test_agent_initialization_with_function_tools -v
+```
+
+### 4. Code Standards
+
+#### Python Rules
+- **USE** type hints ALWAYS
+- **MATCH** existing patterns exactly
+- **NO** print statements in production code
+- **RUN** `ruff check . --fix` after EVERY change
+
+#### Tool Registration
+- Functions with `@tool` decorator auto-register in global registry
+- ReactAgent accepts raw functions OR Tool objects
+- Invalid tools raise ValueError during `__post_init__`
+
+### 5. Critical Implementation Details
+
+#### API Configuration
+- Uses OpenAI v1 API: `from openai import OpenAI`
+- OpenRouter support via `OPENAI_BASE_URL` env var
+- API key: constructor arg > `OPENAI_API_KEY` env var
+
+#### Message Format
+**CRITICAL**: Use "user" role for tool responses (OpenRouter compatibility):
+```python
+{"role": "user", "content": f"Tool '{name}' returned: {result}"}
+```
+
+#### Import Pattern
+```python
+# CORRECT - Import from main package (public API)
+from tinyagent.tools import tool
+from tinyagent import ReactAgent
+
+# CORRECT - Import from agents subpackage (internal structure)
+from tinyagent.agents.agent import ReactAgent
+
+# WRONG
+from .tool import tool
+from .react import ReactAgent
+```
+
+### 6. Common Commands
+```bash
+# Setup
+source .venv/bin/activate && pre-commit install
+
+# Development
+python examples/simple_demo.py     # Basic usage demo
+python examples/react_demo.py     # Enhanced features demo
+python examples/code_demo.py      # Code execution demo
+python examples/web_search_tool.py # Web search demo
+ruff check . --fix               # Fix linting
+ruff format .                    # Format code
+
+# Testing
+pytest tests/api_test/test_agent.py -v # All tests
+pre-commit run --all-files             # Full check
+```
+
+### 7. Project Configuration
+- **Ruff**: Line length 100, Python 3.10+
+- **Pre-commit**: Runs ruff + pytest on test_agent.py
+- **Environment**: Uses `.env` for API keys
+
+### 8. Error Handling
+- **NEVER** swallow errors silently
+- **ALWAYS** check tool registration before agent creation
+- **STOP** and ask if registry/import issues occur
+
+## Workflow Checklist
+
+- Confirm context and dependencies before touching code.
+
+| Step    | Principle                                   | Tooling Focus            |
+| ------- | ------------------------------------------- | ------------------------ |
+| Define  | Explicit problem definition before any code | Issue / PR description   |
+| Test    | Golden baseline plus failing test first     | `pytest`, `hatch run test` |
+| Build   | Small, typed, composable change             | `ruff`, `mypy`           |
+| Document | Keep `.claude` and docs in sync             | `claude-kb add/sync/validate`, docs update |
+| Review  | Peer review or self-inspection              | PR checklist             |
+
+- Run `ruff check --fix .` and `ruff format .` before committing.
+- Re-run the targeted pytest suite before and after changes.
+- Verify pre-commit hooks pass (use `git commit -n` only if instructed).
+
+## CRITICAL REMINDERS
+
+**TEST FIRST** - No exceptions
+**RUFF ALWAYS** - Before committing
+**MATCH PATTERNS** - Follow existing code style exactly
+**ASK IF UNSURE** - User prefers questions over mistakes
