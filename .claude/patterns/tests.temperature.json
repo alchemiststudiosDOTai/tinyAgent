@@ -1,0 +1,11 @@
+{
+  "$schema": "https://claude-kb.io/schema/pattern/v1",
+  "component": "tests.temperature",
+  "patterns": [
+    {
+      "name": "floating-point-temperature-tests",
+      "description": "Pattern for handling floating-point precision in temperature test assertions"
+    }
+  ],
+  "last_updated": "2025-10-15T21:23:09.778389385Z"
+}

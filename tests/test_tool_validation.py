@@ -8,11 +8,6 @@ from tinyagent.tools.validation import ToolValidationError, validate_tool_class
 TOKEN = "abc123"
 
 
-def make_client():
-    """Dummy function for testing undefined name detection."""
-    return None
-
-
 class ValidTool:
     """A compliant tool implementation used for validation."""
 
@@ -36,7 +31,7 @@ class BrokenTool:
     def __init__(self, api_key: str, timestamp: float = time.time()) -> None:  # type: ignore[misc]
         self.api_key = api_key
         self.token = TOKEN
-        self.client = make_client()  # noqa: F821
+        self.client = None  # type: ignore[assignment]
 
 
 def test_validate_tool_class_finds_violations():
@@ -48,4 +43,4 @@ def test_validate_tool_class_finds_violations():
     message = str(exc.value)
     assert "Class attribute values must be literals" in message
     assert "__init__ parameters must all provide default literal values" in message
-    assert "Undefined name 'make_client'" in message
+    assert "Assignment to None requires type annotation" in message

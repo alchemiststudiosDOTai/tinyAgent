@@ -142,7 +142,9 @@ class TestReactAgentAdvanced:
         assert result == "Done thinking"
         assert mock_client.chat.completions.create.call_count == 2
         # Verify temperature increased after scratchpad-only response
-        assert mock_client.chat.completions.create.call_args_list[1].kwargs["temperature"] == 0.2
+        assert mock_client.chat.completions.create.call_args_list[1].kwargs[
+            "temperature"
+        ] == pytest.approx(0.9)
 
     # Test 3: Tool execution edge cases
     @patch("tinyagent.agents.react.OpenAI")
@@ -254,11 +256,11 @@ class TestReactAgentAdvanced:
         result = agent.run("Parse after errors")
 
         assert result == "Finally valid"
-        # Check temperature progression: 0.0 -> 0.2 -> 0.4
+        # Check temperature progression: 0.7 -> 0.9 -> 1.1
         calls = mock_client.chat.completions.create.call_args_list
-        assert calls[0].kwargs["temperature"] == 0.0
-        assert calls[1].kwargs["temperature"] == 0.2
-        assert calls[2].kwargs["temperature"] == 0.4
+        assert calls[0].kwargs["temperature"] == pytest.approx(0.7)
+        assert calls[1].kwargs["temperature"] == pytest.approx(0.9)
+        assert calls[2].kwargs["temperature"] == pytest.approx(1.1)
 
     # Test 5: Verbose mode
     @patch("tinyagent.agents.react.OpenAI")

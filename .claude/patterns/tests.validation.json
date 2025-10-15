@@ -1,0 +1,11 @@
+{
+  "$schema": "https://claude-kb.io/schema/pattern/v1",
+  "component": "tests.validation",
+  "patterns": [
+    {
+      "name": "undefined-name-validation-test",
+      "description": "Pattern for testing undefined name detection in tool validation"
+    }
+  ],
+  "last_updated": "2025-10-15T21:23:18.316249667Z"
+}
