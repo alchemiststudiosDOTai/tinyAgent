@@ -11,6 +11,7 @@ from .core import (
     get_registry,
     tool,
 )
+from .tools import ToolValidationError, validate_tool_class
 
 __all__ = [
     "tool",
@@ -25,4 +26,6 @@ __all__ = [
     "StepLimitReached",
     "MultipleFinalAnswers",
     "InvalidFinalAnswer",
+    "validate_tool_class",
+    "ToolValidationError",
 ]

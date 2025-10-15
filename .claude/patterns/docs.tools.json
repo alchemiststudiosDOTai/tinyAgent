@@ -1,0 +1,11 @@
+{
+  "$schema": "https://claude-kb.io/schema/pattern/v1",
+  "component": "docs.tools",
+  "patterns": [
+    {
+      "name": "Tool registry docs",
+      "description": "Documentation pattern for explaining decorator and registry usage."
+    }
+  ],
+  "last_updated": "2025-10-15T20:58:12.030205513Z"
+}
