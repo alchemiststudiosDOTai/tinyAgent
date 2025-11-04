@@ -288,6 +288,25 @@ class _function_analyzer(ast.NodeVisitor):
                 continue
             self.visit(keyword.value)
 
+    def visit_Assign(self, node: ast.Assign) -> None:
+        # Check for assignments to None that need type annotations
+        if isinstance(node.value, ast.Constant) and node.value.value is None:
+            for target in node.targets:
+                if isinstance(target, (ast.Name, ast.Attribute)) and not isinstance(
+                    target.ctx, ast.Load
+                ):
+                    # This is a simple assignment to None without type annotation
+                    # We need to check if this is in a method body (like __init__)
+                    if hasattr(self, "function") and self.function.name == "__init__":
+                        self.errors.append(
+                            f"Assignment to None requires type annotation (line {node.lineno})."
+                        )
+
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                self._defined.add(target.id)
+        self.visit(node.value)
+
     def generic_visit(self, node: ast.AST) -> None:
         super().generic_visit(node)
 
