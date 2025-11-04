@@ -95,6 +95,14 @@ pre-commit run --all-files
 ### 3. Setup & Testing Protocol
 **MANDATORY**: Tests MUST pass before committing
 
+#### Testing Philosophy
+**Contrastive Negative Testing**: Prove the rule works by showing the good passes and the bad fails.
+- Create nearly identical test cases (good vs bad)
+- Good example validates the rule
+- Bad example has small, realistic violations
+- Easy side-by-side comparison
+- Clear cause-and-effect for each violation
+
 #### Setup Options
 
 ```bash
