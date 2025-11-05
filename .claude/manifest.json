@@ -1,0 +1,22 @@
+{
+  "version": "1.0.0",
+  "timestamp": "2025-11-05T04:13:30.539677531Z",
+  "files": {
+    "patterns/docs.images.json": {
+      "hash": "f1469b3157a85d722efc247e9c4d82509138f0c611f9658ecec43011a9f2c0b7",
+      "last_modified": "2025-11-05T04:13:27Z"
+    },
+    "debug_history/tool-validation-none-assignment-fix.md": {
+      "hash": "1101da2268d84d913157af0e5ba14f4f54400fb3929603d3d0013aa843ba58dc",
+      "last_modified": "2025-11-05T04:10:01Z"
+    },
+    "settings.local.json": {
+      "hash": "77437ac78c689bf36aa30049fcbbb87accf1ef95bf2c0dd7232f48449fedbd77",
+      "last_modified": "2025-11-02T19:25:06Z"
+    },
+    "debug_history/requests-import-error-debug-session.md": {
+      "hash": "3370e4231f8853a941e9cce59244bc7fd019e049d5a15fe1b3f4ebddcfe8bc89",
+      "last_modified": "2025-11-05T04:10:01Z"
+    }
+  }
+}
