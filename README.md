@@ -1,6 +1,6 @@
 # tinyAgent
 
-![tinyAgent Logo](static/images/tinyAgent_logo_v2.png)
+![tinyAgent Logo](static/images/new-ta-logo.jpg)
 
 Turn any Python function into an AI‑powered agent in just a few lines:
 
