@@ -27,6 +27,7 @@ dependencies = [
     "pre-commit>=4.0",
     "python-dotenv>=1.0",
     "requests>=2.31.0",
+    "markdownify>=0.13.1",
 ]
 
 [project.urls]
@@ -81,6 +82,9 @@ ignore = [
 force-single-line = false
 # Combine imports from the same module
 combine-as-imports = true
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
