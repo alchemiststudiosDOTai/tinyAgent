@@ -24,9 +24,11 @@ keywords = ["ai", "agent", "llm", "openai", "gpt", "react"]
 dependencies = [
     "openai>=1.0",
     "pytest>=8.0",
+    "pytest-asyncio>=0.23.0",
     "pre-commit>=4.0",
     "python-dotenv>=1.0",
     "requests>=2.31.0",
+    "httpx>=0.27.0",
     "markdownify>=0.13.1",
 ]
 
@@ -92,6 +94,7 @@ python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
+asyncio_mode = "auto"
 
 [tool.hatch.envs.default]
 python = "3.12"

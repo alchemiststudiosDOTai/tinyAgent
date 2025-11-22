@@ -7,13 +7,13 @@ Requires BRAVE_SEARCH_API_KEY environment variable.
 
 import os
 
-import requests  # type: ignore[import-untyped]  # requests lacks type hints but is required at runtime
+import httpx
 
 from tinyagent.core.registry import tool
 
 
 @tool
-def web_search(query: str) -> str:
+async def web_search(query: str) -> str:
     """Search the web and return a formatted summary of results.
 
     Args:
@@ -27,40 +27,41 @@ def web_search(query: str) -> str:
         return "Error: BRAVE_SEARCH_API_KEY environment variable not set"
 
     try:
-        response = requests.get(
-            "https://api.search.brave.com/res/v1/web/search",
-            headers={
-                "X-Subscription-Token": api_key,
-            },
-            params={
-                "q": query,
-                "count": 5,
-                "country": "us",
-                "search_lang": "en",
-            },
-            timeout=10,
-        )
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://api.search.brave.com/res/v1/web/search",
+                headers={
+                    "X-Subscription-Token": api_key,
+                },
+                params={
+                    "q": query,
+                    "count": 5,
+                    "country": "us",
+                    "search_lang": "en",
+                },
+                timeout=10,
+            )
 
-        if response.status_code != 200:
-            return f"Search failed: API request failed with status {response.status_code}"
+            if response.status_code != 200:
+                return f"Search failed: API request failed with status {response.status_code}"
 
-        data = response.json()
+            data = response.json()
 
-        if "web" not in data or "results" not in data["web"]:
-            return "No search results found"
+            if "web" not in data or "results" not in data["web"]:
+                return "No search results found"
 
-        web_results = data["web"]["results"]
-        if not web_results:
-            return "No search results found"
+            web_results = data["web"]["results"]
+            if not web_results:
+                return "No search results found"
 
-        summary_parts = []
-        for i, result in enumerate(web_results[:3], 1):
-            title = result.get("title", "No title")
-            description = result.get("description", "No description")
-            url = result.get("url", "")
-            summary_parts.append(f"{i}. {title}\n   {description}\n   {url}")
+            summary_parts = []
+            for i, result in enumerate(web_results[:3], 1):
+                title = result.get("title", "No title")
+                description = result.get("description", "No description")
+                url = result.get("url", "")
+                summary_parts.append(f"{i}. {title}\n   {description}\n   {url}")
 
-        return "\n\n".join(summary_parts)
+            return "\n\n".join(summary_parts)
 
-    except requests.RequestException as e:
+    except httpx.RequestError as e:
         return f"Search failed: {str(e)}"
