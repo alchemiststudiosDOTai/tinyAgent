@@ -20,7 +20,7 @@ import time
 from dataclasses import dataclass
 from typing import Any, Final, Sequence
 
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 from ..core.exceptions import StepLimitReached
 from ..core.finalizer import Finalizer
@@ -210,10 +210,19 @@ class TinyCodeAgent:
             else:
                 raise ValueError(f"Invalid tool: {item}")
 
+        # Validate no async tools (exec() doesn't support async/await)
+        for name, tool in self._tool_map.items():
+            if tool.is_async:
+                raise ValueError(
+                    f"TinyCodeAgent does not support async tools: '{name}'. "
+                    f"Async tools (web_search, web_browse, etc.) require ReactAgent. "
+                    f"TinyCodeAgent is designed for synchronous code execution only."
+                )
+
         # Initialize OpenAI client
         api_key = self.api_key or os.getenv("OPENAI_API_KEY")
         base_url = os.getenv("OPENAI_BASE_URL")
-        self.client = OpenAI(api_key=api_key, base_url=base_url)
+        self.client = AsyncOpenAI(api_key=api_key, base_url=base_url)
 
         # Initialize Python executor with tools as globals
         self._executor = PythonExecutor(set(self.extra_imports))
@@ -230,7 +239,7 @@ class TinyCodeAgent:
         if self.system_suffix:
             self._system_prompt += "\n\n" + self.system_suffix
 
-    def run(
+    async def run(
         self,
         task: str,
         *,
@@ -291,7 +300,7 @@ class TinyCodeAgent:
                         f"  [{msg['role'].upper()}]: {msg['content'][:200]}{'...' if len(msg['content']) > 200 else ''}"
                     )
             # Get model response
-            reply = self._chat(messages, verbose=verbose)
+            reply = await self._chat(messages, verbose=verbose)
 
             # Extract code block
             if verbose:
@@ -393,11 +402,11 @@ class TinyCodeAgent:
             )
         raise error
 
-    def _chat(self, messages: list[dict[str, str]], verbose: bool = False) -> str:
+    async def _chat(self, messages: list[dict[str, str]], verbose: bool = False) -> str:
         """Single LLM call; OpenAI-compatible."""
         if verbose:
             print(f"\n[API] Calling {self.model}...")
-        response = self.client.chat.completions.create(
+        response = await self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             temperature=0,

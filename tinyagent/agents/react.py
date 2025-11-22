@@ -16,7 +16,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Final
 
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 from ..core.exceptions import StepLimitReached
 from ..core.finalizer import Finalizer
@@ -81,7 +81,7 @@ class ReactAgent:
         # Initialize OpenAI client
         api_key = self.api_key or os.getenv("OPENAI_API_KEY")
         base_url = os.getenv("OPENAI_BASE_URL")
-        self.client = OpenAI(api_key=api_key, base_url=base_url)
+        self.client = AsyncOpenAI(api_key=api_key, base_url=base_url)
 
         # Get the base system prompt (from file or default)
         base_prompt = get_prompt_fallback(SYSTEM, self.prompt_file)
@@ -95,7 +95,7 @@ class ReactAgent:
         )
 
     # ------------------------------------------------------------------
-    def run(
+    async def run(
         self,
         question: str,
         *,
@@ -149,7 +149,7 @@ class ReactAgent:
                     )
                     print(f"  [{msg['role'].upper()}]: {content_preview}")
 
-            assistant_reply = self._chat(messages, temperature, verbose=verbose)
+            assistant_reply = await self._chat(messages, temperature, verbose=verbose)
 
             if verbose:
                 print(f"\nLLM RESPONSE:\n{assistant_reply}")
@@ -214,7 +214,7 @@ class ReactAgent:
                 print(f"\n[TOOL CALL]: {name}")
                 print(f"[ARGUMENTS]: {args}")
 
-            ok, result = self._safe_tool(name, args, verbose=verbose)
+            ok, result = await self._safe_tool(name, args, verbose=verbose)
             tag = "Observation" if ok else "Error"
             short = (str(result)[:MAX_OBS_LEN] + "…") if len(str(result)) > MAX_OBS_LEN else result
 
@@ -235,7 +235,7 @@ class ReactAgent:
             print(f"\n{'=' * 40} FINAL ATTEMPT {'=' * 40}")
             print("[!] Step limit reached. Asking for final answer...")
 
-        final_try = self._chat(
+        final_try = await self._chat(
             messages + [{"role": "user", "content": "Return your best final answer now."}],
             0,
             verbose=verbose,
@@ -282,13 +282,13 @@ class ReactAgent:
         raise error
 
     # ------------------------------------------------------------------
-    def _chat(
+    async def _chat(
         self, messages: list[dict[str, str]], temperature: float, verbose: bool = False
     ) -> str:
         """Single LLM call; OpenAI-compatible."""
         if verbose:
             print(f"\n[API] Calling {self.model} (temp={temperature})...")
-        response = self.client.chat.completions.create(
+        response = await self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             temperature=temperature,
@@ -306,7 +306,7 @@ class ReactAgent:
         except json.JSONDecodeError:
             return None
 
-    def _safe_tool(
+    async def _safe_tool(
         self, name: str, args: dict[str, Any], verbose: bool = False
     ) -> tuple[bool, Any]:
         """
@@ -329,7 +329,7 @@ class ReactAgent:
         try:
             if verbose:
                 print(f"[EXECUTING]: {name}({args})")
-            result = tool.run(args)
+            result = await tool.run(args)
             if verbose:
                 print(f"[RESULT]: {result}")
             return True, result
