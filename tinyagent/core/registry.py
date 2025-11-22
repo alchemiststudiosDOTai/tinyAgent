@@ -12,6 +12,7 @@ get_registry      – read-only mapping
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 from dataclasses import dataclass
 from types import MappingProxyType
@@ -34,13 +35,24 @@ class Tool:
     name: str
     doc: str
     signature: inspect.Signature
+    is_async: bool = False
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         return self.fn(*args, **kwargs)
 
-    def run(self, payload: Dict[str, Any]) -> str:
+    async def run(self, payload: Dict[str, Any]) -> str:
+        """Execute tool with async-aware execution.
+
+        Async tools are awaited directly, sync tools run in thread pool
+        to avoid blocking the event loop.
+        """
         bound = self.signature.bind(**payload)
-        return str(self.fn(*bound.args, **bound.kwargs))
+        if self.is_async:
+            result = await self.fn(*bound.args, **bound.kwargs)
+        else:
+            # Run sync tools in thread pool to avoid blocking event loop
+            result = await asyncio.to_thread(self.fn, *bound.args, **bound.kwargs)
+        return str(result)
 
 
 class ToolRegistry(MutableMapping[str, Tool]):
@@ -59,6 +71,7 @@ class ToolRegistry(MutableMapping[str, Tool]):
             name=fn.__name__,
             doc=(fn.__doc__ or "").strip(),
             signature=inspect.signature(fn),
+            is_async=inspect.iscoroutinefunction(fn),
         )
         return fn
 
