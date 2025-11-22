@@ -11,6 +11,8 @@ This example shows:
 3. Multi-step problem solving
 """
 
+import asyncio
+
 try:
     from dotenv import load_dotenv
 
@@ -45,7 +47,7 @@ def subtract(a: float, b: float) -> float:
     return a - b
 
 
-def main():
+async def main():
     """Simple calculator agent example."""
     # Create agent with basic math tools
     agent = ReactAgent(tools=[multiply, divide, add, subtract])
@@ -55,21 +57,21 @@ def main():
 
     # Example 1: Multi-step calculation
     print("\n1. Multi-step calculation:")
-    result = agent.run("What is 12 times 5, then divided by 3?")
+    result = await agent.run("What is 12 times 5, then divided by 3?")
     print(f"Result: {result}")
 
     # Example 2: More complex math
     print("\n2. Complex calculation:")
-    result = agent.run("Calculate (15 + 25) * 2, then subtract 10")
+    result = await agent.run("Calculate (15 + 25) * 2, then subtract 10")
     print(f"Result: {result}")
 
     # Example 3: Division with explanation
     print("\n3. Division problem:")
-    result = agent.run(
+    result = await agent.run(
         "If I have 100 dollars and want to split it equally among 7 people, how much does each person get?"
     )
     print(f"Result: {result}")
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

@@ -7,6 +7,8 @@ This example demonstrates:
 3. Algorithm implementation
 """
 
+import asyncio
+
 try:
     from dotenv import load_dotenv
 
@@ -69,7 +71,7 @@ def get_exchange_rate(from_currency: str, to_currency: str) -> float:
     return rates.get((from_currency, to_currency), 1.0)
 
 
-def main():
+async def main():
     agent = TinyCodeAgent(
         tools=[fetch_stock_data, get_exchange_rate],
         model="gpt-4o-mini",  # or "anthropic/claude-3.5-haiku", etc.
@@ -81,12 +83,12 @@ def main():
 
     # Example 1: Mathematical computation
     print("\n1. Fibonacci sequence:")
-    answer = agent.run("Calculate the first 10 Fibonacci numbers and find their sum", verbose=True)
+    answer = await agent.run("Calculate the first 10 Fibonacci numbers and find their sum", verbose=True)
     print(f"Answer: {answer}")
 
     # Example 2: Stock portfolio analysis
     print("\n2. Portfolio analysis:")
-    answer = agent.run(
+    answer = await agent.run(
         "I have 10 shares of AAPL and 5 shares of MSFT. What's my portfolio value and which stock has better daily performance?",
         verbose=True,
     )
@@ -94,7 +96,7 @@ def main():
 
     # Example 3: Currency conversion with calculations
     print("\n3. International investment:")
-    answer = agent.run(
+    answer = await agent.run(
         "If I invest $10,000 in European stocks and get 15% returns in EUR, how much will I have in USD? Use current exchange rates.",
         verbose=True,
     )
@@ -102,4 +104,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

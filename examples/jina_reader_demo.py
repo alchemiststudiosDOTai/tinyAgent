@@ -24,6 +24,7 @@ except ImportError:
     # dotenv is optional for examples
     pass
 
+import asyncio
 import os
 import sys
 import threading
@@ -100,7 +101,7 @@ def spinner(label: str = "Searching") -> typing.Iterator[None]:
         t.join(timeout=1)
 
 
-def main() -> None:
+async def main() -> None:
     agent = ReactAgent(tools=cast("Sequence[Tool]", [jina_scrape]))
 
     print("Jina Reader Demo - Interactive Scraper")
@@ -111,9 +112,9 @@ def main() -> None:
             break
         prompt = f"Scrape the content from {query} and provide a concise summary with key points."
         with spinner("Searching"):
-            result = agent.run(prompt)
+            result = await agent.run(prompt)
         print(f"\nResult:\n{result}\n")
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

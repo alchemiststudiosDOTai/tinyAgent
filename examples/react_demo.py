@@ -9,6 +9,8 @@ This example demonstrates:
 5. Graceful step limit handling
 """
 
+import asyncio
+
 try:
     from dotenv import load_dotenv
 
@@ -81,7 +83,7 @@ def calculate_trip_cost(flight_price: float, hotel_nights: int, daily_food: floa
     }
 
 
-def main():
+async def main():
     agent = ReactAgent(
         tools=[get_weather, search_flights, calculate_trip_cost],
         model="gpt-4o-mini",  # or any OpenRouter model
@@ -92,7 +94,7 @@ def main():
 
     # Example 1: Weather comparison with scratchpad thinking
     print("\n1. Weather comparison:")
-    answer = agent.run(
+    answer = await agent.run(
         "Compare the weather in Tokyo and London. Which city has better conditions for outdoor activities?",
         max_steps=10,
         verbose=True,
@@ -101,7 +103,7 @@ def main():
 
     # Example 2: Trip planning with multiple tools
     print("\n2. Trip planning:")
-    answer = agent.run(
+    answer = await agent.run(
         "I want to fly from New York to London for 3 nights. What's the weather like there and how much will the trip cost if I take the cheapest flight?",
         max_steps=10,
         verbose=True,
@@ -110,11 +112,11 @@ def main():
 
     # Example 3: Error recovery - intentionally trigger argument error
     print("\n3. Demonstrating error recovery:")
-    answer = agent.run(
+    answer = await agent.run(
         "Calculate the cost of a trip with a $500 flight for 5 nights", max_steps=10, verbose=True
     )
     print(f"Answer: {answer}")
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

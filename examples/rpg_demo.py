@@ -6,6 +6,7 @@ This example demonstrates how to load an RPG Game Master prompt from an XML file
 using the tinyagent prompt loader functionality.
 """
 
+import asyncio
 from pathlib import Path
 
 from tinyagent import ReactAgent, tool
@@ -69,7 +70,7 @@ Cargo Capacity: 45% used
 Note: Engine efficiency slightly reduced - recommend maintenance at next port."""
 
 
-def main():
+async def main():
     """Run the RPG demo with XML prompt loading."""
 
     # Get the path to the RPG prompt file
@@ -138,7 +139,7 @@ def main():
 
             print("\nGame Master:")
             try:
-                response = agent.run(user_input, max_steps=5)
+                response = await agent.run(user_input, max_steps=5)
                 print(response)
             except Exception as e:
                 print(f"Error: {e}")
@@ -150,4 +151,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
