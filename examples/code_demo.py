@@ -83,7 +83,9 @@ async def main():
 
     # Example 1: Mathematical computation
     print("\n1. Fibonacci sequence:")
-    answer = await agent.run("Calculate the first 10 Fibonacci numbers and find their sum", verbose=True)
+    answer = await agent.run(
+        "Calculate the first 10 Fibonacci numbers and find their sum", verbose=True
+    )
     print(f"Answer: {answer}")
 
     # Example 2: Stock portfolio analysis

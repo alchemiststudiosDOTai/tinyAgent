@@ -11,14 +11,11 @@ This example demonstrates:
 
 import asyncio
 
-try:
-    from dotenv import load_dotenv
-
-    load_dotenv()
-except ImportError:
-    pass  # dotenv not installed, skip
+from dotenv import load_dotenv
 
 from tinyagent import ReactAgent, tool
+
+load_dotenv()
 
 
 @tool
