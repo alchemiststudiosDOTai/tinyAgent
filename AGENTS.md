@@ -77,6 +77,39 @@ documentation/
 │   └── tools_one_pager.md  # One-page tools quickstart
 ```
 
+Default structure
+
+Folder = the concept / feature
+
+Files = roles inside that concept
+
+Aim for 2–5 files per concept. Don’t chase tiny files. Don’t allow god-files.
+
+The 4 triggers to split a file
+
+Split when any of these happen:
+
+The file has two jobs (you can say “it does X and Y”)
+
+You edit it for unrelated reasons
+
+You can’t describe it in one sentence without “and”
+
+Everyone imports it everywhere / it becomes a dependency magnet
+
+The 3 buckets (keep them from mixing)
+
+Policy = rules/decisions (“what should happen”)
+
+Mechanism = DB/HTTP/framework (“how it happens”)
+
+Presentation = response shapes/UI (“how it’s shown”)
+
+Mixing all 3 in one file = usually tangled.
+
+Folder boundary test (best test)
+
+If we change the rules for a concept, only this folder should change.
 
 
 ### 2. Development Workflow

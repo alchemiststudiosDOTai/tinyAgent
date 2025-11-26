@@ -329,18 +329,13 @@ class TinyCodeAgent:
                     print(f"EXECUTION RESULT: {result}")
                     print(f"IS FINAL ANSWER: {done}")
             except KeyError as e:
-                # Special handling for KeyError to help with dict access
                 if verbose:
                     print(f"\n[!] KEY ERROR: {e}")
-                error_msg = f"KeyError: {e}. "
-                # Try to extract available keys from the error context
-                if "get_weather" in code:
-                    error_msg += "Note: get_weather() returns dict with keys: 'temp', 'condition', 'humidity'"
-                elif "fetch_stock_data" in code:
-                    error_msg += "Note: fetch_stock_data() returns dict with keys: 'price', 'change', 'volume', 'high', 'low'"
-                elif "get_exchange_rate" in code:
-                    error_msg += "Note: get_exchange_rate() returns a float value directly"
-                # Report error
+                # Build error message with hints from tool docstrings
+                error_msg = f"KeyError: {e}."
+                for name, tool in self._tool_map.items():
+                    if name in code and tool.doc:
+                        error_msg += f"\n\nHint - {name}() docstring:\n{tool.doc}"
                 messages += [
                     {"role": "assistant", "content": reply},
                     {"role": "user", "content": error_msg},
