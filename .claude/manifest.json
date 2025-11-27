@@ -1,22 +1,42 @@
 {
   "version": "1.0.0",
-  "timestamp": "2025-11-05T04:13:30.539677531Z",
+  "timestamp": "2025-11-27T05:25:46.944887832Z",
   "files": {
-    "patterns/docs.images.json": {
-      "hash": "f1469b3157a85d722efc247e9c4d82509138f0c611f9658ecec43011a9f2c0b7",
-      "last_modified": "2025-11-05T04:13:27Z"
-    },
     "debug_history/tool-validation-none-assignment-fix.md": {
       "hash": "1101da2268d84d913157af0e5ba14f4f54400fb3929603d3d0013aa843ba58dc",
       "last_modified": "2025-11-05T04:10:01Z"
     },
-    "settings.local.json": {
-      "hash": "77437ac78c689bf36aa30049fcbbb87accf1ef95bf2c0dd7232f48449fedbd77",
-      "last_modified": "2025-11-02T19:25:06Z"
+    "patterns/docs.images.json": {
+      "hash": "4e2dce1d9ef004f892da37332cf525f4dc71c69833ed5024a8f07cbef814cff2",
+      "last_modified": "2025-11-05T04:14:33Z"
+    },
+    "manifest.md": {
+      "hash": "142a2df239e99869e00b8be71736ae56a7cb78aed9c5067ad0ca5e7dd666cfde",
+      "last_modified": "2025-11-26T05:30:50Z"
+    },
+    "metadata/docs.architecture.json": {
+      "hash": "04683ffa02aa3ceedda9bb62472c3a3c3f2d1aa64140097f3fab7f61c919e25a",
+      "last_modified": "2025-11-27T05:25:43Z"
     },
     "debug_history/requests-import-error-debug-session.md": {
       "hash": "3370e4231f8853a941e9cce59244bc7fd019e049d5a15fe1b3f4ebddcfe8bc89",
       "last_modified": "2025-11-05T04:10:01Z"
+    },
+    "metadata/feat-add-web-browse-tool-and-import-cleanup.md": {
+      "hash": "639bf966d56e486cc47541a7a4dc8a3c783236fcc4c7f28e649b6507dba57412",
+      "last_modified": "2025-11-10T01:10:19Z"
+    },
+    "metadata/code-formatting-and-import-organization-improvements.md": {
+      "hash": "827f7937ce9a4c3f78a56e833706d4d4c5aa6eb1db0568c53ae1981fab6f55cf",
+      "last_modified": "2025-11-26T04:30:50Z"
+    },
+    "settings.local.json": {
+      "hash": "59df1dac2c2a51e376909de34ada5bee2edb457a0d2b98e06e23858a74d64dfe",
+      "last_modified": "2025-11-26T05:13:27Z"
+    },
+    "metadata/major-project-cleanup-and-documentation-refactoring.md": {
+      "hash": "b9541fe351828b98db6924dd6eeb755a83e55e91d967d30c7bb95cb6983e53f1",
+      "last_modified": "2025-11-26T05:31:11Z"
     }
   }
 }

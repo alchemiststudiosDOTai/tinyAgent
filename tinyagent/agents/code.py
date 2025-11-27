@@ -80,8 +80,6 @@ class TinyCodeAgent:
         Optional text to append to system prompt
     prompt_file
         Optional path to a text file containing the system prompt
-    verify_completion
-        If True, adds verification step before returning final answer
     verbose
         If True, enables detailed execution logging
 
@@ -106,7 +104,6 @@ class TinyCodeAgent:
     extra_imports: Sequence[str] = ()
     system_suffix: str = ""
     prompt_file: str | None = None
-    verify_completion: bool = False
     verbose: bool = False
 
     # Internal state (set in __post_init__)

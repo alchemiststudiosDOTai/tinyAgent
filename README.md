@@ -173,6 +173,10 @@ For examples, see `examples/file_prompt_demo.py`.
 
 For a comprehensive guide on creating tools with patterns and best practices, see the [tool creation documentation](documentation/modules/tools.md). For a concise overview, read the [one-page tools guide](documentation/modules/tools_one_pager.md).
 
+## Architecture Notes
+
+High-level diagrams and agent execution flow notes live in `documentation/architecture/` (see `documentation/architecture/agents/codeagent-architecture.md` for TinyCodeAgent). Skim these before changing agents or tooling so updates stay aligned with the intended design.
+
 ## Status
 
 **BETA** - Actively developed and used in production. Breaking changes possible until v1.0.

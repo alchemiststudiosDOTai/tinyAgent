@@ -8,6 +8,7 @@ No vague objectives. Never write code until the problem is explicitly defined.
 Small diffs, frequent commits. Ship incremental progress, not monoliths.
 Ask or infer. If the goal is unclear, clarify or apply best practices — but never assume silently.
 Sync .claude after every material change. Keeping the knowledge base current is part of your job. Use the claude-kb CLI to maintain KB entries: add new patterns/components, update existing documentation, validate schema integrity, and sync the manifest to track changes across commits.
+Refer to `documentation/architecture/` (especially `documentation/architecture/agents/`) before changing agent code or tooling; keep docs in sync with design intent.
 
 **KB Workflow**
 - Capture every meaningful fix, feature, or debugging pattern immediately with `claude-kb add` (pick the right entry type, set `--component`, keep the summary actionable, and include error + solution context).
