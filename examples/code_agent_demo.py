@@ -8,10 +8,6 @@ This example demonstrates the enhanced TinyCodeAgent v2 with:
 - LLM signal primitives (uncertain, explore, commit)
 - Trust levels for execution safety
 - Enhanced error handling and recovery
-
-Requirements:
-- OPENAI_API_KEY environment variable set
-- tinyagent package installed
 """
 
 import asyncio

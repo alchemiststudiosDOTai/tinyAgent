@@ -20,10 +20,11 @@ from openai import AsyncOpenAI
 
 from ..core.exceptions import StepLimitReached
 from ..core.finalizer import Finalizer
-from ..core.registry import Tool, get_registry
+from ..core.registry import Tool
 from ..core.types import RunResult
 from ..prompts.loader import get_prompt_fallback
 from ..prompts.templates import BAD_JSON, SYSTEM
+from .base import BaseAgent
 
 __all__ = ["ReactAgent"]
 
@@ -34,7 +35,7 @@ MAX_OBS_LEN: Final = 500  # added this to not bnlow up the prompt
 
 
 @dataclass(kw_only=True)
-class ReactAgent:
+class ReactAgent(BaseAgent):
     """
     A lightweight ReAct loop.
 
@@ -61,22 +62,8 @@ class ReactAgent:
     temperature: float = 0.7
 
     def __post_init__(self) -> None:
-        if not self.tools:
-            raise ValueError("ReactAgent requires at least one tool.")
-
-        # Get the registry to look up Tool objects for functions
-        registry = get_registry()
-
-        # Build tool map, handling both Tool objects and functions
-        self._tool_map: dict[str, Tool] = {}
-        for item in self.tools:
-            if isinstance(item, Tool):
-                self._tool_map[item.name] = item
-            elif callable(item) and item.__name__ in registry:
-                # Function decorated with @tool
-                self._tool_map[item.__name__] = registry[item.__name__]
-            else:
-                raise ValueError(f"Invalid tool: {item}")
+        # Call parent __post_init__ to handle tool mapping
+        super().__post_init__()
 
         # Initialize OpenAI client
         api_key = self.api_key or os.getenv("OPENAI_API_KEY")

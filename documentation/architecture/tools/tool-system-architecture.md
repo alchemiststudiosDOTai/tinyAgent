@@ -153,39 +153,12 @@ Agent executes via Tool.__call__
 Original function called
 ```
 
-## Migration from Old System
-
-### Before (Global Registry)
-```python
-@tool
-def search_web(query: str) -> str:
-    pass
-
-# Tools auto-registered in global registry
-agent = ReactAgent(model="gpt-4")  # Auto-loads from registry
-```
-
-### After (Explicit Tools)
-```python
-@tool
-def search_web(query: str) -> str:
-    pass
-
-# Tool returns Tool object
-search_tool = search_web  # This IS a Tool object
-
-agent = ReactAgent(
-    model="gpt-4",
-    tools=[search_tool]  # Explicit tool list
-)
-```
-
-## Benefits of New System
+## Benefits
 
 ### Explicitness
-- **No hidden state** - Tools are visible objects
-- **No global registry** - No surprises from auto-discovery
+- **Tools are visible objects** - What you see is what you get
 - **Clear dependencies** - Agent needs are obvious
+- **No hidden state** - No magic or auto-discovery
 
 ### Type Safety
 - **Fail-fast validation** - Errors caught at import time
@@ -193,7 +166,7 @@ agent = ReactAgent(
 - **Runtime guarantees** - All tools have proper signatures
 
 ### Simplicity
-- **One tool class** - No registry management
+- **Single tool class** - Clean and straightforward
 - **Direct execution** - No indirection layers
 - **Easy testing** - Tools are just objects
 
@@ -210,26 +183,6 @@ fake_tool = Tool(
 agent = ReactAgent(tools=[fake_tool])
 ```
 
-## Files Modified
-
-### Core Changes
-- `tinyagent/core/registry.py` - Removed ToolRegistry, added tool() function
-- `tinyagent/core/__init__.py` - Updated exports
-- `tinyagent/agents/base.py` - Simplified _build_tool_map()
-- `tinyagent/__init__.py` - Removed registry functions from public API
-
-### Supporting Changes
-- `scripts/check_naming_conventions.py` - Updated whitelist
-
-## Backward Compatibility
-
-The new system maintains compatibility with existing tool functions:
-- Functions with @tool decorator still work
-- Type hints remain required
-- Return type annotations remain required
-- Tool behavior is identical
-
-The only breaking change is the removal of the global registry system.
 
 ## Design Principles
 

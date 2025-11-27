@@ -8,16 +8,13 @@ a report generator tool to create markdown reports from findings.
 Two tools:
 - ddgs_search: Web search via multiple engines
 - generate_report: Create markdown report from content
-
-Requirements:
-- OPENAI_API_KEY environment variable set
-- ddgs package installed (uv pip install ddgs)
 """
 
 import asyncio
 import os
 from datetime import datetime
 
+from ddgs import DDGS
 from dotenv import load_dotenv
 
 from tinyagent import ReactAgent, tool
@@ -39,7 +36,6 @@ def ddgs_search(query: str, max_results: int = 5) -> str:
     Returns:
         Formatted search results with titles, descriptions, and URLs
     """
-    from ddgs import DDGS
 
     try:
         results = DDGS().text(

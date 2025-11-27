@@ -28,7 +28,7 @@ from openai import AsyncOpenAI
 
 from ..core.exceptions import StepLimitReached
 from ..core.finalizer import Finalizer
-from ..core.registry import Tool, get_registry
+from ..core.registry import Tool
 from ..core.types import RunResult
 from ..execution import ExecutionResult, LocalExecutor
 from ..limits import ExecutionLimits
@@ -36,6 +36,7 @@ from ..memory import AgentMemory
 from ..prompts.loader import get_prompt_fallback
 from ..prompts.templates import CODE_SYSTEM
 from ..signals import commit, explore, uncertain
+from .base import BaseAgent
 
 __all__ = ["TinyCodeAgent", "TrustLevel"]
 
@@ -55,7 +56,7 @@ class TrustLevel(Enum):
 
 
 @dataclass(kw_only=True)
-class TinyCodeAgent:
+class TinyCodeAgent(BaseAgent):
     """
     A lightweight Python-executing ReAct agent with graduated trust.
 
@@ -113,23 +114,12 @@ class TinyCodeAgent:
     client: AsyncOpenAI = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
-        if not self.tools:
-            raise ValueError("TinyCodeAgent requires at least one tool.")
+        # Call parent __post_init__ to handle tool mapping
+        super().__post_init__()
 
         # Normalize trust level
         if isinstance(self.trust_level, str):
             self.trust_level = TrustLevel(self.trust_level)
-
-        # Build tool map
-        registry = get_registry()
-        self._tool_map = {}
-        for item in self.tools:
-            if isinstance(item, Tool):
-                self._tool_map[item.name] = item
-            elif callable(item) and item.__name__ in registry:
-                self._tool_map[item.__name__] = registry[item.__name__]
-            else:
-                raise ValueError(f"Invalid tool: {item}")
 
         # Validate no async tools
         for name, tool in self._tool_map.items():

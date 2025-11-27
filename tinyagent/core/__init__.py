@@ -2,7 +2,7 @@
 
 from .exceptions import InvalidFinalAnswer, MultipleFinalAnswers, StepLimitReached
 from .finalizer import Finalizer
-from .registry import Tool, freeze_registry, get_registry, tool
+from .registry import Tool, ToolDefinitionError, tool
 from .types import FinalAnswer, RunResult
 
 __all__ = [
@@ -13,7 +13,6 @@ __all__ = [
     "MultipleFinalAnswers",
     "InvalidFinalAnswer",
     "Tool",
+    "ToolDefinitionError",
     "tool",
-    "freeze_registry",
-    "get_registry",
 ]

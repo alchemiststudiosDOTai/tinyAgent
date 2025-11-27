@@ -80,11 +80,7 @@ class NamingChecker(ast.NodeVisitor):
             for alias in node.names:
                 name = alias.name
                 # Flag importing snake_case functions from main module
-                if (
-                    self._is_snake_case(name)
-                    and not name.startswith("_")
-                    and name not in ["tool", "freeze_registry", "get_registry"]
-                ):
+                if self._is_snake_case(name) and not name.startswith("_") and name not in ["tool"]:
                     self.errors.append(
                         (
                             node.lineno,

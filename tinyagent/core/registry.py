@@ -1,32 +1,35 @@
 """
-tinyagent.tool
-Registry + decorator for agent-callable tools.
+tinyagent.core.registry
+Tool decorator with fail-fast validation.
 
 Public surface
 --------------
-tool              – decorator
-Tool              – dataclass wrapper
-freeze_registry   – lock mutation
-get_registry      – read-only mapping
+tool                 – decorator (returns Tool)
+Tool                 – dataclass wrapper
+ToolDefinitionError  – raised on invalid tool signature
 """
 
 from __future__ import annotations
 
 import asyncio
 import inspect
+import warnings
 from dataclasses import dataclass
-from types import MappingProxyType
-from typing import Any, Callable, Dict, Iterator, Mapping, MutableMapping
+from typing import Any, Callable, Dict, get_type_hints
 
 __all__ = [
     "Tool",
     "tool",
-    "freeze_registry",
-    "get_registry",
+    "ToolDefinitionError",
 ]
 
 
-# ---------------------------------------------------------------------------
+class ToolDefinitionError(ValueError):
+    """Raised when @tool decorator finds invalid function signature."""
+
+    pass
+
+
 @dataclass(slots=True)
 class Tool:
     """Wraps a callable with metadata."""
@@ -55,68 +58,51 @@ class Tool:
         return str(result)
 
 
-class ToolRegistry(MutableMapping[str, Tool]):
-    """Dict-like registry with a handy `.register` decorator."""
+def tool(fn: Callable[..., Any]) -> Tool:
+    """Decorate a function as a Tool with validation.
 
-    def __init__(self) -> None:
-        self._data: Dict[str, Tool] = {}
-        self._frozen: bool = False
+    Validates:
+    - All parameters have type annotations
+    - Return type annotation is present
+    - Warns if no docstring (but does not fail)
 
-    # Decorator ----------------------------------------------------------
-    def register(self, fn: Callable[..., Any]) -> Callable[..., Any]:
-        if self._frozen:
-            raise RuntimeError("Registry is frozen; cannot add new tools.")
-        self._data[fn.__name__] = Tool(
-            fn=fn,
-            name=fn.__name__,
-            doc=(fn.__doc__ or "").strip(),
-            signature=inspect.signature(fn),
-            is_async=inspect.iscoroutinefunction(fn),
-        )
-        return fn
+    Parameters
+    ----------
+    fn
+        The function to wrap as a Tool
 
-    # MutableMapping API -------------------------------------------------
-    def __getitem__(self, key: str) -> Tool:  # noqa: Dunder
-        return self._data[key]
+    Returns
+    -------
+    Tool
+        The wrapped Tool object
 
-    def __setitem__(self, key: str, value: Tool) -> None:  # noqa: Dunder
-        if self._frozen:
-            raise RuntimeError("Registry is frozen; cannot mutate.")
-        self._data[key] = value
+    Raises
+    ------
+    ToolDefinitionError
+        If type annotations are missing
+    """
+    sig = inspect.signature(fn)
+    hints = get_type_hints(fn)
 
-    def __delitem__(self, key: str) -> None:  # noqa: Dunder
-        if self._frozen:
-            raise RuntimeError("Registry is frozen; cannot mutate.")
-        del self._data[key]
+    # Validate all parameters have type hints
+    for param_name in sig.parameters:
+        if param_name not in hints:
+            raise ToolDefinitionError(
+                f"Missing type hint for parameter '{param_name}' in {fn.__name__}"
+            )
 
-    def __iter__(self) -> Iterator[str]:  # noqa: Dunder
-        return iter(self._data)
+    # Validate return type exists
+    if "return" not in hints:
+        raise ToolDefinitionError(f"Missing return type annotation for {fn.__name__}")
 
-    def __len__(self) -> int:  # noqa: Dunder
-        return len(self._data)
+    # Warn if no docstring
+    if not fn.__doc__:
+        warnings.warn(f"Tool '{fn.__name__}' has no docstring", stacklevel=2)
 
-    # Helpers ------------------------------------------------------------
-    def freeze(self) -> None:
-        """Lock the registry against further changes."""
-        self._frozen = True
-        self._data = MappingProxyType(self._data)  # type: ignore[assignment]
-
-    def view(self) -> Mapping[str, Tool]:
-        """Immutable mapping view."""
-        return MappingProxyType(self._data)
-
-
-# Default registry instance + decorator alias
-REGISTRY = ToolRegistry()
-tool = REGISTRY.register
-
-
-# Public helpers ---------------------------------------------------------
-def freeze_registry() -> None:
-    """Freeze the default registry."""
-    REGISTRY.freeze()
-
-
-def get_registry() -> Mapping[str, Tool]:
-    """Return a read-only view of the default registry."""
-    return REGISTRY.view()
+    return Tool(
+        fn=fn,
+        name=fn.__name__,
+        doc=(fn.__doc__ or "").strip(),
+        signature=sig,
+        is_async=inspect.iscoroutinefunction(fn),
+    )

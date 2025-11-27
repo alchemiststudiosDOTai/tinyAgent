@@ -25,9 +25,7 @@ Signals:
     commit          - Signal confidence
 
 Tools:
-    tool                - Decorator to register tools
-    get_registry        - Get the global tool registry
-    freeze_registry     - Freeze registry for production
+    tool                - Decorator to create tools (returns Tool)
     validate_tool_class - Validate a tool class
 
 Types:
@@ -36,10 +34,11 @@ Types:
     Finalizer           - Final answer manager
 
 Exceptions:
-    StepLimitReached    - Max steps exceeded
+    StepLimitReached     - Max steps exceeded
     MultipleFinalAnswers - Multiple final answers attempted
-    InvalidFinalAnswer  - Final answer validation failed
-    ToolValidationError - Tool validation failed
+    InvalidFinalAnswer   - Final answer validation failed
+    ToolDefinitionError  - Tool decorator validation failed
+    ToolValidationError  - Tool class validation failed
 """
 
 from .agents.code import PythonExecutor, TinyCodeAgent, TrustLevel
@@ -51,8 +50,7 @@ from .core import (
     MultipleFinalAnswers,
     RunResult,
     StepLimitReached,
-    freeze_registry,
-    get_registry,
+    ToolDefinitionError,
     tool,
 )
 from .execution import ExecutionResult, Executor, LocalExecutor
@@ -81,10 +79,7 @@ __all__ = [
     "commit",
     # Tools
     "tool",
-    "get_registry",
-    "freeze_registry",
     "validate_tool_class",
-    "ToolValidationError",
     # Types
     "FinalAnswer",
     "RunResult",
@@ -93,4 +88,6 @@ __all__ = [
     "StepLimitReached",
     "MultipleFinalAnswers",
     "InvalidFinalAnswer",
+    "ToolDefinitionError",
+    "ToolValidationError",
 ]
