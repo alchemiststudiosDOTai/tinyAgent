@@ -53,7 +53,7 @@ class Tool:
         if self.is_async:
             result = await self.fn(*bound.args, **bound.kwargs)
         else:
-            # Run sync tools in thread pool to avoid blocking event loop
+            # Run sync tools in thread pool
             result = await asyncio.to_thread(self.fn, *bound.args, **bound.kwargs)
         return str(result)
 

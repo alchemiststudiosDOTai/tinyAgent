@@ -15,7 +15,7 @@ class TestBaseAgent:
 
     def test_cannot_instantiate_base_agent(self):
         """BaseAgent should not be instantiable directly."""
-        with pytest.raises(ValueError, match="BaseAgent requires at least one tool"):
+        with pytest.raises(ValueError, match="requires at least one tool"):
             BaseAgent(tools=[])
 
     def test_base_agent_inheritance(self):
@@ -85,3 +85,18 @@ class TestBaseAgent:
             r"Each tool must have a unique name\.",
         ):
             TinyCodeAgent(tools=[tool_a, tool_b], api_key="test-key")
+
+    def test_run_sync_method_exists(self):
+        """Both agents should have run_sync() inherited from BaseAgent."""
+
+        @tool
+        def dummy(x: int) -> int:
+            return x
+
+        react = ReactAgent(tools=[dummy], api_key="test-key")
+        tiny = TinyCodeAgent(tools=[dummy], api_key="test-key")
+
+        assert hasattr(react, "run_sync")
+        assert callable(react.run_sync)
+        assert hasattr(tiny, "run_sync")
+        assert callable(tiny.run_sync)

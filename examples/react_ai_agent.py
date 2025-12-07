@@ -11,13 +11,12 @@ Two tools:
 """
 
 import asyncio
-import os
 from datetime import datetime
 
 from ddgs import DDGS
 from dotenv import load_dotenv
 
-from tinyagent import ReactAgent, tool
+from tinyagent import AgentLogger, ReactAgent, tool
 
 load_dotenv()
 
@@ -110,18 +109,12 @@ def generate_report(title: str, summary: str, key_points: str, sources: str) -> 
 
 async def main():
     """Run the DDGS search and report demo."""
-    print("=" * 80)
-    print("DDGS Search Demo - Web Search + Report Generation")
-    print("=" * 80)
-
-    if not os.getenv("OPENAI_API_KEY"):
-        print("ERROR: Set OPENAI_API_KEY environment variable")
-        return
+    logger = AgentLogger(verbose=True)
 
     agent = ReactAgent(
         tools=[ddgs_search, generate_report],
         model="gpt-4o-mini",
-        temperature=0.3,
+        logger=logger,
     )
 
     query = (
@@ -130,23 +123,11 @@ async def main():
         "with a summary, key findings, and sources."
     )
 
-    print(f"\nTASK: {query}\n")
-    print("=" * 80)
-
-    try:
-        result = await agent.run(query, verbose=True)
-
-        # Save report to file
-        report_path = "examples/report.md"
-        with open(report_path, "w") as f:
-            f.write(result)
-
-        print(f"\n{'=' * 80}")
-        print(f"REPORT SAVED TO: {report_path}")
-        print("=" * 80)
-        print(result)
-    except Exception as e:
-        print(f"\nERROR: {e}")
+    result = await agent.run(query, verbose=True)
+    # Save report to file
+    report_path = "examples/report.md"
+    with open(report_path, "w") as f:
+        f.write(result)
 
 
 if __name__ == "__main__":

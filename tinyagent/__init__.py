@@ -19,6 +19,9 @@ Execution:
 Memory:
     AgentMemory     - Working memory for agent state
 
+Observability:
+    AgentLogger     - Centralized logging for agent execution
+
 Signals:
     uncertain       - Signal uncertainty
     explore         - Signal exploration
@@ -56,6 +59,10 @@ from .core import (
 from .execution import ExecutionResult, Executor, LocalExecutor
 from .limits import ExecutionLimits, ExecutionTimeout
 from .memory import AgentMemory
+from .observability import AgentLogger
+
+# Lazy imports for TUI dashboards - see observability.__init__
+# AgentDashboard and TermTkDashboard are available via __getattr__
 from .signals import commit, explore, uncertain
 from .tools import ToolValidationError, validate_tool_class
 
@@ -73,6 +80,10 @@ __all__ = [
     "ExecutionTimeout",
     # Memory
     "AgentMemory",
+    # Observability
+    "AgentLogger",
+    "AgentDashboard",
+    "TermTkDashboard",
     # Signals
     "uncertain",
     "explore",

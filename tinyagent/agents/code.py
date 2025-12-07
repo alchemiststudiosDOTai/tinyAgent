@@ -35,7 +35,7 @@ from ..limits import ExecutionLimits
 from ..memory import AgentMemory
 from ..prompts.loader import get_prompt_fallback
 from ..prompts.templates import CODE_SYSTEM
-from ..signals import commit, explore, uncertain
+from ..signals import commit, explore, set_signal_logger, uncertain
 from .base import BaseAgent
 
 __all__ = ["TinyCodeAgent", "TrustLevel"]
@@ -114,14 +114,11 @@ class TinyCodeAgent(BaseAgent):
     client: AsyncOpenAI = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
-        # Call parent __post_init__ to handle tool mapping
         super().__post_init__()
 
-        # Normalize trust level
         if isinstance(self.trust_level, str):
             self.trust_level = TrustLevel(self.trust_level)
 
-        # Validate no async tools
         for name, tool in self._tool_map.items():
             if tool.is_async:
                 raise ValueError(
@@ -129,15 +126,12 @@ class TinyCodeAgent(BaseAgent):
                     f"Use ReactAgent for async tools."
                 )
 
-        # Initialize OpenAI client
         api_key = self.api_key or os.getenv("OPENAI_API_KEY")
         base_url = os.getenv("OPENAI_BASE_URL")
         self.client = AsyncOpenAI(api_key=api_key, base_url=base_url)
 
-        # Initialize executor based on trust level
         self._init_executor()
 
-        # Build system prompt
         base_prompt = get_prompt_fallback(CODE_SYSTEM, self.prompt_file)
         self._system_prompt = base_prompt.format(helpers=", ".join(self._tool_map.keys()))
         if self.system_suffix:
@@ -163,11 +157,9 @@ class TinyCodeAgent(BaseAgent):
                 limits=self.limits,
             )
 
-        # Inject tools into executor namespace
         for name, tool in self._tool_map.items():
             self._executor.inject(name, tool.fn)
 
-        # Inject signal functions
         self._executor.inject("uncertain", uncertain)
         self._executor.inject("explore", explore)
         self._executor.inject("commit", commit)
@@ -204,64 +196,75 @@ class TinyCodeAgent(BaseAgent):
         StepLimitReached
             If no answer is found within max_steps and return_result=False
         """
-        # Use instance defaults if not specified
         if max_steps is None:
             max_steps = self.limits.max_steps
         if verbose is None:
             verbose = self.verbose
 
-        # Initialize execution state
+        self.logger.verbose = verbose
+        set_signal_logger(self.logger)
+
         start_time = time.time()
         finalizer = Finalizer()
         memory = AgentMemory()
         steps_taken = 0
 
-        # Inject memory into executor
         for name, value in memory.to_namespace().items():
             self._executor.inject(name, value)
 
-        # Build initial messages
         messages: list[dict[str, str]] = [
             {"role": "system", "content": self._system_prompt},
             {"role": "user", "content": task},
         ]
 
-        if verbose:
-            self._log_start(task, max_steps)
+        self.logger.banner("TINYCODE AGENT v2 STARTING")
+        self.logger.labeled("TASK", task)
+        trust_val = (
+            self.trust_level.value
+            if isinstance(self.trust_level, TrustLevel)
+            else str(self.trust_level)
+        )
+        self.logger.labeled("TRUST LEVEL", trust_val)
+        self.logger.labeled(
+            "LIMITS",
+            f"timeout={self.limits.timeout_seconds}s, "
+            f"max_steps={max_steps}, "
+            f"max_output={self.limits.max_output_bytes}B",
+        )
+        self.logger.labeled("AVAILABLE TOOLS", str(list(self._tool_map.keys())))
+        self.logger.labeled("ALLOWED IMPORTS", str(list(self.extra_imports)))
 
         for step in range(max_steps):
             steps_taken = step + 1
 
-            if verbose:
-                self._log_step(steps_taken, max_steps, messages)
+            self.logger.step_header(steps_taken, max_steps)
+            self.logger.messages_preview(messages)
 
-            # Get model response
-            reply = await self._chat(messages, verbose=verbose)
+            reply = await self._chat(messages)
 
-            if verbose:
-                print(f"\nLLM RESPONSE:\n{reply}")
+            self.logger.llm_response(reply)
 
-            # Extract code block
             code = self._extract_code(reply)
             if not code:
-                if verbose:
-                    print("\n[!] No code block found in response")
+                self.logger.error("No code block found in response")
                 messages += [
                     {"role": "assistant", "content": reply},
                     {"role": "user", "content": "Please respond with a python block only."},
                 ]
                 continue
 
-            if verbose:
-                print(f"\nEXTRACTED CODE:\n{'-' * 40}\n{code}\n{'-' * 40}")
+            self.logger.code_block(code)
 
-            # Execute code
             result = self._executor.run(code)
 
-            if verbose:
-                self._log_execution(result)
+            self.logger.execution_result(
+                output=result.output,
+                duration_ms=result.duration_ms,
+                is_final=result.is_final,
+                error=result.error,
+                timeout=result.timeout,
+            )
 
-            # Handle execution result
             if result.error:
                 error_msg = self._build_error_message(result, code)
                 messages += [
@@ -282,16 +285,12 @@ class TinyCodeAgent(BaseAgent):
                 memory.fail(f"Step {steps_taken}: Timeout")
                 continue
 
-            # Check for final answer
             if result.is_final:
                 output = str(result.final_value)
                 output, _ = self.limits.truncate_output(output)
                 finalizer.set(output, source="normal")
 
-                if verbose:
-                    print(f"\n{'=' * 80}")
-                    print(f"FINAL ANSWER: {output}")
-                    print(f"{'=' * 80}\n")
+                self.logger.final_answer(output)
 
                 if return_result:
                     return RunResult(
@@ -303,19 +302,16 @@ class TinyCodeAgent(BaseAgent):
                     )
                 return output
 
-            # Continue with observation
             observation = result.output if result.output else "(no output)"
             messages += [
                 {"role": "assistant", "content": reply},
                 {"role": "user", "content": f"Observation:\n{observation}\n"},
             ]
 
-            # Update memory context in messages if needed
             memory_context = memory.to_context()
             if memory_context:
                 messages[-1]["content"] += f"\n\n{memory_context}"
 
-        # Step limit reached
         duration = time.time() - start_time
         error = StepLimitReached(
             "Exceeded max ReAct steps without an answer.",
@@ -334,18 +330,16 @@ class TinyCodeAgent(BaseAgent):
             )
         raise error
 
-    async def _chat(self, messages: list[dict[str, str]], verbose: bool = False) -> str:
+    async def _chat(self, messages: list[dict[str, str]]) -> str:
         """Single LLM call; OpenAI-compatible."""
-        if verbose:
-            print(f"\n[API] Calling {self.model}...")
+        self.logger.api_call(self.model)
         response = await self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             temperature=0,
         )
         content = response.choices[0].message.content or ""
-        if verbose:
-            print(f"[API] Response received (length: {len(content)} chars)")
+        self.logger.api_response(len(content))
         return content.strip()
 
     @staticmethod
@@ -360,52 +354,11 @@ class TinyCodeAgent(BaseAgent):
         """Build a helpful error message with tool hints."""
         error_msg = f"Execution error: {result.error}"
 
-        # Add hints from tool docstrings for relevant tools
         for name, tool in self._tool_map.items():
             if name in code and tool.doc:
                 error_msg += f"\n\nHint - {name}() docstring:\n{tool.doc}"
 
         return error_msg
-
-    def _log_start(self, task: str, max_steps: int) -> None:
-        """Log execution start."""
-        assert isinstance(self.trust_level, TrustLevel)  # Normalized in __post_init__
-        print("\n" + "=" * 80)
-        print("TINYCODE AGENT v2 STARTING")
-        print("=" * 80)
-        print(f"\nTASK: {task}")
-        print(f"\nTRUST LEVEL: {self.trust_level.value}")
-        print(
-            f"\nLIMITS: timeout={self.limits.timeout_seconds}s, "
-            f"max_steps={max_steps}, "
-            f"max_output={self.limits.max_output_bytes}B"
-        )
-        print(f"\nAVAILABLE TOOLS: {list(self._tool_map.keys())}")
-        print(f"\nALLOWED IMPORTS: {list(self.extra_imports)}")
-
-    def _log_step(self, step: int, max_steps: int, messages: list[dict[str, str]]) -> None:
-        """Log step start."""
-        print(f"\n{'=' * 40} STEP {step}/{max_steps} {'=' * 40}")
-        print("\nSENDING TO LLM:")
-        for msg in messages[-2:]:
-            content = msg["content"]
-            preview = content[:200] + "..." if len(content) > 200 else content
-            print(f"  [{msg['role'].upper()}]: {preview}")
-
-    def _log_execution(self, result: ExecutionResult) -> None:
-        """Log execution result."""
-        print("\nEXECUTION RESULT:")
-        print(
-            f"  Output: {result.output[:200]}..."
-            if len(result.output) > 200
-            else f"  Output: {result.output}"
-        )
-        print(f"  Duration: {result.duration_ms:.1f}ms")
-        print(f"  Is Final: {result.is_final}")
-        if result.error:
-            print(f"  Error: {result.error}")
-        if result.timeout:
-            print("  TIMEOUT!")
 
 
 # Backwards compatibility - export old class name

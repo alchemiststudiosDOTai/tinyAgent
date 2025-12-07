@@ -31,7 +31,7 @@ __all__ = ["ReactAgent"]
 # ---------------------------------------------------------------------------
 MAX_STEPS: Final = 10
 TEMP_STEP: Final = 0.2
-MAX_OBS_LEN: Final = 500  # added this to not bnlow up the prompt
+MAX_OBS_LEN: Final = 500
 
 
 @dataclass(kw_only=True)
@@ -62,18 +62,14 @@ class ReactAgent(BaseAgent):
     temperature: float = 0.7
 
     def __post_init__(self) -> None:
-        # Call parent __post_init__ to handle tool mapping
         super().__post_init__()
 
-        # Initialize OpenAI client
         api_key = self.api_key or os.getenv("OPENAI_API_KEY")
         base_url = os.getenv("OPENAI_BASE_URL")
         self.client = AsyncOpenAI(api_key=api_key, base_url=base_url)
 
-        # Get the base system prompt (from file or default)
         base_prompt = get_prompt_fallback(SYSTEM, self.prompt_file)
 
-        # Render immutable system prompt once
         self._system_prompt: str = base_prompt.format(
             tools="\n".join(
                 f"- {t.name}: {t.doc or '<no description>'} | args={t.signature}"
@@ -104,7 +100,6 @@ class ReactAgent(BaseAgent):
         return_result
             If True, return RunResult with metadata; if False, return string (default)
         """
-        # Initialize execution tracking
         start_time = time.time()
         finalizer = Finalizer()
         steps_taken = 0
@@ -115,38 +110,26 @@ class ReactAgent(BaseAgent):
         ]
         temperature = self.temperature
 
-        if verbose:
-            print("\n" + "=" * 80)
-            print("REACT AGENT STARTING")
-            print("=" * 80)
-            print(f"\nTASK: {question}")
-            print(f"\nSYSTEM PROMPT:\n{self._system_prompt}")
-            print(f"\nAVAILABLE TOOLS: {list(self._tool_map.keys())}")
+        self.logger.verbose = verbose
+
+        self.logger.banner("REACT AGENT STARTING")
+        self.logger.labeled("TASK", question)
+        self.logger.labeled("SYSTEM PROMPT", self._system_prompt)
+        self.logger.labeled("AVAILABLE TOOLS", str(list(self._tool_map.keys())))
 
         for step in range(max_steps):
             steps_taken = step + 1
-            if verbose:
-                print(f"\n{'=' * 40} STEP {steps_taken}/{max_steps} {'=' * 40}")
-                print("\nSENDING TO LLM:")
-                for msg in messages[-2:]:
-                    content_preview = (
-                        msg["content"][:200] + "..."
-                        if len(msg["content"]) > 200
-                        else msg["content"]
-                    )
-                    print(f"  [{msg['role'].upper()}]: {content_preview}")
+            self.logger.step_header(steps_taken, max_steps)
+            self.logger.messages_preview(messages)
 
-            assistant_reply = await self._chat(messages, temperature, verbose=verbose)
+            assistant_reply = await self._chat(messages, temperature)
 
-            if verbose:
-                print(f"\nLLM RESPONSE:\n{assistant_reply}")
+            self.logger.llm_response(assistant_reply)
 
             payload = self._try_parse_json(assistant_reply)
 
-            # If JSON malformed → ask model to fix
             if payload is None:
-                if verbose:
-                    print("\n[!] JSON PARSE ERROR: Invalid JSON format")
+                self.logger.error("JSON PARSE ERROR: Invalid JSON format")
                 messages += [
                     {"role": "assistant", "content": assistant_reply},
                     {"role": "user", "content": BAD_JSON},
@@ -154,32 +137,23 @@ class ReactAgent(BaseAgent):
                 temperature += TEMP_STEP
                 continue
 
-            # Handle scratchpad - log it, then remove from payload
-            # The scratchpad field allows the model to plan/think before taking action
             if "scratchpad" in payload:
-                if verbose:
-                    print(f"\n[SCRATCHPAD]: {payload['scratchpad']}")
+                self.logger.scratchpad(payload["scratchpad"])
                 messages += [
                     {"role": "assistant", "content": assistant_reply},
                     {"role": "user", "content": f"Scratchpad noted: {payload['scratchpad']}"},
                 ]
                 del payload["scratchpad"]
-                # Ask the model to resend proper JSON if nothing actionable left
                 if "answer" not in payload and "tool" not in payload:
                     temperature += TEMP_STEP
                     continue
 
-            # Final answer path
             if "answer" in payload:
                 answer_value = str(payload["answer"])
                 finalizer.set(answer_value, source="normal")
 
-                if verbose:
-                    print(f"\n{'=' * 80}")
-                    print(f"FINAL ANSWER: {answer_value}")
-                    print(f"{'=' * 80}\n")
+                self.logger.final_answer(answer_value)
 
-                # Return based on requested format
                 if return_result:
                     duration = time.time() - start_time
                     return RunResult(
@@ -191,41 +165,31 @@ class ReactAgent(BaseAgent):
                     )
                 return answer_value
 
-            # Tool invocation path
             name = payload.get("tool")
             args = payload.get("arguments", {}) or {}
             if name not in self._tool_map:
                 return f"Unknown tool '{name}'."
 
-            if verbose:
-                print(f"\n[TOOL CALL]: {name}")
-                print(f"[ARGUMENTS]: {args}")
+            self.logger.tool_call(name, args)
 
-            ok, result = await self._safe_tool(name, args, verbose=verbose)
+            ok, result = await self._safe_tool(name, args)
             tag = "Observation" if ok else "Error"
-            short = (str(result)[:MAX_OBS_LEN] + "…") if len(str(result)) > MAX_OBS_LEN else result
+            result_str = str(result)
+            short = (result_str[:MAX_OBS_LEN] + "...") if len(result_str) > MAX_OBS_LEN else result
 
-            if verbose:
-                print(f"[{tag.upper()}]: {short}")
-                if len(str(result)) > MAX_OBS_LEN:
-                    print(
-                        f"[NOTE]: Output truncated from {len(str(result))} to {MAX_OBS_LEN} chars"
-                    )
+            truncated_from = len(result_str) if len(result_str) > MAX_OBS_LEN else None
+            self.logger.tool_observation(str(short), is_error=not ok, truncated_from=truncated_from)
 
             messages += [
                 {"role": "assistant", "content": assistant_reply},
                 {"role": "user", "content": f"{tag}: {short}"},
             ]
 
-        # Step limit hit → ask once for best guess
-        if verbose:
-            print(f"\n{'=' * 40} FINAL ATTEMPT {'=' * 40}")
-            print("[!] Step limit reached. Asking for final answer...")
+        self.logger.final_attempt_header()
 
         final_try = await self._chat(
             messages + [{"role": "user", "content": "Return your best final answer now."}],
             0,
-            verbose=verbose,
         )
         payload = self._try_parse_json(final_try) or {}
         duration = time.time() - start_time
@@ -234,12 +198,8 @@ class ReactAgent(BaseAgent):
             answer_value = str(payload["answer"])
             finalizer.set(answer_value, source="final_attempt")
 
-            if verbose:
-                print(f"\n{'=' * 80}")
-                print(f"FINAL ANSWER: {answer_value}")
-                print(f"{'=' * 80}\n")
+            self.logger.final_answer(answer_value)
 
-            # Return based on requested format
             if return_result:
                 return RunResult(
                     output=answer_value,
@@ -250,7 +210,6 @@ class ReactAgent(BaseAgent):
                 )
             return answer_value
 
-        # No final answer obtained
         error = StepLimitReached(
             "Exceeded max steps without an answer.",
             steps_taken=steps_taken,
@@ -269,22 +228,17 @@ class ReactAgent(BaseAgent):
         raise error
 
     # ------------------------------------------------------------------
-    async def _chat(
-        self, messages: list[dict[str, str]], temperature: float, verbose: bool = False
-    ) -> str:
+    async def _chat(self, messages: list[dict[str, str]], temperature: float) -> str:
         """Single LLM call; OpenAI-compatible."""
-        if verbose:
-            print(f"\n[API] Calling {self.model} (temp={temperature})...")
+        self.logger.api_call(self.model, temperature)
         response = await self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             temperature=temperature,
         )
-        if verbose:
-            print(
-                f"[API] Response received (length: {len(response.choices[0].message.content)} chars)"
-            )
-        return response.choices[0].message.content.strip()
+        content = response.choices[0].message.content or ""
+        self.logger.api_response(len(content))
+        return content.strip()
 
     @staticmethod
     def _try_parse_json(text: str) -> dict[str, Any] | None:
@@ -293,9 +247,7 @@ class ReactAgent(BaseAgent):
         except json.JSONDecodeError:
             return None
 
-    async def _safe_tool(
-        self, name: str, args: dict[str, Any], verbose: bool = False
-    ) -> tuple[bool, Any]:
+    async def _safe_tool(self, name: str, args: dict[str, Any]) -> tuple[bool, Any]:
         """
         Execute tool with argument validation.
 
@@ -303,24 +255,19 @@ class ReactAgent(BaseAgent):
         """
         tool = self._tool_map[name]
 
-        # Basic arg validation using function signature
         from inspect import signature
 
         try:
             signature(tool.fn).bind(**args)
         except TypeError as exc:
-            if verbose:
-                print(f"[!] ARGUMENT ERROR: {exc}")
+            self.logger.tool_error("ARGUMENT ERROR", str(exc))
             return False, f"ArgError: {exc}"
 
         try:
-            if verbose:
-                print(f"[EXECUTING]: {name}({args})")
+            self.logger.tool_executing(name, args)
             result = await tool.run(args)
-            if verbose:
-                print(f"[RESULT]: {result}")
+            self.logger.tool_result(str(result))
             return True, result
         except Exception as exc:  # pragma: no cover
-            if verbose:
-                print(f"[!] TOOL ERROR: {exc}")
+            self.logger.tool_error("TOOL ERROR", str(exc))
             return False, f"ToolError: {exc}"

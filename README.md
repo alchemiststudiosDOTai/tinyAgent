@@ -2,19 +2,19 @@
 
 ![tinyAgent Logo](static/images/new-ta-logo.jpg)
 
-Turn any Python function into an AI‑powered agent in just a few lines:
+**Build AI agents that actually work.** Turn any Python function into an autonomous tool with a single decorator.
 
 ```python
 from tinyagent import tool, ReactAgent
 
 @tool
 def multiply(a: float, b: float) -> float:
-    """Multiply two numbers together."""
+    """Multiply two numbers."""
     return a * b
 
 @tool
 def divide(a: float, b: float) -> float:
-    """Divide the first number by the second number."""
+    """Divide two numbers."""
     return a / b
 
 agent = ReactAgent(tools=[multiply, divide])
@@ -22,43 +22,54 @@ result = agent.run("What is 12 times 5, then divided by 3?")
 # → 20
 ```
 
-That's it! The agent automatically:
-- Understands it needs to perform multiple steps
-- Calls `multiply(12, 5)` → gets 60
-- Takes that result and calls `divide(60, 3)` → gets 20
-- Returns the final answer
+**That's it.** The agent reasons through the steps:
+1. Calls `multiply(12, 5)` → 60
+2. Calls `divide(60, 3)` → 20
+3. Returns the answer
 
 ## Why tinyAgent?
 
-- **Zero boilerplate** – Just decorate functions with `@tool`
-- **Automatic reasoning** – Agent figures out which tools to use and in what order
-- **Built-in LLM** – Works out of the box with OpenRouter
-- **Type safe** – Full type hints and validation
-- **Production ready** – Error handling and retries
+| Feature | Benefit |
+|---------|---------|
+| **Zero boilerplate** | Just decorate functions with `@tool` |
+| **Auto-reasoning** | Agent figures out which tools to call and when |
+| **LLM-agnostic** | Works with OpenRouter, OpenAI, Claude, Llama, etc. |
+| **Type-safe** | Full type hints and validation built-in |
+| **Production-ready** | Error handling, retries, and observability |
 
 ## Installation
 
-### Option A: UV (Recommended - 10x Faster)
 ```bash
-uv venv                    # Creates .venv/
-source .venv/bin/activate  # Activate environment
+# Recommended: UV (10x faster venv creation)
+uv venv && source .venv/bin/activate
 uv pip install tiny_agent_os
-```
 
-### Option B: Traditional pip
-```bash
+# Or with pip
 pip install tiny_agent_os
 ```
 
-## Quick Setup
+## Quick Start
 
-Set your API key:
+**1. Get an API key** from [openrouter.ai](https://openrouter.ai)
+
+**2. Set environment variables:**
 ```bash
-export OPENAI_API_KEY=your_openrouter_key_here
+export OPENAI_API_KEY=your_key_here
 export OPENAI_BASE_URL=https://openrouter.ai/api/v1
 ```
 
-Get your key at [openrouter.ai](https://openrouter.ai)
+**3. Create your first agent:**
+```python
+from tinyagent import tool, ReactAgent
+
+@tool
+def add(a: float, b: float) -> float:
+    """Add two numbers."""
+    return a + b
+
+agent = ReactAgent(tools=[add])
+print(agent.run("What is 5 plus 3?"))
+```
 
 > **Note**: This is a clean rewrite focused on keeping tinyAgent truly tiny. For the legacy codebase (v0.72.x), install with `pip install tiny-agent-os==0.72.18` or see the [`0.72` branch](https://github.com/alchemiststudiosDOTai/tinyAgent/tree/0.72).
 
@@ -74,123 +85,143 @@ The public API remains unchanged - you can still import directly from `tinyagent
 from tinyagent import ReactAgent, TinyCodeAgent, tool
 ```
 
-## Setting the Model
+## Choose Your Model
 
-Pass any OpenRouter model when creating the agent:
+tinyAgent supports any LLM via OpenRouter:
 
 ```python
-from tinyagent import ReactAgent, tool
+from tinyagent import ReactAgent
 
-# Default model
-agent = ReactAgent(tools=[...])
-
-# Specify a model
+# Cheap & fast
 agent = ReactAgent(tools=[...], model="gpt-4o-mini")
-agent = ReactAgent(tools=[...], model="anthropic/claude-3.5-sonnet")
-agent = ReactAgent(tools=[...], model="meta-llama/llama-3.1-70b-instruct")
 
-# TinyCodeAgent works the same way
-agent = TinyCodeAgent(tools=[...], model="gpt-4o-mini")
+# Most capable
+agent = ReactAgent(tools=[...], model="anthropic/claude-3.5-sonnet")
+
+# Open source
+agent = ReactAgent(tools=[...], model="meta-llama/llama-3.1-70b-instruct")
 ```
 
-## More Examples
+**Default:** Uses `gpt-4o-mini` if no model is specified.
 
-### Multi-step reasoning
+## Examples
+
+### Example 1: Multi-Step Math
 ```python
 from tinyagent import tool, ReactAgent
 
 @tool
-def calculate_percentage(value: float, percentage: float) -> float:
-    """Calculate what percentage of a value is."""
-    return value * (percentage / 100)
+def percent(value: float, pct: float) -> float:
+    """Calculate percentage of a value."""
+    return value * (pct / 100)
 
 @tool
 def subtract(a: float, b: float) -> float:
     """Subtract b from a."""
     return a - b
 
-agent = ReactAgent(tools=[calculate_percentage, subtract])
+agent = ReactAgent(tools=[percent, subtract])
 result = agent.run("If I have 15 apples and give away 40%, how many are left?")
-print(result)  # → "You have 9 apples left."
+# Agent: calculates 40% of 15 (6) → subtracts (15 - 6 = 9) → answers "9 apples left"
 ```
 
-Behind the scenes:
-1. Agent calculates 40% of 15 → 6
-2. Subtracts 6 from 15 → 9
-3. Returns a natural language answer
-
-### Web Search Tool
-Built-in web search capabilities with Brave Search API:
-
+### Example 2: Web Search
 ```python
 from tinyagent import ReactAgent
-from tinyagent.base_tools import web_search
+from tinyagent.tools.builtin import web_search
 
-# Simple web search with formatted results
-agent = ReactAgent(tools=[web_search])
-result = agent.run("What are the latest Python web frameworks?")
-
-# Works great for research and comparisons
 agent = ReactAgent(tools=[web_search])
 result = agent.run("Compare FastAPI vs Django performance")
+
+# Set your key first:
+export BRAVE_SEARCH_API_KEY=your_key
 ```
 
-Set your Brave API key:
-```bash
-export BRAVE_SEARCH_API_KEY=your_brave_api_key
+### Example 3: Python Code Execution
+```python
+from tinyagent import TinyCodeAgent
+
+agent = TinyCodeAgent(tools=[])
+result = agent.run("Generate 10 random numbers and show the average")
+# Agent writes and executes Python code to solve this
 ```
 
-For a scraping-based approach using the Jina Reader endpoint, see `examples/jina_reader_demo.py`.
-Optionally set `JINA_API_KEY` in your environment to include an `Authorization` header.
+## Core Concepts
 
-## Key Features
+### ReactAgent — Tool Orchestration
+- Reasons through multi-step problems
+- Automatically chains tool calls
+- Includes retry logic and error handling
 
-### ReactAgent
-- **Multi-step reasoning** - Breaks down complex problems automatically
-- **Clean API** - Simple, ergonomic interface
-- **Error handling** - Built-in retry logic and graceful failures
-- **Custom prompts** - Load system prompts from text files for easy customization
+```python
+agent = ReactAgent(tools=[multiply, divide])
+agent.run("What is 100 divided by 5, times 3?")
+```
 
-### TinyCodeAgent
-- **Python execution** - Write and execute Python code to solve problems
-- **Sandboxed** - Safe execution environment with restricted imports
-- **Custom prompts** - Load system prompts from text files for easy customization
+### TinyCodeAgent — Code Execution
+- Writes and executes Python code
+- Sandboxed with restricted imports
+- Perfect for data processing and calculations
 
-### Tools Philosophy
-Every function can be a tool. Keep them:
-- **Atomic** - Do one thing well
-- **Typed** - Use type hints for parameters
-- **Documented** - Docstrings help the LLM understand usage
+```python
+agent = TinyCodeAgent()
+agent.run("Generate 100 random numbers and show the median")
+```
 
-### File-Based Prompts
-Both ReactAgent and TinyCodeAgent support loading custom system prompts from text files:
-- **Simple** - Just pass `prompt_file="path/to/prompt.txt"` to the agent
-- **Flexible** - Supports `.txt`, `.md`, and `.prompt` file extensions
-- **Safe** - Graceful fallback to default prompts if files are missing or invalid
-- **Powerful** - Customize agent behavior without code changes
+### Tools — Your Building Blocks
+Create tools by decorating functions:
 
-For examples, see `examples/file_prompt_demo.py`.
+```python
+@tool
+def fetch_data(id: int) -> dict:
+    """Fetch user data by ID."""
+    return {"id": id, "name": "Alice"}
 
-For a comprehensive guide on creating tools with patterns and best practices, see the [tool creation documentation](documentation/modules/tools.md). For a concise overview, read the [one-page tools guide](documentation/modules/tools_one_pager.md).
+@tool
+def format_csv(data: list) -> str:
+    """Convert list to CSV format."""
+    return ",".join(str(d) for d in data)
+```
 
-## Architecture Notes
+**Tool best practices:**
+- **Atomic** — Do one thing well
+- **Typed** — Use type hints
+- **Documented** — Write clear docstrings (LLM reads these!)
 
-High-level diagrams and agent execution flow notes live in `documentation/architecture/` (see `documentation/architecture/agents/codeagent-architecture.md` for TinyCodeAgent). Skim these before changing agents or tooling so updates stay aligned with the intended design.
+### Custom System Prompts
+Load your own system prompts from files:
 
-## Status
+```python
+agent = ReactAgent(
+    tools=[...],
+    prompt_file="path/to/custom_prompt.txt"
+)
+```
 
-**BETA** - Actively developed and used in production. Breaking changes possible until v1.0.
+Supports `.txt`, `.md`, `.prompt` extensions. Falls back to defaults if missing.
 
-Found a bug? Have a feature request? [Open an issue](https://github.com/alchemiststudiosDOTai/tinyAgent/issues)!
+## Documentation
+
+- **[Tool Creation Guide](documentation/modules/tools.md)** — Detailed patterns and best practices
+- **[Architecture Diagrams](documentation/architecture/)** — System design and execution flow
+- **[API Reference](documentation/modules/tools_one_pager.md)** — Quick reference for all APIs
+
+## Project Status
+
+**BETA** — Actively developed and production-ready. Breaking changes possible until v1.0.
+
+**Questions?** [Open an issue](https://github.com/alchemiststudiosDOTai/tinyAgent/issues)
 
 ## License
 
 **Business Source License 1.1**
-- Free for individuals and small businesses (< $1M revenue)
-- Enterprise license required for larger companies
 
-Contact: [info@alchemiststudios.ai](mailto:info@alchemiststudios.ai)
+Free for:
+- Individuals
+- Small businesses (< $1M annual revenue)
+
+Larger organizations: Please contact [info@alchemiststudios.ai](mailto:info@alchemiststudios.ai)
 
 ---
 
-Made by [@tunahorse21](https://x.com/tunahorse21) | [alchemiststudios.ai](https://alchemiststudios.ai) focusing on keeping it "tiny"
+Made by [@tunahorse21](https://x.com/tunahorse21) at [alchemiststudios.ai](https://alchemiststudios.ai)

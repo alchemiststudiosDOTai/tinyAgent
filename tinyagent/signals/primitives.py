@@ -16,9 +16,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
-__all__ = ["uncertain", "explore", "commit", "Signal", "SignalType"]
+if TYPE_CHECKING:
+    from ..observability import AgentLogger
+
+__all__ = ["uncertain", "explore", "commit", "Signal", "SignalType", "set_signal_logger"]
 
 
 class SignalType(Enum):
@@ -57,6 +60,9 @@ class Signal:
 # Signal collector - will be set by the executor
 _signal_collector: Callable[[Signal], None] | None = None
 
+# Signal logger - will be set by the agent
+_signal_logger: AgentLogger | None = None
+
 
 def set_signal_collector(collector: Callable[[Signal], None] | None) -> None:
     """
@@ -69,6 +75,22 @@ def set_signal_collector(collector: Callable[[Signal], None] | None) -> None:
     """
     global _signal_collector
     _signal_collector = collector
+
+
+def set_signal_logger(logger: AgentLogger | None) -> None:
+    """
+    Set the signal logger.
+
+    When a logger is set, signals will be output through it (respecting verbose).
+    If no logger is set, signals are silent.
+
+    Parameters
+    ----------
+    logger : AgentLogger | None
+        Logger to use for signal output, or None to disable signal output
+    """
+    global _signal_logger
+    _signal_logger = logger
 
 
 def uncertain(message: str) -> Signal:
@@ -97,7 +119,8 @@ def uncertain(message: str) -> Signal:
     signal = Signal(SignalType.UNCERTAIN, message)
     if _signal_collector:
         _signal_collector(signal)
-    print(str(signal))
+    if _signal_logger:
+        _signal_logger.signal("UNCERTAIN", message)
     return signal
 
 
@@ -127,7 +150,8 @@ def explore(message: str) -> Signal:
     signal = Signal(SignalType.EXPLORE, message)
     if _signal_collector:
         _signal_collector(signal)
-    print(str(signal))
+    if _signal_logger:
+        _signal_logger.signal("EXPLORE", message)
     return signal
 
 
@@ -157,5 +181,6 @@ def commit(message: str) -> Signal:
     signal = Signal(SignalType.COMMIT, message)
     if _signal_collector:
         _signal_collector(signal)
-    print(str(signal))
+    if _signal_logger:
+        _signal_logger.signal("COMMIT", message)
     return signal

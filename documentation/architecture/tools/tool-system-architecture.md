@@ -1,12 +1,31 @@
 # Tool System Architecture
 
-The simplified tool system for TinyAgent - direct, explicit, no hidden magic.
+The tool system for TinyAgent - direct, explicit, no hidden magic.
 
 ## Philosophy
 
-ONE tool only. No global registry, no hidden state, no auto-discovery. What you see is what you get.
+**Explicit over magic.** No global registry, no hidden state, no auto-discovery. What you see is what you get.
 
-The @tool decorator returns a Tool object directly. Tools are first-class citizens that you pass to agents explicitly.
+The `@tool` decorator returns a Tool object directly. Tools are first-class citizens that you pass to agents explicitly.
+
+### Simple != Sloppy
+
+A function decorator is a pattern everyone knows. An agent tool is just a function. That's the point.
+
+The `@tool` decorator abstracts the entire tooling engine, schema extraction, type validation, JSON conversion - behind a single familiar interface. No special third party libs, imports, no base classes, no framework lock-in. Just decorate a function and pass it to an agent.
+
+This is a deliberate choice: "hide" the complexity of tool infrastructure while keeping the developer interface dead obvious. Everyone already know how functions work. Now they're tools.
+
+### Zero Dependencies
+
+The tool engine runs on stdlib alone:
+
+```python
+# That's it. No external packages.
+import inspect
+from dataclasses import dataclass
+from typing import get_type_hints
+
 
 ## Core Components
 
@@ -41,14 +60,8 @@ class ToolDefinitionError(Exception):
 
 ### Creating Tools
 ```python
-# Simple tool - auto-infers name from function
+#auto-infers name from function
 @tool
-def search_web(query: str) -> str:
-    """Search the web for information"""
-    return ddgs.text(query, max_results=5)
-
-# Custom name tool
-@tool(name="web_search")
 def search_web(query: str) -> str:
     """Search the web for information"""
     return ddgs.text(query, max_results=5)
@@ -56,22 +69,24 @@ def search_web(query: str) -> str:
 
 ### Using Tools with Agents
 ```python
-# Create tools
-search_tool = search_web
-weather_tool = get_weather
+@tool
+def query_db(sql: str) -> str:
+    """Execute a SQL query and return results."""
+    conn = sqlite3.connect("app.db")
+    return json.dumps(conn.execute(sql).fetchall())
 
-# Pass to agent
+@tool
+def transform_json(data: str, jq_filter: str) -> str:
+    """Apply a jq-style filter to JSON data."""
+    parsed = json.loads(data)
+    # your transform logic here
+    return json.dumps(parsed)
+
+# Pass to agent - what you see is what you get
 agent = ReactAgent(
-    model="gpt-4",
-    tools=[search_tool, weather_tool],
-    task="Search for weather in Tokyo"
+    model="gpt-4.1-mini",
+    tools=[query_db, transform_json],
 )
-
-# Tools are directly accessible
-tools = {
-    "search": search_tool,
-    "weather": weather_tool
-}
 ```
 
 ## Validation Rules
@@ -153,7 +168,79 @@ Agent executes via Tool.__call__
 Original function called
 ```
 
-## Benefits
+## System Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph "Tool Creation Process"
+        A["Function Definition<br/>def search_web(query: str) -> str"]
+        A --> B["@tool Decorator<br/>@tool(name='web_search')"]
+        B --> C["Validation & Metadata Extraction<br/>Type hints check<br/>Return type validation<br/>Parameter analysis"]
+        C --> D["Tool Object Created<br/>Tool(name, func, description, parameters)"]
+    end
+
+    subgraph "Tool Class Structure"
+        E["Tool Class<br/>@dataclass"]
+        F["name: str<br/>Tool identifier"]
+        G["func: Callable[..., Any]<br/>Original function reference"]
+        H["description: str<br/>From docstring"]
+        I["parameters: Dict[str, Any]<br/>JSON schema"]
+
+        E -.-> F
+        E -.-> G
+        E -.-> H
+        E -.-> I
+    end
+
+    subgraph "Validation Layer"
+        J["Type Hints Required<br/>ToolDefinitionError if missing"]
+        K["Return Type Required<br/>ToolDefinitionError if missing"]
+        L["JSON Serializable Parameters<br/>JSON schema only"]
+        M["Docstring Recommended<br/>Warning if missing"]
+
+        C --> J
+        C --> K
+        C --> L
+        C --> M
+    end
+
+    subgraph "Agent Integration"
+        N["ReactAgent<br/>model='gpt-4', tools=[...]"]
+        N --> O["_build_tool_map()<br/>Creates tool registry"]
+        O --> P["Tool Registry<br/>Dict[str, Tool]"]
+        P --> Q["Tool Execution<br/>tool_obj(**args) via __call__"]
+        Q --> R["Original Function<br/>Called directly"]
+    end
+
+    subgraph "Error Handling"
+        S["ToolDefinitionError<br/>Raised at import time"]
+        T["TypeError<br/>Invalid tool objects"]
+        U["Warnings<br/>Missing docstrings"]
+        V["Runtime Exceptions<br/>From tool execution"]
+    end
+
+    %% Data flow connections
+    D --> E
+    D --> N
+    J --> S
+    K --> S
+    T -.-> N
+    Q --> G
+    R --> V
+
+    %% Styling
+    classDef toolClass fill:#e3f2fd,stroke:#2196f3,stroke-width:2px,color:#0d47a1
+    classDef agentClass fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px,color:#4a148c
+    classDef errorClass fill:#ffebee,stroke:#f44336,stroke-width:2px,color:#b71c1c
+    classDef validationClass fill:#fff3e0,stroke:#ff9800,stroke-width:2px,color:#e65100
+
+    class E toolClass
+    class N agentClass
+    class S,T,U,V errorClass
+    class J,K,L,M validationClass
+```
+
+## Design chopice reasoning
 
 ### Explicitness
 - **Tools are visible objects** - What you see is what you get
