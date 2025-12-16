@@ -156,6 +156,8 @@ Thumbs.db
 *.sqlite
 *.db
 run_example.py
+=*
+tunacode.log
 
 # Temporary files
 *.tmp
