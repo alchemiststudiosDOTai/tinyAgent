@@ -181,3 +181,6 @@ api_keys.txt
 .deployment-config
 .pypirc
 twine.ini
+
+# Build artifacts
+tiny_agent_os.egg-info/
