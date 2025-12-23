@@ -5,13 +5,14 @@ Minimal Python-executing ReAct agent with sandboxed code execution.
 This module implements TinyCodeAgent v2 with:
 - Modular executor backends (local, isolated, sandboxed)
 - Working memory (scratchpad) across steps
+- Structured conversation memory (MemoryManager)
 - Resource limits and timeout management
 - LLM communication signals (uncertainty, exploration, commit)
 
 Public surface
 --------------
-TinyCodeAgent   – class
-TrustLevel      – enum
+TinyCodeAgent   - class
+TrustLevel      - enum
 """
 
 from __future__ import annotations
@@ -32,7 +33,14 @@ from ..core.registry import Tool
 from ..core.types import RunResult
 from ..execution import ExecutionResult, LocalExecutor
 from ..limits import ExecutionLimits
-from ..memory import AgentMemory
+from ..memory import (
+    ActionStep,
+    AgentMemory,
+    MemoryManager,
+    SystemPromptStep,
+    TaskStep,
+    keep_last_n_steps,
+)
 from ..prompts.loader import get_prompt_fallback
 from ..prompts.templates import CODE_SYSTEM
 from ..signals import commit, explore, set_signal_logger, uncertain
@@ -83,6 +91,13 @@ class TinyCodeAgent(BaseAgent):
         Optional path to a text file containing the system prompt
     verbose
         If True, enables detailed execution logging
+    memory_manager
+        Optional MemoryManager instance. If None, one will be created automatically.
+        Note: Uses memory_manager to avoid collision with existing memory (AgentMemory).
+    enable_pruning
+        If True, apply pruning strategy after each step. Default False.
+    prune_keep_last
+        Number of recent action steps to keep when pruning. Default 5.
 
     Examples
     --------
@@ -106,6 +121,9 @@ class TinyCodeAgent(BaseAgent):
     system_suffix: str = ""
     prompt_file: str | None = None
     verbose: bool = False
+    memory_manager: MemoryManager | None = field(default=None)
+    enable_pruning: bool = False
+    prune_keep_last: int = 5
 
     # Internal state (set in __post_init__)
     _tool_map: dict[str, Tool] = field(default_factory=dict, init=False, repr=False)
@@ -136,6 +154,10 @@ class TinyCodeAgent(BaseAgent):
         self._system_prompt = base_prompt.format(helpers=", ".join(self._tool_map.keys()))
         if self.system_suffix:
             self._system_prompt += "\n\n" + self.system_suffix
+
+        # Initialize memory_manager if not provided
+        if self.memory_manager is None:
+            self.memory_manager = MemoryManager()
 
     def _init_executor(self) -> None:
         """Initialize the appropriate executor based on trust level."""
@@ -206,16 +228,16 @@ class TinyCodeAgent(BaseAgent):
 
         start_time = time.time()
         finalizer = Finalizer()
-        memory = AgentMemory()
+        scratchpad = AgentMemory()  # Scratchpad for working memory
         steps_taken = 0
 
-        for name, value in memory.to_namespace().items():
+        for name, value in scratchpad.to_namespace().items():
             self._executor.inject(name, value)
 
-        messages: list[dict[str, str]] = [
-            {"role": "system", "content": self._system_prompt},
-            {"role": "user", "content": task},
-        ]
+        # Initialize structured memory for this run
+        self.memory_manager.clear()
+        self.memory_manager.add(SystemPromptStep(content=self._system_prompt))
+        self.memory_manager.add(TaskStep(task=task))
 
         self.logger.banner("TINYCODE AGENT v2 STARTING")
         self.logger.labeled("TASK", task)
@@ -238,6 +260,8 @@ class TinyCodeAgent(BaseAgent):
             steps_taken = step + 1
 
             self.logger.step_header(steps_taken, max_steps)
+
+            messages = self.memory_manager.to_messages()
             self.logger.messages_preview(messages)
 
             reply = await self._chat(messages)
@@ -247,10 +271,12 @@ class TinyCodeAgent(BaseAgent):
             code = self._extract_code(reply)
             if not code:
                 self.logger.error("No code block found in response")
-                messages += [
-                    {"role": "assistant", "content": reply},
-                    {"role": "user", "content": "Please respond with a python block only."},
-                ]
+                self.memory_manager.add(
+                    ActionStep(
+                        raw_llm_response=reply,
+                        error="Please respond with a python block only.",
+                    )
+                )
                 continue
 
             self.logger.code_block(code)
@@ -267,22 +293,23 @@ class TinyCodeAgent(BaseAgent):
 
             if result.error:
                 error_msg = self._build_error_message(result, code)
-                messages += [
-                    {"role": "assistant", "content": reply},
-                    {"role": "user", "content": error_msg},
-                ]
-                memory.fail(f"Step {steps_taken}: {result.error}")
+                self.memory_manager.add(
+                    ActionStep(
+                        raw_llm_response=reply,
+                        error=error_msg,
+                    )
+                )
+                scratchpad.fail(f"Step {steps_taken}: {result.error}")
                 continue
 
             if result.timeout:
-                messages += [
-                    {"role": "assistant", "content": reply},
-                    {
-                        "role": "user",
-                        "content": f"Execution timed out after {self.limits.timeout_seconds}s",
-                    },
-                ]
-                memory.fail(f"Step {steps_taken}: Timeout")
+                self.memory_manager.add(
+                    ActionStep(
+                        raw_llm_response=reply,
+                        error=f"Execution timed out after {self.limits.timeout_seconds}s",
+                    )
+                )
+                scratchpad.fail(f"Step {steps_taken}: Timeout")
                 continue
 
             if result.is_final:
@@ -302,15 +329,22 @@ class TinyCodeAgent(BaseAgent):
                     )
                 return output
 
+            # Build observation with scratchpad context
             observation = result.output if result.output else "(no output)"
-            messages += [
-                {"role": "assistant", "content": reply},
-                {"role": "user", "content": f"Observation:\n{observation}\n"},
-            ]
+            scratchpad_context = scratchpad.to_context()
+            if scratchpad_context:
+                observation += f"\n\n{scratchpad_context}"
 
-            memory_context = memory.to_context()
-            if memory_context:
-                messages[-1]["content"] += f"\n\n{memory_context}"
+            self.memory_manager.add(
+                ActionStep(
+                    raw_llm_response=reply,
+                    observation=observation,
+                )
+            )
+
+            # Apply pruning if enabled
+            if self.enable_pruning:
+                self.memory_manager.prune(keep_last_n_steps(self.prune_keep_last))
 
         duration = time.time() - start_time
         error = StepLimitReached(
