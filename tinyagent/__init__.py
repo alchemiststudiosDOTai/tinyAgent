@@ -17,7 +17,17 @@ Execution:
     ExecutionTimeout    - Timeout exception
 
 Memory:
-    AgentMemory     - Working memory for agent state
+    AgentMemory     - Working memory for agent state (scratchpad)
+    MemoryManager   - Structured conversation memory with pruning
+    Step            - Base step class for memory
+    SystemPromptStep - System prompt message step
+    TaskStep        - User task/question step
+    ActionStep      - Tool call with observation/error step
+    ScratchpadStep  - Working memory notes step
+    PruneStrategy   - Type alias for pruning functions
+    keep_last_n_steps      - Keep last N action steps
+    prune_old_observations - Truncate old observations
+    no_pruning             - Identity function (no changes)
 
 Observability:
     AgentLogger     - Centralized logging for agent execution
@@ -58,7 +68,19 @@ from .core import (
 )
 from .execution import ExecutionResult, Executor, LocalExecutor
 from .limits import ExecutionLimits, ExecutionTimeout
-from .memory import AgentMemory
+from .memory import (
+    ActionStep,
+    AgentMemory,
+    MemoryManager,
+    PruneStrategy,
+    ScratchpadStep,
+    Step,
+    SystemPromptStep,
+    TaskStep,
+    keep_last_n_steps,
+    no_pruning,
+    prune_old_observations,
+)
 from .observability import AgentLogger
 
 # Lazy imports for TUI dashboards - see observability.__init__
@@ -80,6 +102,16 @@ __all__ = [
     "ExecutionTimeout",
     # Memory
     "AgentMemory",
+    "MemoryManager",
+    "Step",
+    "SystemPromptStep",
+    "TaskStep",
+    "ActionStep",
+    "ScratchpadStep",
+    "PruneStrategy",
+    "keep_last_n_steps",
+    "prune_old_observations",
+    "no_pruning",
     # Observability
     "AgentLogger",
     "AgentDashboard",
