@@ -95,7 +95,7 @@ class TinyCodeAgent(BaseAgent):
         Optional MemoryManager instance. If None, one will be created automatically.
         Note: Uses memory_manager to avoid collision with existing memory (AgentMemory).
     enable_pruning
-        If True, apply pruning strategy after each step. Default False.
+        If True, apply pruning strategy after each step. Default True.
     prune_keep_last
         Number of recent action steps to keep when pruning. Default 5.
 
@@ -122,7 +122,7 @@ class TinyCodeAgent(BaseAgent):
     prompt_file: str | None = None
     verbose: bool = False
     memory_manager: MemoryManager | None = field(default=None)
-    enable_pruning: bool = False
+    enable_pruning: bool = True
     prune_keep_last: int = 5
 
     # Internal state (set in __post_init__)

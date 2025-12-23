@@ -64,7 +64,7 @@ class ReactAgent(BaseAgent):
     memory
         Optional MemoryManager instance. If None, one will be created automatically.
     enable_pruning
-        If True, apply pruning strategy after each step. Default ``False``.
+        If True, apply pruning strategy after each step. Default ``True``.
     prune_keep_last
         Number of recent action steps to keep when pruning. Default ``5``.
     """
@@ -75,7 +75,7 @@ class ReactAgent(BaseAgent):
     prompt_file: str | None = None
     temperature: float = 0.7
     memory: MemoryManager | None = field(default=None)
-    enable_pruning: bool = False
+    enable_pruning: bool = True
     prune_keep_last: int = 5
 
     def __post_init__(self) -> None:
