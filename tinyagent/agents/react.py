@@ -4,7 +4,7 @@ Minimal, typed ReAct agent (Reason + Act) with JSON-tool calling.
 
 Public surface
 --------------
-ReactAgent  – class
+ReactAgent  - class
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ import json
 import os
 import time
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Final
 
 from openai import AsyncOpenAI
@@ -22,6 +22,14 @@ from ..core.exceptions import StepLimitReached
 from ..core.finalizer import Finalizer
 from ..core.registry import Tool
 from ..core.types import RunResult
+from ..memory import (
+    ActionStep,
+    MemoryManager,
+    ScratchpadStep,
+    SystemPromptStep,
+    TaskStep,
+    keep_last_n_steps,
+)
 from ..prompts.loader import get_prompt_fallback
 from ..prompts.templates import BAD_JSON, SYSTEM
 from .base import BaseAgent
@@ -53,6 +61,12 @@ class ReactAgent(BaseAgent):
         If provided, will load prompt from file. Falls back to default prompt if file loading fails.
     temperature
         Temperature for LLM responses. Default ``0.7``.
+    memory
+        Optional MemoryManager instance. If None, one will be created automatically.
+    enable_pruning
+        If True, apply pruning strategy after each step. Default ``False``.
+    prune_keep_last
+        Number of recent action steps to keep when pruning. Default ``5``.
     """
 
     tools: Sequence[Tool]
@@ -60,6 +74,9 @@ class ReactAgent(BaseAgent):
     api_key: str | None = None
     prompt_file: str | None = None
     temperature: float = 0.7
+    memory: MemoryManager | None = field(default=None)
+    enable_pruning: bool = False
+    prune_keep_last: int = 5
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -76,6 +93,10 @@ class ReactAgent(BaseAgent):
                 for t in self._tool_map.values()
             )
         )
+
+        # Initialize memory if not provided
+        if self.memory is None:
+            self.memory = MemoryManager()
 
     # ------------------------------------------------------------------
     async def run(
@@ -104,10 +125,11 @@ class ReactAgent(BaseAgent):
         finalizer = Finalizer()
         steps_taken = 0
 
-        messages: list[dict[str, str]] = [
-            {"role": "system", "content": self._system_prompt},
-            {"role": "user", "content": question},
-        ]
+        # Initialize memory for this run
+        self.memory.clear()
+        self.memory.add(SystemPromptStep(content=self._system_prompt))
+        self.memory.add(TaskStep(task=question))
+
         temperature = self.temperature
 
         self.logger.verbose = verbose
@@ -120,6 +142,8 @@ class ReactAgent(BaseAgent):
         for step in range(max_steps):
             steps_taken = step + 1
             self.logger.step_header(steps_taken, max_steps)
+
+            messages = self.memory.to_messages()
             self.logger.messages_preview(messages)
 
             assistant_reply = await self._chat(messages, temperature)
@@ -130,19 +154,23 @@ class ReactAgent(BaseAgent):
 
             if payload is None:
                 self.logger.error("JSON PARSE ERROR: Invalid JSON format")
-                messages += [
-                    {"role": "assistant", "content": assistant_reply},
-                    {"role": "user", "content": BAD_JSON},
-                ]
+                self.memory.add(
+                    ActionStep(
+                        raw_llm_response=assistant_reply,
+                        error=BAD_JSON,
+                    )
+                )
                 temperature += TEMP_STEP
                 continue
 
             if "scratchpad" in payload:
                 self.logger.scratchpad(payload["scratchpad"])
-                messages += [
-                    {"role": "assistant", "content": assistant_reply},
-                    {"role": "user", "content": f"Scratchpad noted: {payload['scratchpad']}"},
-                ]
+                self.memory.add(
+                    ScratchpadStep(
+                        content=payload["scratchpad"],
+                        raw_llm_response=assistant_reply,
+                    )
+                )
                 del payload["scratchpad"]
                 if "answer" not in payload and "tool" not in payload:
                     temperature += TEMP_STEP
@@ -173,20 +201,41 @@ class ReactAgent(BaseAgent):
             self.logger.tool_call(name, args)
 
             ok, result = await self._safe_tool(name, args)
-            tag = "Observation" if ok else "Error"
             result_str = str(result)
-            short = (result_str[:MAX_OBS_LEN] + "...") if len(result_str) > MAX_OBS_LEN else result
+            short = (
+                (result_str[:MAX_OBS_LEN] + "...") if len(result_str) > MAX_OBS_LEN else result_str
+            )
 
             truncated_from = len(result_str) if len(result_str) > MAX_OBS_LEN else None
             self.logger.tool_observation(str(short), is_error=not ok, truncated_from=truncated_from)
 
-            messages += [
-                {"role": "assistant", "content": assistant_reply},
-                {"role": "user", "content": f"{tag}: {short}"},
-            ]
+            # Add action step to memory
+            if ok:
+                self.memory.add(
+                    ActionStep(
+                        tool_name=name,
+                        tool_args=args,
+                        observation=short,
+                        raw_llm_response=assistant_reply,
+                    )
+                )
+            else:
+                self.memory.add(
+                    ActionStep(
+                        tool_name=name,
+                        tool_args=args,
+                        error=short,
+                        raw_llm_response=assistant_reply,
+                    )
+                )
+
+            # Apply pruning if enabled
+            if self.enable_pruning:
+                self.memory.prune(keep_last_n_steps(self.prune_keep_last))
 
         self.logger.final_attempt_header()
 
+        messages = self.memory.to_messages()
         final_try = await self._chat(
             messages + [{"role": "user", "content": "Return your best final answer now."}],
             0,
