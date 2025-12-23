@@ -92,7 +92,7 @@ def format_insights(
 
 ## Risk Metrics
 - Volatility: {vol:.2f}% (annualized)
-- Risk Level: {'High' if vol > 30 else 'Medium' if vol > 20 else 'Low'}
+- Risk Level: {"High" if vol > 30 else "Medium" if vol > 20 else "Low"}
 
 ## Technical Analysis
 {analysis}
@@ -209,9 +209,9 @@ async def tinycode_agent_demo():
     Analyze this stock data using Python:
 
     Stock Information:
-    - Symbol: {stock_data['stock']}
-    - Price History: {stock_data['prices']}
-    - Context: {stock_data['context']}
+    - Symbol: {stock_data["stock"]}
+    - Price History: {stock_data["prices"]}
+    - Context: {stock_data["context"]}
 
     Tasks:
     1. Calculate daily returns using calculate_returns()
