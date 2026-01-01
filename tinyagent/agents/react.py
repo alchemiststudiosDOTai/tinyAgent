@@ -14,7 +14,7 @@ import os
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Final
+from typing import Any, Final, Literal
 
 from openai import AsyncOpenAI
 
@@ -123,141 +123,199 @@ class ReactAgent(BaseAgent):
         """
         start_time = time.time()
         finalizer = Finalizer()
-        steps_taken = 0
 
-        # Initialize memory for this run
+        # Initialize run state
+        temperature = self._initialize_run(question, verbose)
+
+        # Main step loop
+        for step in range(max_steps):
+            steps_taken = step + 1
+            result = await self._process_step(
+                steps_taken, max_steps, temperature, start_time, return_result, finalizer
+            )
+            if result is not None:
+                return result
+
+        # Final attempt after loop exhaustion
+        return await self._attempt_final_answer(start_time, steps_taken, return_result, finalizer)
+
+    def _initialize_run(self, question: str, verbose: bool) -> float:
+        """Initialize memory and logging for a new run. Returns initial temperature."""
         self.memory.clear()
         self.memory.add(SystemPromptStep(content=self._system_prompt))
         self.memory.add(TaskStep(task=question))
 
-        temperature = self.temperature
-
         self.logger.verbose = verbose
-
         self.logger.banner("REACT AGENT STARTING")
         self.logger.labeled("TASK", question)
         self.logger.labeled("SYSTEM PROMPT", self._system_prompt)
         self.logger.labeled("AVAILABLE TOOLS", str(list(self._tool_map.keys())))
 
-        for step in range(max_steps):
-            steps_taken = step + 1
-            self.logger.step_header(steps_taken, max_steps)
+        return self.temperature
 
-            messages = self.memory.to_messages()
-            self.logger.messages_preview(messages)
+    async def _process_step(
+        self,
+        step_num: int,
+        max_steps: int,
+        temperature: float,
+        start_time: float,
+        return_result: bool,
+        finalizer: Finalizer,
+    ) -> str | RunResult | None:
+        """
+        Process a single reasoning step.
+        Returns None to continue loop, or a result to return immediately.
+        """
+        self.logger.step_header(step_num, max_steps)
 
-            assistant_reply = await self._chat(messages, temperature)
+        messages = self.memory.to_messages()
+        self.logger.messages_preview(messages)
 
-            self.logger.llm_response(assistant_reply)
+        assistant_reply = await self._chat(messages, temperature)
+        self.logger.llm_response(assistant_reply)
 
-            payload = self._try_parse_json(assistant_reply)
+        payload = self._try_parse_json(assistant_reply)
+        if payload is None:
+            self._handle_parse_error(assistant_reply)
+            return None
 
-            if payload is None:
-                self.logger.error("JSON PARSE ERROR: Invalid JSON format")
-                self.memory.add(
-                    ActionStep(
-                        raw_llm_response=assistant_reply,
-                        error=BAD_JSON,
-                    )
-                )
-                temperature += TEMP_STEP
-                continue
+        # Handle scratchpad content
+        if "scratchpad" in payload:
+            self._handle_scratchpad(payload, assistant_reply)
+            if "answer" not in payload and "tool" not in payload:
+                return None
 
-            if "scratchpad" in payload:
-                self.logger.scratchpad(payload["scratchpad"])
-                self.memory.add(
-                    ScratchpadStep(
-                        content=payload["scratchpad"],
-                        raw_llm_response=assistant_reply,
-                    )
-                )
-                del payload["scratchpad"]
-                if "answer" not in payload and "tool" not in payload:
-                    temperature += TEMP_STEP
-                    continue
-
-            if "answer" in payload:
-                answer_value = str(payload["answer"])
-                finalizer.set(answer_value, source="normal")
-
-                self.logger.final_answer(answer_value)
-
-                if return_result:
-                    duration = time.time() - start_time
-                    return RunResult(
-                        output=answer_value,
-                        final_answer=finalizer.get(),
-                        state="completed",
-                        steps_taken=steps_taken,
-                        duration_seconds=duration,
-                    )
-                return answer_value
-
-            name = payload.get("tool")
-            args = payload.get("arguments", {}) or {}
-            if name not in self._tool_map:
-                return f"Unknown tool '{name}'."
-
-            self.logger.tool_call(name, args)
-
-            ok, result = await self._safe_tool(name, args)
-            result_str = str(result)
-            short = (
-                (result_str[:MAX_OBS_LEN] + "...") if len(result_str) > MAX_OBS_LEN else result_str
+        # Handle final answer
+        if "answer" in payload:
+            return self._handle_final_answer(
+                payload["answer"], start_time, step_num, return_result, finalizer, "normal"
             )
 
-            truncated_from = len(result_str) if len(result_str) > MAX_OBS_LEN else None
-            self.logger.tool_observation(str(short), is_error=not ok, truncated_from=truncated_from)
+        # Execute tool
+        await self._execute_tool(
+            payload, assistant_reply, temperature, start_time, step_num, return_result, finalizer
+        )
+        return None
 
-            # Add action step to memory
-            if ok:
-                self.memory.add(
-                    ActionStep(
-                        tool_name=name,
-                        tool_args=args,
-                        observation=short,
-                        raw_llm_response=assistant_reply,
-                    )
+    def _handle_parse_error(self, raw_response: str) -> None:
+        """Handle JSON parsing errors."""
+        self.logger.error("JSON PARSE ERROR: Invalid JSON format")
+        self.memory.add(ActionStep(raw_llm_response=raw_response, error=BAD_JSON))
+
+    def _handle_scratchpad(self, payload: dict[str, Any], raw_response: str) -> None:
+        """Handle scratchpad content in payload."""
+        self.logger.scratchpad(payload["scratchpad"])
+        self.memory.add(
+            ScratchpadStep(content=payload["scratchpad"], raw_llm_response=raw_response)
+        )
+        del payload["scratchpad"]
+
+    def _handle_final_answer(
+        self,
+        answer: Any,
+        start_time: float,
+        steps_taken: int,
+        return_result: bool,
+        finalizer: Finalizer,
+        source: Literal["normal", "final_attempt"],
+    ) -> str | RunResult:
+        """Handle a final answer from the agent."""
+        answer_value = str(answer)
+        finalizer.set(answer_value, source=source)
+        self.logger.final_answer(answer_value)
+
+        if return_result:
+            duration = time.time() - start_time
+            state: Literal["completed", "step_limit_reached"] = (
+                "completed" if source == "normal" else "step_limit_reached"
+            )
+            return RunResult(
+                output=answer_value,
+                final_answer=finalizer.get(),
+                state=state,
+                steps_taken=steps_taken,
+                duration_seconds=duration,
+            )
+        return answer_value
+
+    async def _execute_tool(
+        self,
+        payload: dict[str, Any],
+        raw_response: str,
+        temperature: float,
+        start_time: float,
+        steps_taken: int,
+        return_result: bool,
+        finalizer: Finalizer,
+    ) -> None:
+        """Execute a tool call and add result to memory."""
+        name = payload.get("tool")
+        args = payload.get("arguments", {}) or {}
+        if name not in self._tool_map:
+            self.logger.error(f"Unknown tool '{name}'")
+            self.memory.add(
+                ActionStep(
+                    tool_name=name,
+                    tool_args=args,
+                    error=f"Unknown tool '{name}'",
+                    raw_llm_response=raw_response,
                 )
-            else:
-                self.memory.add(
-                    ActionStep(
-                        tool_name=name,
-                        tool_args=args,
-                        error=short,
-                        raw_llm_response=assistant_reply,
-                    )
+            )
+            return
+
+        self.logger.tool_call(name, args)
+
+        ok, result = await self._safe_tool(name, args)
+        result_str = str(result)
+        short = (result_str[:MAX_OBS_LEN] + "...") if len(result_str) > MAX_OBS_LEN else result_str
+
+        truncated_from = len(result_str) if len(result_str) > MAX_OBS_LEN else None
+        self.logger.tool_observation(str(short), is_error=not ok, truncated_from=truncated_from)
+
+        # Add action step to memory
+        if ok:
+            self.memory.add(
+                ActionStep(
+                    tool_name=name, tool_args=args, observation=short, raw_llm_response=raw_response
                 )
+            )
+        else:
+            self.memory.add(
+                ActionStep(
+                    tool_name=name, tool_args=args, error=short, raw_llm_response=raw_response
+                )
+            )
 
-            # Apply pruning if enabled
-            if self.enable_pruning:
-                self.memory.prune(keep_last_n_steps(self.prune_keep_last))
+        # Apply pruning if enabled
+        if self.enable_pruning:
+            self.memory.prune(keep_last_n_steps(self.prune_keep_last))
 
+    async def _attempt_final_answer(
+        self,
+        start_time: float,
+        steps_taken: int,
+        return_result: bool,
+        finalizer: Finalizer,
+    ) -> str | RunResult:
+        """Attempt to get a final answer after loop exhaustion."""
         self.logger.final_attempt_header()
 
         messages = self.memory.to_messages()
         final_try = await self._chat(
-            messages + [{"role": "user", "content": "Return your best final answer now."}],
-            0,
+            messages + [{"role": "user", "content": "Return your best final answer now."}], 0
         )
         payload = self._try_parse_json(final_try) or {}
         duration = time.time() - start_time
 
         if "answer" in payload:
-            answer_value = str(payload["answer"])
-            finalizer.set(answer_value, source="final_attempt")
-
-            self.logger.final_answer(answer_value)
-
-            if return_result:
-                return RunResult(
-                    output=answer_value,
-                    final_answer=finalizer.get(),
-                    state="step_limit_reached",
-                    steps_taken=steps_taken,
-                    duration_seconds=duration,
-                )
-            return answer_value
+            return self._handle_final_answer(
+                payload["answer"],
+                start_time,
+                steps_taken,
+                return_result,
+                finalizer,
+                "final_attempt",
+            )
 
         error = StepLimitReached(
             "Exceeded max steps without an answer.",

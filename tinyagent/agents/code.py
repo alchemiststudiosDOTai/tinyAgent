@@ -228,13 +228,32 @@ class TinyCodeAgent(BaseAgent):
 
         start_time = time.time()
         finalizer = Finalizer()
-        scratchpad = AgentMemory()  # Scratchpad for working memory
-        steps_taken = 0
-
-        for name, value in scratchpad.to_namespace().items():
-            self._executor.inject(name, value)
+        scratchpad = self._initialize_scratchpad()
 
         # Initialize structured memory for this run
+        self._initialize_run(task, max_steps)
+
+        # Main step loop
+        for step in range(max_steps):
+            steps_taken = step + 1
+            result = await self._process_step(
+                steps_taken, max_steps, start_time, return_result, finalizer, scratchpad
+            )
+            if result is not None:
+                return result
+
+        # Loop exhausted without answer
+        return self._handle_step_limit(start_time, steps_taken, return_result)
+
+    def _initialize_scratchpad(self) -> AgentMemory:
+        """Initialize scratchpad and inject values into executor."""
+        scratchpad = AgentMemory()
+        for name, value in scratchpad.to_namespace().items():
+            self._executor.inject(name, value)
+        return scratchpad
+
+    def _initialize_run(self, task: str, max_steps: int) -> None:
+        """Initialize memory and logging for a new run."""
         self.memory_manager.clear()
         self.memory_manager.add(SystemPromptStep(content=self._system_prompt))
         self.memory_manager.add(TaskStep(task=task))
@@ -256,96 +275,140 @@ class TinyCodeAgent(BaseAgent):
         self.logger.labeled("AVAILABLE TOOLS", str(list(self._tool_map.keys())))
         self.logger.labeled("ALLOWED IMPORTS", str(list(self.extra_imports)))
 
-        for step in range(max_steps):
-            steps_taken = step + 1
+    async def _process_step(
+        self,
+        step_num: int,
+        max_steps: int,
+        start_time: float,
+        return_result: bool,
+        finalizer: Finalizer,
+        scratchpad: AgentMemory,
+    ) -> str | RunResult | None:
+        """
+        Process a single reasoning step.
+        Returns None to continue loop, or a result to return immediately.
+        """
+        self.logger.step_header(step_num, max_steps)
 
-            self.logger.step_header(steps_taken, max_steps)
+        messages = self.memory_manager.to_messages()
+        self.logger.messages_preview(messages)
 
-            messages = self.memory_manager.to_messages()
-            self.logger.messages_preview(messages)
+        reply = await self._chat(messages)
+        self.logger.llm_response(reply)
 
-            reply = await self._chat(messages)
+        code = self._extract_code(reply)
+        if not code:
+            self._handle_no_code(reply)
+            return None
 
-            self.logger.llm_response(reply)
+        self.logger.code_block(code)
+        result = self._executor.run(code)
 
-            code = self._extract_code(reply)
-            if not code:
-                self.logger.error("No code block found in response")
-                self.memory_manager.add(
-                    ActionStep(
-                        raw_llm_response=reply,
-                        error="Please respond with a python block only.",
-                    )
-                )
-                continue
+        self.logger.execution_result(
+            output=result.output,
+            duration_ms=result.duration_ms,
+            is_final=result.is_final,
+            error=result.error,
+            timeout=result.timeout,
+        )
 
-            self.logger.code_block(code)
+        if result.error:
+            self._handle_execution_error(reply, result, code, step_num, scratchpad)
+            return None
 
-            result = self._executor.run(code)
+        if result.timeout:
+            self._handle_timeout(reply, step_num, scratchpad)
+            return None
 
-            self.logger.execution_result(
-                output=result.output,
-                duration_ms=result.duration_ms,
-                is_final=result.is_final,
-                error=result.error,
-                timeout=result.timeout,
+        if result.is_final:
+            return self._handle_final_result(result, start_time, step_num, return_result, finalizer)
+
+        # Normal execution - add observation and continue
+        self._add_observation(result, reply, scratchpad)
+        return None
+
+    def _handle_no_code(self, raw_reply: str) -> None:
+        """Handle response with no code block."""
+        self.logger.error("No code block found in response")
+        self.memory_manager.add(
+            ActionStep(raw_llm_response=raw_reply, error="Please respond with a python block only.")
+        )
+
+    def _handle_execution_error(
+        self,
+        raw_reply: str,
+        result: ExecutionResult,
+        code: str,
+        step_num: int,
+        scratchpad: AgentMemory,
+    ) -> None:
+        """Handle code execution errors."""
+        error_msg = self._build_error_message(result, code)
+        self.memory_manager.add(ActionStep(raw_llm_response=raw_reply, error=error_msg))
+        scratchpad.fail(f"Step {step_num}: {result.error}")
+
+    def _handle_timeout(
+        self,
+        raw_reply: str,
+        step_num: int,
+        scratchpad: AgentMemory,
+    ) -> None:
+        """Handle code execution timeout."""
+        self.memory_manager.add(
+            ActionStep(
+                raw_llm_response=raw_reply,
+                error=f"Execution timed out after {self.limits.timeout_seconds}s",
             )
+        )
+        scratchpad.fail(f"Step {step_num}: Timeout")
 
-            if result.error:
-                error_msg = self._build_error_message(result, code)
-                self.memory_manager.add(
-                    ActionStep(
-                        raw_llm_response=reply,
-                        error=error_msg,
-                    )
-                )
-                scratchpad.fail(f"Step {steps_taken}: {result.error}")
-                continue
+    def _handle_final_result(
+        self,
+        result: ExecutionResult,
+        start_time: float,
+        steps_taken: int,
+        return_result: bool,
+        finalizer: Finalizer,
+    ) -> str | RunResult:
+        """Handle a final result (commit signal)."""
+        output = str(result.final_value)
+        output, _ = self.limits.truncate_output(output)
+        finalizer.set(output, source="normal")
 
-            if result.timeout:
-                self.memory_manager.add(
-                    ActionStep(
-                        raw_llm_response=reply,
-                        error=f"Execution timed out after {self.limits.timeout_seconds}s",
-                    )
-                )
-                scratchpad.fail(f"Step {steps_taken}: Timeout")
-                continue
+        self.logger.final_answer(output)
 
-            if result.is_final:
-                output = str(result.final_value)
-                output, _ = self.limits.truncate_output(output)
-                finalizer.set(output, source="normal")
-
-                self.logger.final_answer(output)
-
-                if return_result:
-                    return RunResult(
-                        output=output,
-                        final_answer=finalizer.get(),
-                        state="completed",
-                        steps_taken=steps_taken,
-                        duration_seconds=time.time() - start_time,
-                    )
-                return output
-
-            # Build observation with scratchpad context
-            observation = result.output if result.output else "(no output)"
-            scratchpad_context = scratchpad.to_context()
-            if scratchpad_context:
-                observation += f"\n\n{scratchpad_context}"
-
-            self.memory_manager.add(
-                ActionStep(
-                    raw_llm_response=reply,
-                    observation=observation,
-                )
+        if return_result:
+            return RunResult(
+                output=output,
+                final_answer=finalizer.get(),
+                state="completed",
+                steps_taken=steps_taken,
+                duration_seconds=time.time() - start_time,
             )
+        return output
 
-            # Apply pruning if enabled
-            if self.enable_pruning:
-                self.memory_manager.prune(keep_last_n_steps(self.prune_keep_last))
+    def _add_observation(
+        self, result: ExecutionResult, raw_reply: str, scratchpad: AgentMemory
+    ) -> None:
+        """Add execution observation to memory with scratchpad context."""
+        observation = result.output if result.output else "(no output)"
+        scratchpad_context = scratchpad.to_context()
+        if scratchpad_context:
+            observation += f"\n\n{scratchpad_context}"
 
+        self.memory_manager.add(ActionStep(raw_llm_response=raw_reply, observation=observation))
+
+        # Apply pruning if enabled
+        if self.enable_pruning:
+            self.memory_manager.prune(keep_last_n_steps(self.prune_keep_last))
+
+    def _handle_step_limit(
+        self,
+        start_time: float,
+        steps_taken: int,
+        return_result: bool,
+    ) -> str | RunResult:
+        """Handle step limit reached."""
         duration = time.time() - start_time
         error = StepLimitReached(
             "Exceeded max ReAct steps without an answer.",
