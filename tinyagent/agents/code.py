@@ -121,7 +121,7 @@ class TinyCodeAgent(BaseAgent):
     system_suffix: str = ""
     prompt_file: str | None = None
     verbose: bool = False
-    memory_manager: MemoryManager | None = field(default=None)
+    memory_manager: MemoryManager = field(default_factory=MemoryManager)
     enable_pruning: bool = True
     prune_keep_last: int = 5
 
@@ -154,10 +154,6 @@ class TinyCodeAgent(BaseAgent):
         self._system_prompt = base_prompt.format(helpers=", ".join(self._tool_map.keys()))
         if self.system_suffix:
             self._system_prompt += "\n\n" + self.system_suffix
-
-        # Initialize memory_manager if not provided
-        if self.memory_manager is None:
-            self.memory_manager = MemoryManager()
 
     def _init_executor(self) -> None:
         """Initialize the appropriate executor based on trust level."""
@@ -432,7 +428,7 @@ class TinyCodeAgent(BaseAgent):
         self.logger.api_call(self.model)
         response = await self.client.chat.completions.create(
             model=self.model,
-            messages=messages,
+            messages=messages,  # type: ignore[arg-type]
             temperature=0,
         )
         content = response.choices[0].message.content or ""

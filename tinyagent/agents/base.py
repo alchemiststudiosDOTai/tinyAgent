@@ -42,13 +42,11 @@ class BaseAgent(ABC):
     """
 
     tools: Sequence[Tool]
-    logger: AgentLogger | None = None
+    logger: AgentLogger = field(default_factory=lambda: AgentLogger(verbose=False))
     _tool_map: dict[str, Tool] = field(default_factory=dict, init=False, repr=False)
 
     def __post_init__(self) -> None:
         """Initialize shared agent state."""
-        if self.logger is None:
-            self.logger = AgentLogger(verbose=False)
 
         if not self.tools:
             raise ValueError(f"{self.__class__.__name__} requires at least one tool.")

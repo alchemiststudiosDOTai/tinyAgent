@@ -74,7 +74,7 @@ class ReactAgent(BaseAgent):
     api_key: str | None = None
     prompt_file: str | None = None
     temperature: float = 0.7
-    memory: MemoryManager | None = field(default=None)
+    memory: MemoryManager = field(default_factory=MemoryManager)
     enable_pruning: bool = True
     prune_keep_last: int = 5
 
@@ -93,10 +93,6 @@ class ReactAgent(BaseAgent):
                 for t in self._tool_map.values()
             )
         )
-
-        # Initialize memory if not provided
-        if self.memory is None:
-            self.memory = MemoryManager()
 
     # ------------------------------------------------------------------
     async def run(
@@ -255,7 +251,7 @@ class ReactAgent(BaseAgent):
             self.logger.error(f"Unknown tool '{name}'")
             self.memory.add(
                 ActionStep(
-                    tool_name=name,
+                    tool_name=str(name) if name is not None else "<missing>",
                     tool_args=args,
                     error=f"Unknown tool '{name}'",
                     raw_llm_response=raw_response,
@@ -340,7 +336,7 @@ class ReactAgent(BaseAgent):
         self.logger.api_call(self.model, temperature)
         response = await self.client.chat.completions.create(
             model=self.model,
-            messages=messages,
+            messages=messages,  # type: ignore[arg-type]
             temperature=temperature,
         )
         content = response.choices[0].message.content or ""
