@@ -17,19 +17,12 @@ from typing import Any, Final, Literal
 
 from openai import AsyncOpenAI
 
+from ..core.adapters import ToolCallingAdapter, ToolCallingMode, get_adapter
 from ..core.exceptions import StepLimitReached
 from ..core.finalizer import Finalizer
-from ..core.parsing import parse_json_response
+from ..core.memory import Memory
 from ..core.registry import Tool
 from ..core.types import RunResult
-from ..memory import (
-    ActionStep,
-    MemoryManager,
-    ScratchpadStep,
-    SystemPromptStep,
-    TaskStep,
-    keep_last_n_steps,
-)
 from ..prompts.loader import get_prompt_fallback
 from ..prompts.templates import BAD_JSON, SYSTEM
 from .base import BaseAgent
@@ -40,6 +33,12 @@ __all__ = ["ReactAgent"]
 MAX_STEPS: Final = 10
 TEMP_STEP: Final = 0.2
 MAX_OBS_LEN: Final = 500
+MAX_TEMPERATURE: Final = 2.0
+TOOL_KEY: Final = "tool"
+ARGUMENTS_KEY: Final = "arguments"
+ANSWER_KEY: Final = "answer"
+SCRATCHPAD_KEY: Final = "scratchpad"
+VALIDATION_ERROR_FALLBACK: Final = "Tool arguments failed validation."
 
 
 @dataclass(kw_only=True)
@@ -53,22 +52,16 @@ class ReactAgent(BaseAgent):
         Sequence of Tool objects
     model
         Model name (OpenAI format). Default ``gpt-4o-mini``.
-        Examples: ``gpt-4``, ``anthropic/claude-3.5-haiku``, ``meta-llama/llama-3.2-3b-instruct``
     api_key
         Optional OpenAI key; falls back to ``OPENAI_API_KEY`` env var.
     prompt_file
         Optional path to a text file containing the system prompt.
-        If provided, will load prompt from file. Falls back to default prompt if file loading fails.
     temperature
         Temperature for LLM responses. Default ``0.7``.
     max_tokens
         Maximum tokens in LLM response. Default ``None`` (model default).
-    memory
-        Optional MemoryManager instance. If None, one will be created automatically.
-    enable_pruning
-        If True, apply pruning strategy after each step. Default ``True``.
-    prune_keep_last
-        Number of recent action steps to keep when pruning. Default ``5``.
+    tool_calling_mode
+        Tool calling adapter mode. Default ``ToolCallingMode.AUTO``.
     """
 
     tools: Sequence[Tool]
@@ -77,9 +70,12 @@ class ReactAgent(BaseAgent):
     prompt_file: str | None = None
     temperature: float = 0.7
     max_tokens: int | None = None
-    memory: MemoryManager = field(default_factory=MemoryManager)
-    enable_pruning: bool = True
-    prune_keep_last: int = 5
+    tool_calling_mode: (
+        ToolCallingMode | Literal["auto", "native", "structured", "validated", "parsed"]
+    ) = ToolCallingMode.AUTO
+
+    _adapter: ToolCallingAdapter = field(init=False, repr=False)
+    _memory: Memory = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -88,14 +84,22 @@ class ReactAgent(BaseAgent):
         base_url = os.getenv("OPENAI_BASE_URL")
         self.client = AsyncOpenAI(api_key=api_key, base_url=base_url)
 
-        base_prompt = get_prompt_fallback(SYSTEM, self.prompt_file)
+        self.tool_calling_mode = self._normalize_tool_calling_mode(self.tool_calling_mode)
+        self._adapter = get_adapter(self.model, self.tool_calling_mode)
+        self._memory = Memory()
 
+        base_prompt = get_prompt_fallback(SYSTEM, self.prompt_file)
         self._system_prompt: str = base_prompt.format(
             tools="\n".join(
                 f"- {t.name}: {t.doc or '<no description>'} | args={t.signature}"
                 for t in self._tool_map.values()
             )
         )
+
+    def _normalize_tool_calling_mode(self, mode: ToolCallingMode | str) -> ToolCallingMode:
+        if isinstance(mode, ToolCallingMode):
+            return mode
+        return ToolCallingMode(mode)
 
     # ------------------------------------------------------------------
     async def run(
@@ -106,173 +110,107 @@ class ReactAgent(BaseAgent):
         verbose: bool = False,
         return_result: bool = False,
     ) -> str | RunResult:
-        """
-        Execute the loop and return the final answer or raise StepLimitReached.
-
-        Parameters
-        ----------
-        question
-            The question to answer
-        max_steps
-            Maximum number of reasoning steps
-        verbose
-            If True, print detailed execution logs
-        return_result
-            If True, return RunResult with metadata; if False, return string (default)
-        """
+        """Execute the loop and return the final answer or raise StepLimitReached."""
         start_time = time.time()
         finalizer = Finalizer()
 
-        # Initialize run state
-        temperature = self._initialize_run(question, verbose)
+        # Initialize
+        self._memory.clear()
+        self._memory.add_system(self._system_prompt)
+        self._memory.add_user(question)
+        temperature = self.temperature
 
-        # Main step loop
+        # Main loop
         steps_taken = 0
         for step in range(max_steps):
             steps_taken = step + 1
             result, increment_temp = await self._process_step(
-                steps_taken, max_steps, temperature, start_time, return_result, finalizer
+                start_time, steps_taken, return_result, finalizer, temperature
             )
             if result is not None:
                 return result
             if increment_temp:
-                temperature += TEMP_STEP
+                temperature = min(temperature + TEMP_STEP, MAX_TEMPERATURE)
 
-        # Final attempt after loop exhaustion
+        # Final attempt
         return await self._attempt_final_answer(start_time, steps_taken, return_result, finalizer)
-
-    def _initialize_run(self, question: str, verbose: bool) -> float:
-        """Initialize memory for a new run. Returns initial temperature."""
-        self.memory.clear()
-        self.memory.add(SystemPromptStep(content=self._system_prompt))
-        self.memory.add(TaskStep(task=question))
-        return self.temperature
 
     async def _process_step(
         self,
-        step_num: int,
-        max_steps: int,
-        temperature: float,
-        start_time: float,
-        return_result: bool,
-        finalizer: Finalizer,
-    ) -> tuple[str | RunResult | None, bool]:
-        """
-        Process a single reasoning step.
-
-        Returns (result, should_increment_temp):
-          - result: None to continue loop, or a value to return immediately
-          - should_increment_temp: True if temperature should be incremented
-        """
-        messages = self.memory.to_messages()
-        assistant_reply = await self._chat(messages, temperature)
-
-        payload = parse_json_response(assistant_reply)
-        if payload is None:
-            self._handle_parse_error(assistant_reply)
-            return (None, True)
-
-        # Handle scratchpad content
-        if "scratchpad" in payload:
-            self._handle_scratchpad(payload, assistant_reply)
-            if "answer" not in payload and "tool" not in payload:
-                return (None, True)
-
-        # Handle final answer
-        if "answer" in payload:
-            result = self._handle_final_answer(
-                payload["answer"], start_time, step_num, return_result, finalizer, "normal"
-            )
-            return (result, False)
-
-        # Execute tool
-        tool_result = await self._execute_tool(
-            payload, assistant_reply, temperature, start_time, step_num, return_result, finalizer
-        )
-        if tool_result is not None:
-            return (tool_result, False)  # Fail-fast on unknown tool
-        return (None, False)
-
-    def _handle_parse_error(self, raw_response: str) -> None:
-        """Handle JSON parsing errors."""
-        self.memory.add(ActionStep(raw_llm_response=raw_response, error=BAD_JSON))
-
-    def _handle_scratchpad(self, payload: dict[str, Any], raw_response: str) -> None:
-        """Handle scratchpad content in payload."""
-        self.memory.add(
-            ScratchpadStep(content=payload["scratchpad"], raw_llm_response=raw_response)
-        )
-        del payload["scratchpad"]
-
-    def _handle_final_answer(
-        self,
-        answer: Any,
         start_time: float,
         steps_taken: int,
         return_result: bool,
         finalizer: Finalizer,
-        source: Literal["normal", "final_attempt"],
-    ) -> str | RunResult:
-        """Handle a final answer from the agent."""
-        answer_value = str(answer)
-        finalizer.set(answer_value, source=source)
+        temperature: float,
+    ) -> tuple[str | RunResult | None, bool]:
+        """Process a single step. Returns (result, should_increment_temp)."""
+        response = await self._chat(temperature)
 
-        if return_result:
-            duration = time.time() - start_time
-            state: Literal["completed", "step_limit_reached"] = (
-                "completed" if source == "normal" else "step_limit_reached"
+        payload = self._adapter.extract_tool_call(response)
+        if not isinstance(payload, dict):
+            self._add_error(response, BAD_JSON)
+            return (None, True)
+
+        validation = self._adapter.validate_tool_call(payload, self._tool_map)
+        if not validation.is_valid:
+            self._add_error(response, validation.error_message or VALIDATION_ERROR_FALLBACK)
+            return (None, True)
+        if validation.arguments is not None:
+            payload[ARGUMENTS_KEY] = validation.arguments
+
+        # Scratchpad only (no tool or answer) - just note it
+        if SCRATCHPAD_KEY in payload and ANSWER_KEY not in payload and TOOL_KEY not in payload:
+            self._memory.add(self._adapter.format_assistant_message(response))
+            self._memory.add_user(f"Scratchpad noted: {payload[SCRATCHPAD_KEY]}")
+            return (None, True)
+
+        # Final answer
+        if ANSWER_KEY in payload:
+            return (
+                self._make_result(
+                    payload[ANSWER_KEY], start_time, steps_taken, return_result, finalizer, "normal"
+                ),
+                False,
             )
-            return RunResult(
-                output=answer_value,
-                final_answer=finalizer.get(),
-                state=state,
-                steps_taken=steps_taken,
-                duration_seconds=duration,
+
+        # Tool call
+        if TOOL_KEY in payload:
+            return await self._execute_tool(
+                payload, response, start_time, steps_taken, return_result, finalizer
             )
-        return answer_value
+
+        return (None, True)
+
+    def _add_error(self, response: Any, error: str) -> None:
+        """Add error response to memory."""
+        self._memory.add(self._adapter.format_assistant_message(response))
+        self._memory.add(self._adapter.format_tool_result(None, error, is_error=True))
 
     async def _execute_tool(
         self,
         payload: dict[str, Any],
-        raw_response: str,
-        temperature: float,
+        response: Any,
         start_time: float,
         steps_taken: int,
         return_result: bool,
         finalizer: Finalizer,
-    ) -> str | RunResult | None:
-        """Execute a tool call and add result to memory.
+    ) -> tuple[str | RunResult | None, bool]:
+        """Execute tool and add result to memory."""
+        name = payload.get(TOOL_KEY)
+        args = payload.get(ARGUMENTS_KEY, {}) or {}
 
-        Returns None on success (continue loop), or error string/RunResult to return immediately.
-        """
-        name = payload.get("tool")
-        args = payload.get("arguments", {}) or {}
         if name not in self._tool_map:
-            return f"Error: Unknown tool '{name}'"  # Fail-fast
+            return (f"Error: Unknown tool '{name}'", False)
 
         ok, result = await self._safe_tool(name, args)
         result_str = str(result)
         short = (result_str[:MAX_OBS_LEN] + "...") if len(result_str) > MAX_OBS_LEN else result_str
 
-        # Add action step to memory
-        if ok:
-            self.memory.add(
-                ActionStep(
-                    tool_name=name, tool_args=args, observation=short, raw_llm_response=raw_response
-                )
-            )
-        else:
-            self.memory.add(
-                ActionStep(
-                    tool_name=name, tool_args=args, error=short, raw_llm_response=raw_response
-                )
-            )
+        # Add to memory
+        self._memory.add(self._adapter.format_assistant_message(response))
+        self._memory.add(self._adapter.format_tool_result(None, short, is_error=not ok))
 
-        # Apply pruning if enabled
-        if self.enable_pruning:
-            self.memory.prune(keep_last_n_steps(self.prune_keep_last))
-
-        return None
+        return (None, False)
 
     async def _attempt_final_answer(
         self,
@@ -282,16 +220,13 @@ class ReactAgent(BaseAgent):
         finalizer: Finalizer,
     ) -> str | RunResult:
         """Attempt to get a final answer after loop exhaustion."""
-        messages = self.memory.to_messages()
-        final_try = await self._chat(
-            messages + [{"role": "user", "content": "Return your best final answer now."}], 0
-        )
-        payload = parse_json_response(final_try) or {}
-        duration = time.time() - start_time
+        self._memory.add_user("Return your best final answer now.")
+        response = await self._chat(temperature=0)
 
-        if "answer" in payload:
-            return self._handle_final_answer(
-                payload["answer"],
+        payload = self._adapter.extract_tool_call(response)
+        if isinstance(payload, dict) and ANSWER_KEY in payload:
+            return self._make_result(
+                payload[ANSWER_KEY],
                 start_time,
                 steps_taken,
                 return_result,
@@ -299,6 +234,7 @@ class ReactAgent(BaseAgent):
                 "final_attempt",
             )
 
+        duration = time.time() - start_time
         error = StepLimitReached(
             "Exceeded max steps without an answer.",
             steps_taken=steps_taken,
@@ -316,27 +252,53 @@ class ReactAgent(BaseAgent):
             )
         raise error
 
+    def _make_result(
+        self,
+        answer: Any,
+        start_time: float,
+        steps_taken: int,
+        return_result: bool,
+        finalizer: Finalizer,
+        source: Literal["normal", "final_attempt"],
+    ) -> str | RunResult:
+        """Create result from answer."""
+        answer_value = str(answer)
+        finalizer.set(answer_value, source=source)
+
+        if return_result:
+            duration = time.time() - start_time
+            state: Literal["completed", "step_limit_reached"] = (
+                "completed" if source == "normal" else "step_limit_reached"
+            )
+            return RunResult(
+                output=answer_value,
+                final_answer=finalizer.get(),
+                state=state,
+                steps_taken=steps_taken,
+                duration_seconds=duration,
+            )
+        return answer_value
+
     # ------------------------------------------------------------------
-    async def _chat(self, messages: list[dict[str, str]], temperature: float) -> str:
-        """Single LLM call; OpenAI-compatible."""
+    async def _chat(self, temperature: float) -> Any:
+        """Single LLM call. Returns raw ChatCompletion response."""
         kwargs: dict[str, Any] = {
             "model": self.model,
-            "messages": messages,
+            "messages": self._memory.to_list(),
             "temperature": temperature,
         }
         if self.max_tokens is not None:
             kwargs["max_tokens"] = self.max_tokens
 
-        response = await self.client.chat.completions.create(**kwargs)  # type: ignore[arg-type]
-        content = response.choices[0].message.content or ""
-        return content.strip()
+        adapter_kwargs = self._adapter.format_request(
+            list(self._tool_map.values()), self._memory.to_list()
+        )
+        kwargs.update(adapter_kwargs)
+
+        return await self.client.chat.completions.create(**kwargs)  # type: ignore[arg-type]
 
     async def _safe_tool(self, name: str, args: dict[str, Any]) -> tuple[bool, Any]:
-        """
-        Execute tool with argument validation.
-
-        Returns (success: bool, result: Any)
-        """
+        """Execute tool. Returns (success, result)."""
         tool = self._tool_map[name]
 
         from inspect import signature
@@ -349,5 +311,5 @@ class ReactAgent(BaseAgent):
         try:
             result = await tool.run(args)
             return True, result
-        except Exception as exc:  # pragma: no cover
+        except Exception as exc:
             return False, f"ToolError: {exc}"

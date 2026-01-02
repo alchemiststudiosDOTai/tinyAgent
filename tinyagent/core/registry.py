@@ -5,7 +5,7 @@ Tool decorator with fail-fast validation.
 Public surface
 --------------
 tool                 – decorator (returns Tool)
-Tool                 – dataclass wrapper
+Tool                 – Pydantic model wrapper
 ToolDefinitionError  – raised on invalid tool signature
 """
 
@@ -14,8 +14,9 @@ from __future__ import annotations
 import asyncio
 import inspect
 import warnings
-from dataclasses import dataclass
 from typing import Any, Callable, Dict, get_type_hints
+
+from pydantic import BaseModel, ConfigDict, Field
 
 __all__ = [
     "Tool",
@@ -30,15 +31,16 @@ class ToolDefinitionError(ValueError):
     pass
 
 
-@dataclass(slots=True)
-class Tool:
+class Tool(BaseModel):
     """Wraps a callable with metadata."""
 
-    fn: Callable[..., Any]
+    fn: Callable[..., Any] = Field(exclude=True)
     name: str
     doc: str
-    signature: inspect.Signature
+    signature: inspect.Signature = Field(exclude=True)
     is_async: bool = False
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         return self.fn(*args, **kwargs)
@@ -56,6 +58,13 @@ class Tool:
             # Run sync tools in thread pool
             result = await asyncio.to_thread(self.fn, *bound.args, **bound.kwargs)
         return str(result)
+
+    @property
+    def json_schema(self) -> dict[str, Any]:
+        """Generate JSON Schema for this tool's arguments."""
+        from .schema import tool_to_json_schema
+
+        return tool_to_json_schema(self)
 
 
 def tool(fn: Callable[..., Any]) -> Tool:
