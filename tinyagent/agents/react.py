@@ -61,6 +61,8 @@ class ReactAgent(BaseAgent):
         If provided, will load prompt from file. Falls back to default prompt if file loading fails.
     temperature
         Temperature for LLM responses. Default ``0.7``.
+    max_tokens
+        Maximum tokens in LLM response. Default ``None`` (model default).
     memory
         Optional MemoryManager instance. If None, one will be created automatically.
     enable_pruning
@@ -74,6 +76,7 @@ class ReactAgent(BaseAgent):
     api_key: str | None = None
     prompt_file: str | None = None
     temperature: float = 0.7
+    max_tokens: int | None = None
     memory: MemoryManager = field(default_factory=MemoryManager)
     enable_pruning: bool = True
     prune_keep_last: int = 5
@@ -316,11 +319,15 @@ class ReactAgent(BaseAgent):
     # ------------------------------------------------------------------
     async def _chat(self, messages: list[dict[str, str]], temperature: float) -> str:
         """Single LLM call; OpenAI-compatible."""
-        response = await self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,  # type: ignore[arg-type]
-            temperature=temperature,
-        )
+        kwargs: dict[str, Any] = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": temperature,
+        }
+        if self.max_tokens is not None:
+            kwargs["max_tokens"] = self.max_tokens
+
+        response = await self.client.chat.completions.create(**kwargs)  # type: ignore[arg-type]
         content = response.choices[0].message.content or ""
         return content.strip()
 
