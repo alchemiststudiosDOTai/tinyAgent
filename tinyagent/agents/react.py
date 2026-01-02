@@ -139,17 +139,10 @@ class ReactAgent(BaseAgent):
         return await self._attempt_final_answer(start_time, steps_taken, return_result, finalizer)
 
     def _initialize_run(self, question: str, verbose: bool) -> float:
-        """Initialize memory and logging for a new run. Returns initial temperature."""
+        """Initialize memory for a new run. Returns initial temperature."""
         self.memory.clear()
         self.memory.add(SystemPromptStep(content=self._system_prompt))
         self.memory.add(TaskStep(task=question))
-
-        self.logger.verbose = verbose
-        self.logger.banner("REACT AGENT STARTING")
-        self.logger.labeled("TASK", question)
-        self.logger.labeled("SYSTEM PROMPT", self._system_prompt)
-        self.logger.labeled("AVAILABLE TOOLS", str(list(self._tool_map.keys())))
-
         return self.temperature
 
     async def _process_step(
@@ -168,13 +161,8 @@ class ReactAgent(BaseAgent):
           - result: None to continue loop, or a value to return immediately
           - should_increment_temp: True if temperature should be incremented
         """
-        self.logger.step_header(step_num, max_steps)
-
         messages = self.memory.to_messages()
-        self.logger.messages_preview(messages)
-
         assistant_reply = await self._chat(messages, temperature)
-        self.logger.llm_response(assistant_reply)
 
         payload = self._try_parse_json(assistant_reply)
         if payload is None:
@@ -204,12 +192,10 @@ class ReactAgent(BaseAgent):
 
     def _handle_parse_error(self, raw_response: str) -> None:
         """Handle JSON parsing errors."""
-        self.logger.error("JSON PARSE ERROR: Invalid JSON format")
         self.memory.add(ActionStep(raw_llm_response=raw_response, error=BAD_JSON))
 
     def _handle_scratchpad(self, payload: dict[str, Any], raw_response: str) -> None:
         """Handle scratchpad content in payload."""
-        self.logger.scratchpad(payload["scratchpad"])
         self.memory.add(
             ScratchpadStep(content=payload["scratchpad"], raw_llm_response=raw_response)
         )
@@ -227,7 +213,6 @@ class ReactAgent(BaseAgent):
         """Handle a final answer from the agent."""
         answer_value = str(answer)
         finalizer.set(answer_value, source=source)
-        self.logger.final_answer(answer_value)
 
         if return_result:
             duration = time.time() - start_time
@@ -260,17 +245,11 @@ class ReactAgent(BaseAgent):
         name = payload.get("tool")
         args = payload.get("arguments", {}) or {}
         if name not in self._tool_map:
-            self.logger.error(f"Unknown tool '{name}'")
             return f"Error: Unknown tool '{name}'"  # Fail-fast
-
-        self.logger.tool_call(name, args)
 
         ok, result = await self._safe_tool(name, args)
         result_str = str(result)
         short = (result_str[:MAX_OBS_LEN] + "...") if len(result_str) > MAX_OBS_LEN else result_str
-
-        truncated_from = len(result_str) if len(result_str) > MAX_OBS_LEN else None
-        self.logger.tool_observation(str(short), is_error=not ok, truncated_from=truncated_from)
 
         # Add action step to memory
         if ok:
@@ -300,8 +279,6 @@ class ReactAgent(BaseAgent):
         finalizer: Finalizer,
     ) -> str | RunResult:
         """Attempt to get a final answer after loop exhaustion."""
-        self.logger.final_attempt_header()
-
         messages = self.memory.to_messages()
         final_try = await self._chat(
             messages + [{"role": "user", "content": "Return your best final answer now."}], 0
@@ -339,14 +316,12 @@ class ReactAgent(BaseAgent):
     # ------------------------------------------------------------------
     async def _chat(self, messages: list[dict[str, str]], temperature: float) -> str:
         """Single LLM call; OpenAI-compatible."""
-        self.logger.api_call(self.model, temperature)
         response = await self.client.chat.completions.create(
             model=self.model,
             messages=messages,  # type: ignore[arg-type]
             temperature=temperature,
         )
         content = response.choices[0].message.content or ""
-        self.logger.api_response(len(content))
         return content.strip()
 
     @staticmethod
@@ -369,14 +344,10 @@ class ReactAgent(BaseAgent):
         try:
             signature(tool.fn).bind(**args)
         except TypeError as exc:
-            self.logger.tool_error("ARGUMENT ERROR", str(exc))
             return False, f"ArgError: {exc}"
 
         try:
-            self.logger.tool_executing(name, args)
             result = await tool.run(args)
-            self.logger.tool_result(str(result))
             return True, result
         except Exception as exc:  # pragma: no cover
-            self.logger.tool_error("TOOL ERROR", str(exc))
             return False, f"ToolError: {exc}"

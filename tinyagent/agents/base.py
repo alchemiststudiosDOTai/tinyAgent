@@ -20,7 +20,6 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..core.registry import Tool
-from ..observability import AgentLogger
 
 __all__ = ["BaseAgent"]
 
@@ -37,12 +36,9 @@ class BaseAgent(ABC):
     ----------
     tools
         Sequence of Tool objects or @tool decorated functions
-    logger
-        Optional AgentLogger instance. If not provided, a default silent logger is created.
     """
 
     tools: Sequence[Tool]
-    logger: AgentLogger = field(default_factory=lambda: AgentLogger(verbose=False))
     _tool_map: dict[str, Tool] = field(default_factory=dict, init=False, repr=False)
 
     def __post_init__(self) -> None:

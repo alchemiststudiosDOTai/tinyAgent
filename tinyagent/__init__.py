@@ -29,9 +29,6 @@ Memory:
     prune_old_observations - Truncate old observations
     no_pruning             - Identity function (no changes)
 
-Observability:
-    AgentLogger     - Centralized logging for agent execution
-
 Signals:
     uncertain       - Signal uncertainty
     explore         - Signal exploration
@@ -88,10 +85,6 @@ from .memory import (  # noqa: E402
     no_pruning,
     prune_old_observations,
 )
-from .observability import AgentLogger  # noqa: E402
-
-# Lazy imports for TUI dashboards - see observability.__init__
-# AgentDashboard and TermTkDashboard are available via __getattr__
 from .signals import commit, explore, uncertain  # noqa: E402
 from .tools import ToolValidationError, validate_tool_class  # noqa: E402
 
@@ -119,10 +112,6 @@ __all__ = [
     "keep_last_n_steps",
     "prune_old_observations",
     "no_pruning",
-    # Observability
-    "AgentLogger",
-    "AgentDashboard",
-    "TermTkDashboard",
     # Signals
     "uncertain",
     "explore",

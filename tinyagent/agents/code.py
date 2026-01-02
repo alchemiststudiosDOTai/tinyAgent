@@ -43,7 +43,7 @@ from ..memory import (
 )
 from ..prompts.loader import get_prompt_fallback
 from ..prompts.templates import CODE_SYSTEM
-from ..signals import commit, explore, set_signal_logger, uncertain
+from ..signals import commit, explore, uncertain
 from .base import BaseAgent
 
 __all__ = ["TinyCodeAgent", "TrustLevel"]
@@ -219,9 +219,6 @@ class TinyCodeAgent(BaseAgent):
         if verbose is None:
             verbose = self.verbose
 
-        self.logger.verbose = verbose
-        set_signal_logger(self.logger)
-
         start_time = time.time()
         finalizer = Finalizer()
         scratchpad = self._initialize_scratchpad()
@@ -250,27 +247,10 @@ class TinyCodeAgent(BaseAgent):
         return scratchpad
 
     def _initialize_run(self, task: str, max_steps: int) -> None:
-        """Initialize memory and logging for a new run."""
+        """Initialize memory for a new run."""
         self.memory_manager.clear()
         self.memory_manager.add(SystemPromptStep(content=self._system_prompt))
         self.memory_manager.add(TaskStep(task=task))
-
-        self.logger.banner("TINYCODE AGENT v2 STARTING")
-        self.logger.labeled("TASK", task)
-        trust_val = (
-            self.trust_level.value
-            if isinstance(self.trust_level, TrustLevel)
-            else str(self.trust_level)
-        )
-        self.logger.labeled("TRUST LEVEL", trust_val)
-        self.logger.labeled(
-            "LIMITS",
-            f"timeout={self.limits.timeout_seconds}s, "
-            f"max_steps={max_steps}, "
-            f"max_output={self.limits.max_output_bytes}B",
-        )
-        self.logger.labeled("AVAILABLE TOOLS", str(list(self._tool_map.keys())))
-        self.logger.labeled("ALLOWED IMPORTS", str(list(self.extra_imports)))
 
     async def _process_step(
         self,
@@ -285,29 +265,15 @@ class TinyCodeAgent(BaseAgent):
         Process a single reasoning step.
         Returns None to continue loop, or a result to return immediately.
         """
-        self.logger.step_header(step_num, max_steps)
-
         messages = self.memory_manager.to_messages()
-        self.logger.messages_preview(messages)
-
         reply = await self._chat(messages)
-        self.logger.llm_response(reply)
 
         code = self._extract_code(reply)
         if not code:
             self._handle_no_code(reply)
             return None
 
-        self.logger.code_block(code)
         result = self._executor.run(code)
-
-        self.logger.execution_result(
-            output=result.output,
-            duration_ms=result.duration_ms,
-            is_final=result.is_final,
-            error=result.error,
-            timeout=result.timeout,
-        )
 
         if result.error:
             self._handle_execution_error(reply, result, code, step_num, scratchpad)
@@ -326,7 +292,6 @@ class TinyCodeAgent(BaseAgent):
 
     def _handle_no_code(self, raw_reply: str) -> None:
         """Handle response with no code block."""
-        self.logger.error("No code block found in response")
         self.memory_manager.add(
             ActionStep(raw_llm_response=raw_reply, error="Please respond with a python block only.")
         )
@@ -371,8 +336,6 @@ class TinyCodeAgent(BaseAgent):
         output = str(result.final_value)
         output, _ = self.limits.truncate_output(output)
         finalizer.set(output, source="normal")
-
-        self.logger.final_answer(output)
 
         if return_result:
             return RunResult(
@@ -426,14 +389,12 @@ class TinyCodeAgent(BaseAgent):
 
     async def _chat(self, messages: list[dict[str, str]]) -> str:
         """Single LLM call; OpenAI-compatible."""
-        self.logger.api_call(self.model)
         response = await self.client.chat.completions.create(
             model=self.model,
             messages=messages,  # type: ignore[arg-type]
             temperature=0,
         )
         content = response.choices[0].message.content or ""
-        self.logger.api_response(len(content))
         return content.strip()
 
     @staticmethod
