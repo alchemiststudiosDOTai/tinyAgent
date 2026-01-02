@@ -11,7 +11,8 @@ He's not clever. He's correct.
 ## Key Pieces
 
 - **Entry point**: `tinyagent/agents/react.py` defines `ReactAgent`, the JSON-parsing ReAct loop.
-- **LLM layer**: Uses `AsyncOpenAI` with the `SYSTEM` prompt. No native function calling - parses JSON from text output.
+- **LLM layer**: Uses `AsyncOpenAI` with the `SYSTEM` prompt. Adapter can enable OpenAI structured outputs when the model supports it.
+- **Tool calling adapter**: Selects structured outputs, validated parsing, or legacy JSON parsing based on model + mode.
 - **Tool registry**: Functions decorated with `@tool` are resolved through `get_registry()`. Builds `_tool_map` at init.
 - **No executor**: Tools are trusted functions. No sandbox, no import whitelist, no exec().
 
@@ -19,7 +20,7 @@ He's not clever. He's correct.
 
 1. **Construct messages**: System prompt (with tool list) + user task.
 2. **LLM turn**: `_chat()` calls the model. Temperature ramps on parse failures.
-3. **JSON extraction**: `_try_parse_json()` parses the response. Malformed JSON triggers retry with `BAD_JSON` prompt.
+3. **Payload extraction**: Adapter extracts JSON payload. Malformed JSON or invalid arguments trigger retry.
 4. **Dispatch**:
    - `{"answer": "..."}` - Final answer, return immediately.
    - `{"tool": "x", "arguments": {...}}` - Execute tool, add observation, loop.
@@ -56,7 +57,9 @@ task
 
 ## What ReactAgent Has
 
-- **JSON parsing**: LLM outputs structured JSON as text
+- **Structured outputs**: For supported models, uses `response_format=json_schema`
+- **JSON parsing**: For other models, parses JSON from text output
+- **Argument validation**: Pydantic validation for tool arguments when enabled
 - **Scratchpad**: Optional `{"scratchpad": "..."}` for thinking
 - **Temperature ramping**: Increases temp on parse failures
 - **Observation truncation**: `MAX_OBS_LEN` prevents prompt blowup

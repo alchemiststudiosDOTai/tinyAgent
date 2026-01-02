@@ -12,34 +12,39 @@ The `@tool` decorator returns a Tool object directly. Tools are first-class citi
 
 A function decorator is a pattern everyone knows. An agent tool is just a function. That's the point.
 
-The `@tool` decorator abstracts the entire tooling engine, schema extraction, type validation, JSON conversion - behind a single familiar interface. No special third party libs, imports, no base classes, no framework lock-in. Just decorate a function and pass it to an agent.
+The `@tool` decorator abstracts schema extraction, validation, and JSON conversion behind a single familiar interface. Tool modeling now uses Pydantic to keep the implementation explicit while preserving the simple user-facing API.
 
 This is a deliberate choice: "hide" the complexity of tool infrastructure while keeping the developer interface dead obvious. Everyone already know how functions work. Now they're tools.
 
-### Zero Dependencies
+### Minimal Dependencies
 
-The tool engine runs on stdlib alone:
+The tool engine keeps the surface small and explicit. Pydantic is used to model tools and generate JSON Schema while keeping the decorator API unchanged:
 
 ```python
-# That's it. No external packages.
+# Still direct and explicit.
 import inspect
-from dataclasses import dataclass
-from typing import get_type_hints
+from pydantic import BaseModel
+from typing import Any, Callable, get_type_hints
 
 
 ## Core Components
 
 ### Tool Class
 ```python
-@dataclass
-class Tool:
+class Tool(BaseModel):
     name: str
-    func: Callable[..., Any]
-    description: str
-    parameters: Dict[str, Any]
+    fn: Callable[..., Any]
+    doc: str
+    signature: inspect.Signature
 
     def __call__(self, *args, **kwargs) -> Any:
         # Direct proxy to underlying function
+        ...
+
+    @property
+    def json_schema(self) -> dict[str, Any]:
+        # JSON Schema derived from the function signature
+        ...
 ```
 
 ### @tool Decorator
@@ -119,9 +124,9 @@ def quiet_tool(arg: str) -> str:  # No docstring
 ### Tool Creation Process
 1. Function definition captured by decorator
 2. Signature introspection extracts type hints
-3. Parameters schema generated from annotations
+3. JSON Schema generated from annotations (via Pydantic helpers)
 4. Validation checks applied (type hints, return type)
-5. Tool object returned with metadata
+5. Tool object returned with metadata + schema
 
 ### Agent Integration
 ```python
