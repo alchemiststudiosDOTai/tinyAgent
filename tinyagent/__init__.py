@@ -37,6 +37,7 @@ Signals:
 Tools:
     tool                - Decorator to create tools (returns Tool)
     validate_tool_class - Validate a tool class
+    ToolCallingMode     - Tool calling adapter mode
 
 Types:
     FinalAnswer         - Final answer with metadata
@@ -67,6 +68,7 @@ from .core import (  # noqa: E402
     MultipleFinalAnswers,
     RunResult,
     StepLimitReached,
+    ToolCallingMode,
     ToolDefinitionError,
     tool,
 )
@@ -119,6 +121,7 @@ __all__ = [
     # Tools
     "tool",
     "validate_tool_class",
+    "ToolCallingMode",
     # Types
     "FinalAnswer",
     "RunResult",

@@ -1,5 +1,6 @@
 """tinyagent.core package exports."""
 
+from .adapters import ToolCallingMode, get_adapter
 from .exceptions import InvalidFinalAnswer, MultipleFinalAnswers, StepLimitReached
 from .finalizer import Finalizer
 from .parsing import parse_json_response, strip_llm_wrappers
@@ -13,6 +14,8 @@ __all__ = [
     "StepLimitReached",
     "MultipleFinalAnswers",
     "InvalidFinalAnswer",
+    "ToolCallingMode",
+    "get_adapter",
     "Tool",
     "ToolDefinitionError",
     "tool",
