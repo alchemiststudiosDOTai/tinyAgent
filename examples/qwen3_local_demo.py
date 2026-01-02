@@ -11,6 +11,7 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 
 os.environ["OPENAI_BASE_URL"] = "http://localhost:8000/v1"
@@ -25,8 +26,30 @@ def double(x: float) -> float:
     return x * 2
 
 
+class LoggingReactAgent(ReactAgent):
+    """ReactAgent that logs all sent messages and received responses."""
+
+    async def _chat(self, messages: list[dict[str, str]], temperature: float) -> str:
+        """Log messages sent to LLM and response received."""
+        print("\n" + "=" * 60)
+        print("SENT TO MODEL:")
+        print("-" * 40)
+        print(json.dumps(messages, indent=2))
+        print("=" * 60)
+
+        response = await super()._chat(messages, temperature)
+
+        print("\n" + "=" * 60)
+        print("RECEIVED FROM MODEL:")
+        print("-" * 40)
+        print(response)
+        print("=" * 60 + "\n")
+
+        return response
+
+
 async def main() -> None:
-    agent = ReactAgent(tools=[double], model="Qwen3-0.6B-Sushi-Coder")
+    agent = LoggingReactAgent(tools=[double], model="qwen3-1.7b-reasoning")
     result = await agent.run("What is 5 doubled?", verbose=True)
     print(f"Result: {result}")
 

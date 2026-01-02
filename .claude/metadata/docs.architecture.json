@@ -1,6 +1,0 @@
-{
-  "$schema": "https://claude-kb.io/schema/metadata/v1",
-  "component": "docs.architecture",
-  "summary": "Architecture docs for TinyCodeAgent and agent guidance now linked from README/CLAUDE/AGENTS",
-  "last_updated": "2025-11-27T05:35:00Z"
-}

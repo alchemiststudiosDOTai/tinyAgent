@@ -9,7 +9,6 @@ ReactAgent  - class
 
 from __future__ import annotations
 
-import json
 import os
 import time
 from collections.abc import Sequence
@@ -20,6 +19,7 @@ from openai import AsyncOpenAI
 
 from ..core.exceptions import StepLimitReached
 from ..core.finalizer import Finalizer
+from ..core.parsing import parse_json_response
 from ..core.registry import Tool
 from ..core.types import RunResult
 from ..memory import (
@@ -164,7 +164,7 @@ class ReactAgent(BaseAgent):
         messages = self.memory.to_messages()
         assistant_reply = await self._chat(messages, temperature)
 
-        payload = self._try_parse_json(assistant_reply)
+        payload = parse_json_response(assistant_reply)
         if payload is None:
             self._handle_parse_error(assistant_reply)
             return (None, True)
@@ -283,7 +283,7 @@ class ReactAgent(BaseAgent):
         final_try = await self._chat(
             messages + [{"role": "user", "content": "Return your best final answer now."}], 0
         )
-        payload = self._try_parse_json(final_try) or {}
+        payload = parse_json_response(final_try) or {}
         duration = time.time() - start_time
 
         if "answer" in payload:
@@ -323,13 +323,6 @@ class ReactAgent(BaseAgent):
         )
         content = response.choices[0].message.content or ""
         return content.strip()
-
-    @staticmethod
-    def _try_parse_json(text: str) -> dict[str, Any] | None:
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            return None
 
     async def _safe_tool(self, name: str, args: dict[str, Any]) -> tuple[bool, Any]:
         """
