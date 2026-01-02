@@ -230,6 +230,7 @@ class TinyCodeAgent(BaseAgent):
         self._initialize_run(task, max_steps)
 
         # Main step loop
+        steps_taken = 0
         for step in range(max_steps):
             steps_taken = step + 1
             result = await self._process_step(
@@ -292,13 +293,33 @@ class TinyCodeAgent(BaseAgent):
         reply = await self._chat(messages)
         self.logger.llm_response(reply)
 
+        print(f"\n{'=' * 60}")
+        print("RAW LLM RESPONSE:")
+        print(f"{'=' * 60}")
+        print(reply)
+        print(f"{'=' * 60}\n")
+
         code = self._extract_code(reply)
         if not code:
             self._handle_no_code(reply)
             return None
 
+        print(f"\n{'=' * 60}")
+        print("EXTRACTED CODE:")
+        print(f"{'=' * 60}")
+        print(code)
+        print(f"{'=' * 60}\n")
+
         self.logger.code_block(code)
         result = self._executor.run(code)
+
+        print(f"\n{'=' * 60}")
+        print("EXECUTION OUTPUT:")
+        print(f"{'=' * 60}")
+        print(f"Output: {result.output}")
+        print(f"Error: {result.error}")
+        print(f"Final: {result.is_final}")
+        print(f"{'=' * 60}\n")
 
         self.logger.execution_result(
             output=result.output,

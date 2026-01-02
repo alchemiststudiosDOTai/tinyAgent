@@ -124,13 +124,16 @@ class ReactAgent(BaseAgent):
         temperature = self._initialize_run(question, verbose)
 
         # Main step loop
+        steps_taken = 0
         for step in range(max_steps):
             steps_taken = step + 1
-            result = await self._process_step(
+            result, increment_temp = await self._process_step(
                 steps_taken, max_steps, temperature, start_time, return_result, finalizer
             )
             if result is not None:
                 return result
+            if increment_temp:
+                temperature += TEMP_STEP
 
         # Final attempt after loop exhaustion
         return await self._attempt_final_answer(start_time, steps_taken, return_result, finalizer)
@@ -157,10 +160,13 @@ class ReactAgent(BaseAgent):
         start_time: float,
         return_result: bool,
         finalizer: Finalizer,
-    ) -> str | RunResult | None:
+    ) -> tuple[str | RunResult | None, bool]:
         """
         Process a single reasoning step.
-        Returns None to continue loop, or a result to return immediately.
+
+        Returns (result, should_increment_temp):
+          - result: None to continue loop, or a value to return immediately
+          - should_increment_temp: True if temperature should be incremented
         """
         self.logger.step_header(step_num, max_steps)
 
@@ -173,25 +179,28 @@ class ReactAgent(BaseAgent):
         payload = self._try_parse_json(assistant_reply)
         if payload is None:
             self._handle_parse_error(assistant_reply)
-            return None
+            return (None, True)
 
         # Handle scratchpad content
         if "scratchpad" in payload:
             self._handle_scratchpad(payload, assistant_reply)
             if "answer" not in payload and "tool" not in payload:
-                return None
+                return (None, True)
 
         # Handle final answer
         if "answer" in payload:
-            return self._handle_final_answer(
+            result = self._handle_final_answer(
                 payload["answer"], start_time, step_num, return_result, finalizer, "normal"
             )
+            return (result, False)
 
         # Execute tool
-        await self._execute_tool(
+        tool_result = await self._execute_tool(
             payload, assistant_reply, temperature, start_time, step_num, return_result, finalizer
         )
-        return None
+        if tool_result is not None:
+            return (tool_result, False)  # Fail-fast on unknown tool
+        return (None, False)
 
     def _handle_parse_error(self, raw_response: str) -> None:
         """Handle JSON parsing errors."""
@@ -243,21 +252,16 @@ class ReactAgent(BaseAgent):
         steps_taken: int,
         return_result: bool,
         finalizer: Finalizer,
-    ) -> None:
-        """Execute a tool call and add result to memory."""
+    ) -> str | RunResult | None:
+        """Execute a tool call and add result to memory.
+
+        Returns None on success (continue loop), or error string/RunResult to return immediately.
+        """
         name = payload.get("tool")
         args = payload.get("arguments", {}) or {}
         if name not in self._tool_map:
             self.logger.error(f"Unknown tool '{name}'")
-            self.memory.add(
-                ActionStep(
-                    tool_name=str(name) if name is not None else "<missing>",
-                    tool_args=args,
-                    error=f"Unknown tool '{name}'",
-                    raw_llm_response=raw_response,
-                )
-            )
-            return
+            return f"Error: Unknown tool '{name}'"  # Fail-fast
 
         self.logger.tool_call(name, args)
 
@@ -285,6 +289,8 @@ class ReactAgent(BaseAgent):
         # Apply pruning if enabled
         if self.enable_pruning:
             self.memory.prune(keep_last_n_steps(self.prune_keep_last))
+
+        return None
 
     async def _attempt_final_answer(
         self,

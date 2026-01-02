@@ -145,7 +145,7 @@ class ActionStep(Step):
             messages.append({"role": "assistant", "content": self.raw_llm_response})
 
         if self.error:
-            messages.append({"role": "user", "content": f"Error: {self.error}"})
+            messages.append({"role": "user", "content": self.error})
         elif self.observation:
             messages.append({"role": "user", "content": f"Observation: {self.observation}"})
 

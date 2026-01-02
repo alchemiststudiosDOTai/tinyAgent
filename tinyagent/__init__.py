@@ -54,9 +54,16 @@ Exceptions:
     ToolValidationError  - Tool class validation failed
 """
 
-from .agents.code import PythonExecutor, TinyCodeAgent, TrustLevel
-from .agents.react import ReactAgent
-from .core import (
+from dotenv import find_dotenv, load_dotenv
+
+# Auto-load .env file on import (searches up directory tree)
+env_path = find_dotenv()
+if env_path:
+    load_dotenv(env_path)
+
+from .agents.code import PythonExecutor, TinyCodeAgent, TrustLevel  # noqa: E402
+from .agents.react import ReactAgent  # noqa: E402
+from .core import (  # noqa: E402
     FinalAnswer,
     Finalizer,
     InvalidFinalAnswer,
@@ -66,9 +73,9 @@ from .core import (
     ToolDefinitionError,
     tool,
 )
-from .execution import ExecutionResult, Executor, LocalExecutor
-from .limits import ExecutionLimits, ExecutionTimeout
-from .memory import (
+from .execution import ExecutionResult, Executor, LocalExecutor  # noqa: E402
+from .limits import ExecutionLimits, ExecutionTimeout  # noqa: E402
+from .memory import (  # noqa: E402
     ActionStep,
     AgentMemory,
     MemoryManager,
@@ -81,12 +88,12 @@ from .memory import (
     no_pruning,
     prune_old_observations,
 )
-from .observability import AgentLogger
+from .observability import AgentLogger  # noqa: E402
 
 # Lazy imports for TUI dashboards - see observability.__init__
 # AgentDashboard and TermTkDashboard are available via __getattr__
-from .signals import commit, explore, uncertain
-from .tools import ToolValidationError, validate_tool_class
+from .signals import commit, explore, uncertain  # noqa: E402
+from .tools import ToolValidationError, validate_tool_class  # noqa: E402
 
 __all__ = [
     # Agents

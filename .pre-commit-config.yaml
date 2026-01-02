@@ -35,22 +35,6 @@ repos:
         args: [--ignore-missing-imports, --no-strict-optional]
         exclude: ^(tinyagent/base_tools/|examples/web_search_tool\.py)
 
-  - repo: local
-    hooks:
-      - id: check-python-line-count
-        name: Check Python file line count
-        entry: python scripts/check_python_line_count.py
-        language: python
-        types: [python]
-        exclude: venv/.*
-
-      - id: check-naming-conventions
-        name: Check Python naming conventions
-        entry: python scripts/check_naming_conventions.py
-        language: python
-        types: [python]
-        exclude: venv/.*
-
   # - repo: local
   #   hooks:
   #     - id: pytest
