@@ -7,8 +7,8 @@
 ## Code Style & Typing
 
 - Enforce `ruff check --fix .` before PRs.
-- Use explicit typing. `cast(...)` and `assert ...` are OK.
-- `# type: ignore` only with strong justification.
+- Use explicit typing. `cast(...)` and `assert ...` are OK if justified
+- `# type: ignore` only with strong justification, in general DO NOT use this, if needed anchor drop and update the documentaion
 - You must flatten nested conditionals by returning early, so pre-conditions are explicit.
 - If it is never executed, remove it. You MUST make sure what we remove has been committed before in case we need to rollback.
 - Normalize symmetries: you must make identical things look identical and different things look different for faster pattern-spotting.
@@ -32,7 +32,7 @@
 
 ## Scope & Maintenance
 
-- Backward compatibility only if low maintenance cost.
+- Backward compatibility only if low maintenance cost, shimming old interface for quick hacks is NOT allowed
 - Delete dead code (never guard it).
 - Always run `ruff .`.
 - Use `git commit -n` if pre-commit hooks block rollback.
@@ -54,6 +54,7 @@ Maintain .claude/ with the following structure:
 ├── memory_anchors/  # Core concepts, foundational knowledge tracked by UUID
 ├── plans/           # Implementation plans, roadmaps
 └── other/           # Scratch notes, uncategorized content
+
 Rules:
 
 - **Metadata** → component summaries, architecture decisions, module overviews
