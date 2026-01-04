@@ -1,8 +1,9 @@
 ## Workflow Rules
 
 - Never begin coding until the objective is **explicitly defined**. If unclear, ask questions or use best practices.
-- Always use `.venv` and `uv` for package management.
-- Small, focused diffs only. Commit frequently.
+- Always use `.venv` and `uv` for package management, we do NOT use PIP if you use PIP we will die  
+- Small, focused diffs only. Commit frequently
+- /docs has comprehensive documentaion CRUD as needed 
 
 ## Code Style & Typing
 
@@ -41,7 +42,7 @@
 
 ## Claude-Specific Repository Optimization
 
-Maintain .claude/ with the following structure:
+Maintain .claude/ with the following structure use "kb-claude" cli
 
 .claude/
 ├── metadata/        # Component summaries, module overviews, architecture docs
@@ -71,6 +72,8 @@ kb-claude new "Title" – guided prompt for new entries; handles tags, relations
 kb-claude search keyword – case-insensitive search across titles, tags, relations, and body text.
 kb-claude validate [--strict] – parse every entry, confirm required metadata, and flag inconsistencies (e.g., slug mismatch).
 kb-claude manifest – rebuild .claude/manifest.md, a table summarizing every document.
-kb-claude link source target – insert reciprocal relations between two slugs.
+kb-claude link source target – insert reciprocal relations between two slugs
+
+this is not documentaion this is a log of context to make our lives a bit easier 
 
 If kb-claude CLI is not installed, write the md files to the .claude/ folder manually following the entry format.
