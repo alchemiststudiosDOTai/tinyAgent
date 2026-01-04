@@ -527,3 +527,21 @@ Planned additions to built-in tools:
 - Math and statistics functions
 - Image processing
 - Email operations
+
+## Tool Standards
+
+All built-in tools must adhere to strict uniformity standards to ensure consistent behavior within the agent framework. These standards are enforced by automated tests (`tests/test_tools_uniformity.py`).
+
+### Requirements
+
+1.  **Name**: Every tool must have a non-empty `name` attribute.
+2.  **Documentation**: Every tool must have a meaningful, non-empty docstring (`doc` attribute).
+3.  **Schema**: Every tool must provide a valid JSON schema via `json_schema`, where the root type is `"object"`.
+
+### Verification
+
+To verify that all built-in tools meet these standards, run:
+
+```bash
+pytest tests/test_tools_uniformity.py
+```

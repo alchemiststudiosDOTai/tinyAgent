@@ -77,3 +77,18 @@ Public entry point for validation:
 - `inspect`: Source code extraction
 - `typing`: Type hints
 - `dataclasses`: Function analyzer structure
+
+## Verification
+
+The validation logic is rigorously tested with negative boundary cases to ensure that it correctly identifies and rejects invalid tool definitions. These tests are located in `tests/test_validation.py`.
+
+**Tested Violations:**
+- **Initialization**: Missing `self` parameter, non-literal default values.
+- **Attributes**: Class attributes with non-literal values.
+- **Methods**: Usage of `global` or `nonlocal` declarations, `lambda` expressions, and references to undefined names.
+
+To run the validation tests:
+
+```bash
+pytest tests/test_validation.py
+```
