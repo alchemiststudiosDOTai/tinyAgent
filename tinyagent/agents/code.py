@@ -54,8 +54,8 @@ class TrustLevel(Enum):
     Trust level for code execution.
 
     - LOCAL: Restricted exec() in same process (fast, trusted tools)
-    - ISOLATED: Subprocess with timeout (default for most use)
-    - SANDBOXED: Container/VM (untrusted inputs, production)
+    - ISOLATED: Subprocess with timeout (NOT YET IMPLEMENTED - falls back to LOCAL)
+    - SANDBOXED: Container/VM (NOT YET IMPLEMENTED - falls back to LOCAL)
     """
 
     LOCAL = "local"
@@ -164,12 +164,14 @@ class TinyCodeAgent(BaseAgent):
             )
         elif self.trust_level == TrustLevel.ISOLATED:
             # TODO: Implement SubprocessExecutor
+            # Fallback to LocalExecutor for now
             self._executor = LocalExecutor(
                 allowed_imports=set(self.extra_imports),
                 limits=self.limits,
             )
         elif self.trust_level == TrustLevel.SANDBOXED:
             # TODO: Implement DockerExecutor
+            # Fallback to LocalExecutor for now
             self._executor = LocalExecutor(
                 allowed_imports=set(self.extra_imports),
                 limits=self.limits,

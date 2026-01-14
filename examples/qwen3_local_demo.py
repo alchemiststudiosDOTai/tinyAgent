@@ -19,6 +19,7 @@ import asyncio
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 os.environ["OPENAI_BASE_URL"] = "http://localhost:8000/v1"
 os.environ["OPENAI_API_KEY"] = "not-needed"
@@ -95,7 +96,6 @@ def read_file(file_path: str) -> str:
         File contents as a string
     """
     path = Path(file_path)
-    print(f"Reading filesssssssssssssssssssssssssssssssssssssss: {file_path}")
     if not path.exists():
         return f"Error: File '{file_path}' does not exist"
 
@@ -111,12 +111,13 @@ def read_file(file_path: str) -> str:
 class LoggingReactAgent(ReactAgent):
     """ReactAgent with clean logging output."""
 
-    async def _chat(self, messages: list[dict[str, str]], temperature: float) -> str:
+    async def _chat(self, temperature: float) -> Any:
         """Log messages and responses in a clean format."""
         print("\n" + "─" * 70)
         print("📤 TO MODEL")
         print("─" * 70)
 
+        messages = self._memory.to_list()
         for msg in messages:
             role = msg["role"].upper()
             content = msg["content"]
@@ -127,7 +128,7 @@ class LoggingReactAgent(ReactAgent):
         print("📥 FROM MODEL")
         print("─" * 70)
 
-        response = await super()._chat(messages, temperature)
+        response = await super()._chat(temperature)
 
         print(f"\n{response}")
         print("─" * 70 + "\n")
