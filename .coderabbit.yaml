@@ -20,7 +20,7 @@ reviews:
       instructions: |
         Agent loop code must:
         - Preserve the ReAct/tool-calling flow without silent fallbacks
-        - Use the required tool response format with role="user"
+        - Support both native tool calling (role="tool") and prompt-based (role="user") formats
         - Fail fast on invalid tool registration or execution errors
         - Avoid debug prints or hidden state mutations
 
@@ -52,6 +52,13 @@ reviews:
         - Preserve step ordering and pruning invariants
         - Avoid mutation of stored steps without copying
         - Keep pruning strategies deterministic and documented
+
+    - path: "tinyagent/utils/**"
+      instructions: |
+        Utility modules must:
+        - Be stateless and side-effect free where possible
+        - Have clear, focused responsibilities
+        - Avoid importing from higher layers (agents, core)
 
   auto_review:
     enabled: true
@@ -103,14 +110,18 @@ reviews:
 
           Exception: 0, 1, -1 in common idioms are acceptable.
 
-      - name: "Tool Response Role"
+      - name: "Shallow Copy Mutation"
         mode: "error"
         instructions: |
-          Tool response messages must use:
-          - role: "user"
-          - content: "Tool '<name>' returned: <result>"
+          Flag any code that:
+          1. Uses .copy() on a dict/list that contains nested mutable objects
+          2. Mutates a copied config dict in-place
+          3. Modifies DEFAULT_* or CONSTANT_* values
 
-          Flag any tool response that uses role="assistant" or deviates from the format.
+          Safe alternatives:
+          - Use copy.deepcopy() for nested structures
+          - Create new dict instead of mutating
+          - Assign to new variable, don't mutate in-place
 
   tools:
     ruff:
