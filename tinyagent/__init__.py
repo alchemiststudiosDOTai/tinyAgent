@@ -73,7 +73,6 @@ from .core import (  # noqa: E402
     tool,
 )
 from .execution import ExecutionResult, Executor, LocalExecutor  # noqa: E402
-from .limits import ExecutionLimits, ExecutionTimeout  # noqa: E402
 from .memory import (  # noqa: E402
     ActionStep,
     AgentMemory,
@@ -89,6 +88,7 @@ from .memory import (  # noqa: E402
 )
 from .signals import commit, explore, uncertain  # noqa: E402
 from .tools import ToolValidationError, validate_tool_class  # noqa: E402
+from .utils.limits import ExecutionLimits, ExecutionTimeout  # noqa: E402
 
 __all__ = [
     # Agents
