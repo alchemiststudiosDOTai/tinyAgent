@@ -1,0 +1,14 @@
+{
+  "version": "1.0.0",
+  "timestamp": "2026-01-28T17:42:28.573825455Z",
+  "files": {
+    "settings.local.json": {
+      "hash": "f4ea5aadab0da25cc9ab01b70fb8d1f1da528dacd22d0c32c9d9b60252901dc7",
+      "last_modified": "2026-01-02T03:23:16Z"
+    },
+    "patterns/tooling.coderabbit.json": {
+      "hash": "780640b98e9740bb80da5dc9e253bd90564a4baae4afc558304aba127e5f54d5",
+      "last_modified": "2026-01-28T17:42:23Z"
+    }
+  }
+}

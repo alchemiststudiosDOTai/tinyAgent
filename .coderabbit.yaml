@@ -1,0 +1,128 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
+tone_instructions: "Be direct and technical. Prioritize correctness, fail-fast error handling, and type safety."
+
+reviews:
+  profile: "assertive"
+
+  path_filters:
+    - "!**/*.md"
+    - "!docs/**"
+    - "!examples/**"
+    - "!static/**"
+    - "!**/*.lock"
+    - "!**/generated/**"
+    - "!**/__pycache__/**"
+    - "!.venv/**"
+
+  path_instructions:
+    - path: "tinyagent/agents/**"
+      instructions: |
+        Agent loop code must:
+        - Preserve the ReAct/tool-calling flow without silent fallbacks
+        - Use the required tool response format with role="user"
+        - Fail fast on invalid tool registration or execution errors
+        - Avoid debug prints or hidden state mutations
+
+    - path: "tinyagent/core/**"
+      instructions: |
+        Core abstractions must:
+        - Keep adapter and protocol boundaries clean (no cross-layer leakage)
+        - Validate tool schemas and names eagerly
+        - Surface errors with explicit exceptions and messages
+        - Maintain type safety with precise annotations
+
+    - path: "tinyagent/tools/**"
+      instructions: |
+        Tool implementations must:
+        - Use the @tool decorator and provide docstrings
+        - Validate inputs explicitly and fail loud on errors
+        - Avoid mutating shared defaults or global state
+
+    - path: "tinyagent/execution/**"
+      instructions: |
+        Execution backends must:
+        - Enforce limits and trust levels explicitly
+        - Clean up resources on every exit path
+        - Never swallow execution errors
+
+    - path: "tinyagent/memory/**"
+      instructions: |
+        Memory management must:
+        - Preserve step ordering and pruning invariants
+        - Avoid mutation of stored steps without copying
+        - Keep pruning strategies deterministic and documented
+
+  auto_review:
+    enabled: true
+    drafts: false
+    ignore_title_keywords:
+      - "WIP"
+      - "DO NOT MERGE"
+      - "draft"
+    base_branches:
+      - "main"
+      - "master"
+    labels:
+      - "needs-review"
+
+  pre_merge_checks:
+    custom_checks:
+      - name: "Fail-Fast Error Handling"
+        mode: "error"
+        instructions: |
+          Flag any code that:
+          1. Catches exceptions and returns None/empty values without context
+          2. Uses bare except or except Exception: pass
+          3. Silently ignores failed tool/executor operations
+
+          Required: raise or propagate errors with clear messages.
+
+      - name: "No Debug Prints"
+        mode: "warning"
+        instructions: |
+          Flag debug artifacts in production code:
+          1. print()/pprint() used outside tests/examples
+          2. breakpoint(), pdb.set_trace(), or similar
+          3. Temporary log statements without structured logging
+
+      - name: "Type Annotation Coverage"
+        mode: "warning"
+        instructions: |
+          Flag:
+          1. Functions/methods missing parameter or return type annotations
+          2. Any/typing.Any usage without justification
+          3. # type: ignore without an explanation comment
+
+      - name: "Magic Literal Constants"
+        mode: "warning"
+        instructions: |
+          Flag numeric or string literals that should be named constants:
+          1. Timeouts, retry counts, size limits, status codes
+          2. Repeated strings used for control flow or config keys
+
+          Exception: 0, 1, -1 in common idioms are acceptable.
+
+      - name: "Tool Response Role"
+        mode: "error"
+        instructions: |
+          Tool response messages must use:
+          - role: "user"
+          - content: "Tool '<name>' returned: <result>"
+
+          Flag any tool response that uses role="assistant" or deviates from the format.
+
+  tools:
+    ruff:
+      enabled: true
+    mypy:
+      enabled: true
+    bandit:
+      enabled: true
+    gitleaks:
+      enabled: true
+
+knowledge_base:
+  code_guidelines:
+    filePatterns:
+      - "**/*.py"

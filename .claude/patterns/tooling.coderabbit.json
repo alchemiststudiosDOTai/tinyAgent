@@ -1,0 +1,11 @@
+{
+  "$schema": "https://claude-kb.io/schema/pattern/v1",
+  "component": "tooling.coderabbit",
+  "patterns": [
+    {
+      "name": "coderabbit-config",
+      "description": "Repository-level CodeRabbit config for automated review rules."
+    }
+  ],
+  "last_updated": "2026-01-28T17:42:23.910334441Z"
+}
