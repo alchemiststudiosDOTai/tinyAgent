@@ -32,7 +32,6 @@ from ..core.finalizer import Finalizer
 from ..core.registry import Tool
 from ..core.types import RunResult
 from ..execution import ExecutionResult, LocalExecutor
-from ..limits import ExecutionLimits
 from ..memory import (
     ActionStep,
     AgentMemory,
@@ -44,6 +43,7 @@ from ..memory import (
 from ..prompts.loader import get_prompt_fallback
 from ..prompts.templates import CODE_SYSTEM
 from ..signals import commit, explore, uncertain
+from ..utils.limits import ExecutionLimits
 from .base import BaseAgent
 
 __all__ = ["TinyCodeAgent", "TrustLevel"]

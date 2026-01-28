@@ -16,7 +16,7 @@ import io
 import time
 from typing import Any
 
-from ..limits import ExecutionLimits, ExecutionTimeout
+from ..utils.limits import ExecutionLimits, ExecutionTimeout
 from .protocol import ExecutionResult
 
 __all__ = ["LocalExecutor"]
