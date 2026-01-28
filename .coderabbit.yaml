@@ -4,6 +4,7 @@ tone_instructions: "Be direct and technical. Prioritize correctness, fail-fast e
 
 reviews:
   profile: "assertive"
+  review_status: true  # Set to false to disable status comments and only trigger via labels/flags
 
   path_filters:
     - "!**/*.md"
