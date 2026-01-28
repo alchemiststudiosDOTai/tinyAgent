@@ -71,8 +71,6 @@ reviews:
     base_branches:
       - "main"
       - "master"
-    labels:
-      - "needs-review"
 
   pre_merge_checks:
     custom_checks:
