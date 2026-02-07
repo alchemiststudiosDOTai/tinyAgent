@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import TypeAlias, TypeGuard, TypeVar, cast
 
 from .agent_loop import agent_loop, agent_loop_continue
+from .caching import add_cache_breakpoints
 from .agent_types import (
     AgentContext,
     AgentEndEvent,
@@ -245,6 +246,24 @@ TransformContextCallback: TypeAlias = Callable[
 ApiKeyResolverCallback: TypeAlias = Callable[[str], MaybeAwaitable[str | None]]
 
 
+def _build_transform_context(
+    user_transform: TransformContextCallback | None,
+    enable_caching: bool,
+) -> TransformContextCallback | None:
+    """Build the final transform_context callback, optionally composing caching."""
+    if not enable_caching:
+        return user_transform
+    if user_transform is None:
+        return add_cache_breakpoints
+    # Compose: run caching transform first, then user transform
+    async def _composed(
+        messages: list[AgentMessage], signal: asyncio.Event | None
+    ) -> list[AgentMessage]:
+        messages = await add_cache_breakpoints(messages, signal)
+        return await user_transform(messages, signal)
+    return _composed
+
+
 @dataclass
 class AgentOptions:
     """Options for configuring the Agent."""
@@ -258,6 +277,7 @@ class AgentOptions:
     session_id: str | None = None
     get_api_key: ApiKeyResolverCallback | None = None
     thinking_budgets: ThinkingBudgets | None = None
+    enable_prompt_caching: bool = False
 
 
 class Agent:
@@ -285,7 +305,9 @@ class Agent:
         self._listeners: set[Callable[[AgentEvent], None]] = set()
         self._abort_event: asyncio.Event | None = None
         self._convert_to_llm = opts.convert_to_llm or default_convert_to_llm
-        self._transform_context = opts.transform_context
+        self._transform_context = _build_transform_context(
+            opts.transform_context, opts.enable_prompt_caching
+        )
         self._steering_queue: list[AgentMessage] = []
         self._follow_up_queue: list[AgentMessage] = []
         self._steering_mode: str = opts.steering_mode or "one-at-a-time"
