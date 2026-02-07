@@ -30,6 +30,25 @@ from .agent_types import (
 )
 
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+ANTHROPIC_BETA_HEADER = "prompt-caching-2024-07-31"
+
+
+def _is_anthropic_model(model_id: str) -> bool:
+    """Check if model ID refers to an Anthropic/Claude model."""
+    lower = model_id.lower()
+    return "anthropic" in lower or "claude" in lower
+
+
+def _context_has_cache_control(context: Context) -> bool:
+    """Check if any message in the context has cache_control on a content block."""
+    for msg in context.messages:
+        content = msg.get("content")
+        if not isinstance(content, list):
+            continue
+        for block in content:
+            if isinstance(block, dict) and block.get("cache_control"):
+                return True
+    return False
 
 
 @dataclass
@@ -76,9 +95,36 @@ def _extract_text_parts(blocks: list[TextContent | dict[str, object]]) -> list[s
     return text_parts
 
 
+def _any_block_has_cache_control(blocks: list[TextContent | dict[str, object]]) -> bool:
+    """Check if any content block carries a cache_control directive."""
+    for block in blocks:
+        if isinstance(block, dict) and block.get("cache_control"):
+            return True
+    return False
+
+
+def _convert_content_blocks_structured(
+    blocks: list[TextContent | dict[str, object]],
+) -> list[dict[str, object]]:
+    """Convert content blocks to structured format preserving cache_control."""
+    result: list[dict[str, object]] = []
+    for block in blocks:
+        if not isinstance(block, dict) or block.get("type") != "text":
+            continue
+        entry: dict[str, object] = {"type": "text", "text": block.get("text", "")}
+        cc = block.get("cache_control")
+        if cc:
+            entry["cache_control"] = cc
+        result.append(entry)
+    return result
+
+
 def _convert_user_message(msg: UserMessage) -> dict[str, object]:
     content = msg.get("content", [])
-    text_parts = _extract_text_parts(cast(list[TextContent | dict[str, object]], content))
+    blocks = cast(list[TextContent | dict[str, object]], content)
+    if _any_block_has_cache_control(blocks):
+        return {"role": "user", "content": _convert_content_blocks_structured(blocks)}
+    text_parts = _extract_text_parts(blocks)
     return {"role": "user", "content": "\n".join(text_parts)}
 
 
@@ -354,8 +400,27 @@ async def stream_openrouter(
         raise ValueError("OpenRouter API key required")
 
     messages = _convert_messages_to_openai_format(context.messages)
+
+    # Detect if any message carries cache_control (prompt caching is active)
+    caching_active = _context_has_cache_control(context)
+
     if context.system_prompt:
-        messages.insert(0, {"role": "system", "content": context.system_prompt})
+        if caching_active:
+            messages.insert(
+                0,
+                {
+                    "role": "system",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": context.system_prompt,
+                            "cache_control": {"type": "ephemeral"},
+                        }
+                    ],
+                },
+            )
+        else:
+            messages.insert(0, {"role": "system", "content": context.system_prompt})
 
     tools = _convert_tools_to_openai_format(context.tools)
     request_body = _build_request_body(model.id, messages, tools, options)
@@ -371,14 +436,18 @@ async def stream_openrouter(
     current_text = ""
     tool_calls_map: dict[int, dict[str, str]] = {}
 
+    headers: dict[str, str] = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    if caching_active and _is_anthropic_model(model.id):
+        headers["anthropic-beta"] = ANTHROPIC_BETA_HEADER
+
     async with httpx.AsyncClient() as client:
         async with client.stream(
             "POST",
             OPENROUTER_API_URL,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
+            headers=headers,
             json=request_body,
             timeout=None,
         ) as http_response:
