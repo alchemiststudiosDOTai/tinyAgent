@@ -1,5 +1,4 @@
-"""Type definitions for the agent loop.
-"""
+"""Type definitions for the agent loop."""
 
 from __future__ import annotations
 

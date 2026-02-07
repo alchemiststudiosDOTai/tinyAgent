@@ -24,6 +24,13 @@ repos:
         types: [python]
         pass_filenames: false
 
+      - id: layer-lock
+        name: layer-lock (import boundary enforcement)
+        entry: .venv/bin/python -m pytest tests/architecture/test_import_boundaries.py -x -q
+        language: system
+        types: [python]
+        pass_filenames: false
+
       - id: mypy
         name: mypy
         entry: uv run mypy

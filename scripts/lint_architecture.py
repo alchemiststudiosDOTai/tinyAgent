@@ -100,7 +100,10 @@ def _check_arch002(rel: str, lineno: int, stripped: str) -> list[Violation]:
 
 
 def _check_arch003(
-    rel: str, lineno: int, stripped: str, core_modules: list[str],
+    rel: str,
+    lineno: int,
+    stripped: str,
+    core_modules: list[str],
 ) -> list[Violation]:
     """ARCH003: __init__.py imports only core modules."""
     m = re.match(r"from\s+\.(\w+)\s+import", stripped)
@@ -109,14 +112,16 @@ def _check_arch003(
     module_name = m.group(1)
     if module_name in core_modules:
         return []
-    return [(
-        rel,
-        lineno,
-        "ARCH003",
-        f"__init__.py imports from non-core module '.{module_name}'. "
-        f"Optional providers must be imported directly by the caller, "
-        f"not re-exported from the package root.",
-    )]
+    return [
+        (
+            rel,
+            lineno,
+            "ARCH003",
+            f"__init__.py imports from non-core module '.{module_name}'. "
+            f"Optional providers must be imported directly by the caller, "
+            f"not re-exported from the package root.",
+        )
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -125,7 +130,9 @@ def _check_arch003(
 
 
 def _violations_in_file(
-    path: Path, lines: list[str], cfg: dict,
+    path: Path,
+    lines: list[str],
+    cfg: dict,
 ) -> list[Violation]:
     errs: list[Violation] = []
     rel = str(path)
@@ -153,11 +160,15 @@ def _violations_in_file(
 
     # ARCH004: NIH filenames
     if path.name in cfg["nih_filenames"]:
-        errs.append((
-            rel, 0, "ARCH004",
-            f"NIH module '{path.name}' duplicates a well-known package. "
-            f"Use the real dependency or remove it.",
-        ))
+        errs.append(
+            (
+                rel,
+                0,
+                "ARCH004",
+                f"NIH module '{path.name}' duplicates a well-known package. "
+                f"Use the real dependency or remove it.",
+            )
+        )
 
     return errs
 
