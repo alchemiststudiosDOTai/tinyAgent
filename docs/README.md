@@ -111,6 +111,132 @@ def on_event(event):
 unsubscribe = agent.subscribe(on_event)
 ```
 
+## Rust Binding: `alchemy_llm_py`
+
+TinyAgent ships with an optional Rust-based LLM provider located in
+`bindings/alchemy_llm_py/`. It wraps the [`alchemy-llm`](https://crates.io/crates/alchemy-llm)
+Rust crate and exposes it to Python via [PyO3](https://pyo3.rs), giving you native-speed
+OpenAI-compatible streaming without leaving the Python process.
+
+### Why
+
+The pure-Python providers (`openrouter_provider.py`, `proxy.py`) work fine, but the Rust
+binding gives you:
+
+- **Lower per-token overhead** -- SSE parsing, JSON deserialization, and event dispatch all
+  happen in compiled Rust with a multi-threaded Tokio runtime.
+- **Unified provider abstraction** -- `alchemy-llm` normalizes differences across providers
+  (OpenRouter, Anthropic, custom endpoints) behind a single streaming interface.
+- **Full event fidelity** -- text deltas, thinking deltas, tool call deltas, and terminal
+  events are all surfaced as typed Python dicts.
+
+### How it works
+
+```
+Python (async)             Rust (Tokio)
+─────────────────          ─────────────────────────
+stream_alchemy_*()  ──>    alchemy_llm::stream()
+                            │
+AlchemyStreamResponse       ├─ SSE parse + deserialize
+  .__anext__()       <──    ├─ event_to_py_value()
+  (asyncio.to_thread)       └─ mpsc channel -> Python
+```
+
+1. Python calls `openai_completions_stream(model, context, options)` which is a `#[pyfunction]`.
+2. The Rust side builds an `alchemy-llm` request, opens an SSE stream on a shared Tokio
+   runtime, and sends events through an `mpsc` channel.
+3. Python reads events by calling the blocking `next_event()` method via
+   `asyncio.to_thread`, making it async-compatible without busy-waiting.
+4. A terminal `done` or `error` event signals the end of the stream. The final
+   `AssistantMessage` dict is available via `result()`.
+
+### Building
+
+Requires a Rust toolchain (1.70+) and [maturin](https://www.maturin.rs/).
+
+```bash
+pip install maturin
+cd bindings/alchemy_llm_py
+maturin develop          # debug build, installs into current venv
+maturin develop --release  # optimized build
+```
+
+### Python API
+
+Two functions are exposed from the `alchemy_llm_py` module:
+
+| Function | Description |
+|---|---|
+| `collect_openai_completions(model, context, options?)` | Blocking. Consumes the entire stream and returns `{"events": [...], "final_message": {...}}`. Useful for one-shot calls. |
+| `openai_completions_stream(model, context, options?)` | Returns an `OpenAICompletionsStream` handle for incremental consumption. |
+
+The `OpenAICompletionsStream` handle has two methods:
+
+| Method | Description |
+|---|---|
+| `next_event()` | Blocking. Returns the next event dict, or `None` when the stream ends. |
+| `result()` | Blocking. Returns the final assistant message dict. |
+
+All three arguments are plain Python dicts:
+
+```python
+model = {
+    "id": "anthropic/claude-3.5-sonnet",
+    "base_url": "https://openrouter.ai/api/v1/chat/completions",
+    "provider": "openrouter",        # optional
+    "headers": {"X-Custom": "val"},  # optional
+    "reasoning": False,              # optional
+    "context_window": 128000,        # optional
+    "max_tokens": 4096,              # optional
+}
+
+context = {
+    "system_prompt": "You are helpful.",
+    "messages": [
+        {"role": "user", "content": [{"type": "text", "text": "Hello"}]}
+    ],
+    "tools": [                       # optional
+        {"name": "sum", "description": "Add numbers", "parameters": {...}}
+    ],
+}
+
+options = {
+    "api_key": "sk-...",             # optional
+    "temperature": 0.7,             # optional
+    "max_tokens": 1024,             # optional
+}
+```
+
+### Using via TinyAgent (high-level)
+
+You don't need to call the Rust binding directly. Use the `alchemy_provider` module:
+
+```python
+from tinyagent import Agent, AgentOptions
+from tinyagent.alchemy_provider import OpenAICompatModel, stream_alchemy_openai_completions
+
+agent = Agent(
+    AgentOptions(
+        stream_fn=stream_alchemy_openai_completions,
+        session_id="my-session",
+    )
+)
+agent.set_model(
+    OpenAICompatModel(
+        id="anthropic/claude-3.5-sonnet",
+        base_url="https://openrouter.ai/api/v1/chat/completions",
+    )
+)
+```
+
+### Limitations
+
+- Only OpenAI-compatible `/chat/completions` streaming is supported.
+- Image blocks are not yet supported (text and thinking blocks work).
+- `next_event()` is blocking and runs in a thread via `asyncio.to_thread` -- this adds
+  slight overhead compared to a native async generator, but keeps the GIL released during
+  the Rust work.
+
 ## Documentation
 
 - [Architecture](ARCHITECTURE.md): System design and component interactions
