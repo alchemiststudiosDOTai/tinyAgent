@@ -56,6 +56,10 @@ dmypy.json
 
 # Rust / maturin build artifacts
 bindings/*/target/
+target/
+Cargo.lock
+*.dylib
+*.pyd
 
 # Environment variables
 .env

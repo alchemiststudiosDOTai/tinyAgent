@@ -1,5 +1,9 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
 [project]
-name = "tinyagent"
+name = "tiny-agent-os"
 version = "0.1.0"
 description = "Python agent loop"
 readme = "README.md"
@@ -37,8 +41,10 @@ dev = [
     "pylint>=3.0.0",
 ]
 
-[tool.setuptools.packages.find]
-include = ["tinyagent*"]
+[tool.maturin]
+module-name = "tinyagent._alchemy"
+python-source = "."
+bindings = "pyo3"
 
 [tool.ruff]
 line-length = 100

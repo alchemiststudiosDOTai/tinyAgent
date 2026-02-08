@@ -107,11 +107,11 @@ async def stream_alchemy_openai_completions(
     """Stream using the Rust alchemy-llm implementation (OpenAI-compatible)."""
 
     try:
-        import alchemy_llm_py
+        from tinyagent import _alchemy as alchemy_llm_py
     except Exception as e:  # pragma: no cover
         raise RuntimeError(
-            "alchemy_llm_py is not installed. "
-            "Build it via `maturin develop` in bindings/alchemy_llm_py"
+            "tinyagent._alchemy is not installed. "
+            "Build it via `maturin develop` in the project root"
         ) from e
 
     base_url = getattr(model, "base_url", None)
