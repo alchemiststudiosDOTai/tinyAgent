@@ -60,3 +60,6 @@ bindings/*/target/
 # Environment variables
 .env
 .env.local
+
+# Local tickets (tk)
+.tickets/
