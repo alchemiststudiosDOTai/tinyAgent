@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from .agent_types import (
     AgentTool,
@@ -61,14 +61,18 @@ class AlchemyStreamResponse:
     _final_message: AssistantMessage | None = None
 
     async def result(self) -> AssistantMessage:
-        if self._final_message is None:
-            msg = await asyncio.to_thread(self._handle.result)
-            if not isinstance(msg, dict):
-                raise RuntimeError("alchemy_llm_py returned an invalid final message")
-            self._final_message = msg  # type: ignore[assignment]
-        return self._final_message
+        if self._final_message is not None:
+            return self._final_message
 
-    def __aiter__(self):
+        msg = await asyncio.to_thread(self._handle.result)
+        if not isinstance(msg, dict):
+            raise RuntimeError("alchemy_llm_py returned an invalid final message")
+
+        final_message = cast(AssistantMessage, msg)
+        self._final_message = final_message
+        return final_message
+
+    def __aiter__(self) -> AlchemyStreamResponse:
         return self
 
     async def __anext__(self) -> AssistantMessageEvent:
@@ -77,7 +81,7 @@ class AlchemyStreamResponse:
             raise StopAsyncIteration
         if not isinstance(ev, dict):
             raise RuntimeError("alchemy_llm_py returned an invalid event")
-        return ev  # type: ignore[return-value]
+        return cast(AssistantMessageEvent, ev)
 
 
 def _convert_tools(tools: list[AgentTool] | None) -> list[dict[str, Any]] | None:
@@ -103,7 +107,7 @@ async def stream_alchemy_openai_completions(
     """Stream using the Rust alchemy-llm implementation (OpenAI-compatible)."""
 
     try:
-        import alchemy_llm_py  # type: ignore
+        import alchemy_llm_py
     except Exception as e:  # pragma: no cover
         raise RuntimeError(
             "alchemy_llm_py is not installed. "

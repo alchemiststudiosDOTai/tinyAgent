@@ -8,10 +8,11 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import TypeAlias, TypeVar, cast
+from typing import TypeAlias, TypeVar
 
 from .agent_tool_execution import _extract_tool_calls, execute_tool_calls
 from .agent_types import (
+    STREAM_UPDATE_EVENTS,
     AgentContext,
     AgentEndEvent,
     AgentEvent,
@@ -57,23 +58,10 @@ def create_agent_stream() -> EventStream:
 
     def get_result(event: AgentEvent) -> list[AgentMessage]:
         if hasattr(event, "type") and event.type == "agent_end" and hasattr(event, "messages"):
-            return cast(list[AgentMessage], event.messages)
+            return event.messages
         return []
 
     return EventStream(is_end_event, get_result)
-
-
-STREAM_UPDATE_EVENTS = {
-    "text_start",
-    "text_delta",
-    "text_end",
-    "thinking_start",
-    "thinking_delta",
-    "thinking_end",
-    "tool_call_start",
-    "tool_call_delta",
-    "tool_call_end",
-}
 
 
 StreamEventHandler: TypeAlias = Callable[

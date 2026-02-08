@@ -156,7 +156,7 @@ class OpenRouterStreamResponse:
             raise RuntimeError("No final message available")
         return self._final_message
 
-    def __aiter__(self):
+    def __aiter__(self) -> OpenRouterStreamResponse:
         return self
 
     async def __anext__(self) -> AssistantMessageEvent:

@@ -102,6 +102,18 @@ StopReason: TypeAlias = Literal[
     "tool_use",
 ]
 
+STOP_REASONS: frozenset[StopReason] = frozenset(
+    {
+        "complete",
+        "error",
+        "aborted",
+        "tool_calls",
+        "stop",
+        "length",
+        "tool_use",
+    }
+)
+
 
 class AssistantMessage(TypedDict, total=False):
     """Assistant message from LLM."""
@@ -256,6 +268,21 @@ class AssistantMessageEvent(TypedDict, total=False):
     error: AssistantMessage | str | None
 
 
+STREAM_UPDATE_EVENTS: frozenset[str] = frozenset(
+    {
+        "text_start",
+        "text_delta",
+        "text_end",
+        "thinking_start",
+        "thinking_delta",
+        "thinking_end",
+        "tool_call_start",
+        "tool_call_delta",
+        "tool_call_end",
+    }
+)
+
+
 class StreamResponse(Protocol):
     """Response from streaming."""
 
@@ -405,7 +432,7 @@ class EventStream:
         self._result = result
         self._ended = True
 
-    def __aiter__(self):
+    def __aiter__(self) -> AsyncIterator[AgentEvent]:
         return self
 
     async def __anext__(self) -> AgentEvent:

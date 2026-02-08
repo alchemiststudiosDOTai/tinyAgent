@@ -33,6 +33,8 @@ dev = [
     "pytest-asyncio>=0.25.0",
     "python-dotenv>=1.0.0",
     "grimp>=3.0",
+    "vulture>=2.11.0",
+    "pylint>=3.0.0",
 ]
 
 [tool.setuptools.packages.find]
@@ -56,11 +58,11 @@ known-first-party = ["tinyagent"]
 
 [tool.mypy]
 python_version = "3.10"
-strict = false
+strict = true
 warn_return_any = true
 warn_unused_ignores = true
 ignore_missing_imports = true
-disallow_untyped_defs = false
+disallow_untyped_defs = true
 check_untyped_defs = true
 files = ["."]
 exclude = '(^|/)(\.venv|scripts/)'

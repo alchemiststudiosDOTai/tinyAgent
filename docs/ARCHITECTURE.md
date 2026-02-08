@@ -224,3 +224,44 @@ State is mutated only by internal event handlers in the Agent class, keeping sid
 3. **transform_context**: Modify context (e.g., add retrieval-augmented generation)
 4. **get_api_key**: Dynamic API key resolution
 5. **Custom AgentEvent**: Extend event types for domain-specific needs
+
+## Code Quality Enforcement
+
+This repository uses **blocking** pre-commit hooks (and should run the same checks in CI).
+These checks are not advisory — they are enforced.
+
+- `ruff` (lint + format)
+- `mypy` (static typing)
+- `archlint` + `layer-lock` (architecture boundary enforcement)
+- `vulture` (dead code detection)
+- `pylint` similarity checker (duplicate/clone detection)
+- `debtlint` (technical debt tracking)
+
+### Dead Code (vulture)
+
+```bash
+uv run vulture --min-confidence 80 tinyagent .vulture-whitelist.py
+```
+
+### Duplicate Code (pylint / R0801)
+
+```bash
+uv run pylint --disable=all --enable=duplicate-code tinyagent
+```
+
+## Technical Debt
+
+No free-form TODO/FIXME/HACK/XXX/DEBT markers are allowed.
+If you need to record technical debt, it must be tied to a real ticket in `.tickets/`.
+
+Allowed formats (must be uppercase and include a ticket id):
+
+```python
+# TODO(tv-<ticket-id>): describe the debt and the intended fix
+# FIXME(kap-<ticket-id>): describe the debt and the intended fix
+# DEBT(tv-<ticket-id>): describe the debt and the intended fix
+```
+
+Enforcement:
+- `scripts/lint_debt.py` is run via the `debtlint` pre-commit hook.
+- It validates the format and ensures the referenced ticket exists and is not `closed`.

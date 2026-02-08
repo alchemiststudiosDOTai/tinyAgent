@@ -173,7 +173,7 @@ class ProxyStreamResponse(StreamResponse):
         self._queue: asyncio.Queue[AssistantMessageEvent | None] = asyncio.Queue()
         self._task = asyncio.create_task(self._run())
 
-    def __aiter__(self):
+    def __aiter__(self) -> AsyncIterator[AssistantMessageEvent]:
         return self
 
     async def __anext__(self) -> AssistantMessageEvent:

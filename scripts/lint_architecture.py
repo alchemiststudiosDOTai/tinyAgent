@@ -38,7 +38,7 @@ from pathlib import Path
 try:
     import tomllib
 except ImportError:
-    import tomli as tomllib  # type: ignore[no-redef]
+    import tomli as tomllib  # type: ignore[no-redef]  # Py<3.11 fallback
 
 # ---------------------------------------------------------------------------
 # Config

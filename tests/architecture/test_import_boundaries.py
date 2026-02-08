@@ -20,9 +20,8 @@ __init__.py is excluded (grimp's container mechanism handles this).
 
 from __future__ import annotations
 
-import pytest
-
 import grimp
+import pytest
 
 PKG = "tinyagent"
 
@@ -63,9 +62,7 @@ class TestLayerBoundaries:
     """No module may import from a higher layer or from a sibling."""
 
     def test_no_illegal_dependencies(self, graph: grimp.ImportGraph) -> None:
-        violations = graph.find_illegal_dependencies_for_layers(
-            LAYERS, containers={PKG}
-        )
+        violations = graph.find_illegal_dependencies_for_layers(LAYERS, containers={PKG})
         if violations:
             lines = []
             for v in sorted(violations, key=str):
@@ -77,17 +74,12 @@ class TestLayerBoundaries:
 class TestFoundationIsLeaf:
     """agent_types must not import any other tinyagent module."""
 
-    def test_agent_types_has_no_internal_imports(
-        self, graph: grimp.ImportGraph
-    ) -> None:
+    def test_agent_types_has_no_internal_imports(self, graph: grimp.ImportGraph) -> None:
         others = GOVERNED_MODULES - {f"{PKG}.agent_types"}
         for dep in sorted(others):
-            chain = graph.find_shortest_chain(
-                imported=dep, importer=f"{PKG}.agent_types"
-            )
+            chain = graph.find_shortest_chain(imported=dep, importer=f"{PKG}.agent_types")
             assert chain is None, (
-                f"agent_types must be a leaf, but it imports {dep} "
-                f"via: {' -> '.join(chain)}"
+                f"agent_types must be a leaf, but it imports {dep} via: {' -> '.join(chain)}"
             )
 
 

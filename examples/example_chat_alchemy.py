@@ -37,19 +37,18 @@ async def chat_once(agent: Agent, user_input: str) -> None:
     async for event in agent.stream(user_input):
         if event.type == "message_update":
             ame = event.assistant_message_event
-            if isinstance(ame, dict) and ame.get("type") == "text_delta" and ame.get("delta"):
-                print(str(ame["delta"]), end="", flush=True)
-                printed_any = True
+            if isinstance(ame, dict) and ame.get("type") == "text_delta":
+                delta = ame.get("delta")
+                if isinstance(delta, str) and delta:
+                    print(delta, end="", flush=True)
+                    printed_any = True
 
-        is_assistant_end = (
-            event.type == "message_end"
-            and event.message
-            and event.message.get("role") == "assistant"
-        )
-        if is_assistant_end:
-            if not printed_any:
-                print(extract_text(event.message), end="", flush=True)
-            print()
+        if event.type == "message_end":
+            msg = event.message
+            if msg and msg.get("role") == "assistant":
+                if not printed_any:
+                    print(extract_text(msg), end="", flush=True)
+                print()
 
 
 async def main() -> None:

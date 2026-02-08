@@ -19,14 +19,21 @@ from tinyagent import (
     AgentOptions,
     AgentTool,
     AgentToolResult,
+    AgentToolUpdateCallback,
     OpenRouterModel,
     extract_text,
     stream_openrouter,
 )
+from tinyagent.agent_types import JsonObject
 
 
 # Example tool: get current time
-async def get_current_time(tool_call_id: str, args: dict, signal, on_update) -> AgentToolResult:
+async def get_current_time(
+    tool_call_id: str,
+    args: JsonObject,
+    signal: asyncio.Event | None,
+    on_update: AgentToolUpdateCallback,
+) -> AgentToolResult:
     from datetime import datetime
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -34,8 +41,14 @@ async def get_current_time(tool_call_id: str, args: dict, signal, on_update) -> 
 
 
 # Example tool: simple calculator
-async def calculate(tool_call_id: str, args: dict, signal, on_update) -> AgentToolResult:
-    expression = args.get("expression", "")
+async def calculate(
+    tool_call_id: str,
+    args: JsonObject,
+    signal: asyncio.Event | None,
+    on_update: AgentToolUpdateCallback,
+) -> AgentToolResult:
+    expression_val = args.get("expression")
+    expression = expression_val if isinstance(expression_val, str) else ""
     try:
         allowed = set("0123456789+-*/(). ")
         if not all(c in allowed for c in expression):

@@ -290,7 +290,7 @@ class Agent:
         self._follow_up_queue: list[AgentMessage] = []
         self._steering_mode: str = opts.steering_mode or "one-at-a-time"
         self._follow_up_mode: str = opts.follow_up_mode or "one-at-a-time"
-        self.stream_fn: StreamFn = opts.stream_fn  # type: ignore[assignment]
+        self.stream_fn: StreamFn | None = opts.stream_fn
         self._session_id: str | None = opts.session_id
         self.get_api_key: ApiKeyResolverCallback | None = opts.get_api_key
         self._running_prompt: asyncio.Future[None] | None = None

@@ -7,6 +7,7 @@ from collections.abc import Callable
 from typing import Literal, TypeAlias, TypeGuard, cast
 
 from .agent_types import (
+    STOP_REASONS,
     AssistantContent,
     AssistantMessage,
     AssistantMessageEvent,
@@ -57,13 +58,13 @@ def _ensure_content_slot(partial: AssistantMessage, index: int) -> list[Assistan
         partial["content"] = content_list
     while len(content_list) <= index:
         content_list.append(None)
-    return cast(list[AssistantContent | None], content_list)
+    return content_list
 
 
 def _get_content(partial: AssistantMessage, index: int) -> AssistantContent | None:
     content_list = partial.get("content", [])
     if index < len(content_list):
-        return cast(AssistantContent | None, content_list[index])
+        return content_list[index]
     return None
 
 
@@ -79,19 +80,8 @@ def _is_tool_call(content: AssistantContent | None) -> TypeGuard[ToolCallContent
     return content is not None and content.get("type") == "tool_call"
 
 
-_STOP_REASONS: set[StopReason] = {
-    "complete",
-    "error",
-    "aborted",
-    "tool_calls",
-    "stop",
-    "length",
-    "tool_use",
-}
-
-
 def _normalize_stop_reason(value: object, default: StopReason) -> StopReason:
-    if isinstance(value, str) and value in _STOP_REASONS:
+    if isinstance(value, str) and value in STOP_REASONS:
         return cast(StopReason, value)
     return default
 
@@ -285,7 +275,7 @@ def _handle_done_event(proxy_event: JsonObject, partial: AssistantMessage) -> As
 
     partial["stop_reason"] = reason
     usage = proxy_event.get("usage")
-    partial["usage"] = cast(JsonObject, usage) if isinstance(usage, dict) else partial.get("usage")
+    partial["usage"] = usage if isinstance(usage, dict) else partial.get("usage")
     return {"type": "done", "reason": reason, "message": partial}
 
 
@@ -300,7 +290,7 @@ def _handle_error_event(
     partial["error_message"] = error_message if isinstance(error_message, str) else None
 
     usage = proxy_event.get("usage")
-    partial["usage"] = cast(JsonObject, usage) if isinstance(usage, dict) else partial.get("usage")
+    partial["usage"] = usage if isinstance(usage, dict) else partial.get("usage")
 
     return {"type": "error", "reason": reason, "error": partial}
 

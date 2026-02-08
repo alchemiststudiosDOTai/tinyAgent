@@ -38,3 +38,26 @@ repos:
         types: [python]
         pass_filenames: false
         args: ["--ignore-missing-imports", "--exclude", "lint_file_length\\.py$", "."]
+
+      - id: vulture
+        name: vulture (dead code detection)
+        entry: uv run vulture
+        language: system
+        types: [python]
+        pass_filenames: false
+        args: ["--min-confidence", "80", "tinyagent", ".vulture-whitelist.py"]
+
+      - id: duplicate-code
+        name: pylint (duplicate code detection)
+        entry: uv run pylint
+        language: system
+        types: [python]
+        pass_filenames: false
+        args: ["--disable=all", "--enable=duplicate-code", "tinyagent"]
+
+      - id: debtlint
+        name: debtlint (technical debt tracking)
+        entry: python3 scripts/lint_debt.py
+        language: system
+        pass_filenames: false
+        always_run: true
