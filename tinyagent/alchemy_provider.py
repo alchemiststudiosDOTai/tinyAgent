@@ -20,8 +20,9 @@ Build/install the binding first (from repo root):
 from __future__ import annotations
 
 import asyncio
+import importlib
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any, Protocol, cast
 
 from .agent_types import (
     AgentTool,
@@ -31,6 +32,33 @@ from .agent_types import (
     Model,
     SimpleStreamOptions,
 )
+
+
+class _AlchemyModule(Protocol):
+    def openai_completions_stream(
+        self,
+        model: dict[str, Any],
+        context: dict[str, Any],
+        options: dict[str, Any],
+    ) -> Any: ...
+
+
+_ALCHEMY_MODULE: _AlchemyModule | None = None
+
+
+def _get_alchemy_module() -> _AlchemyModule:
+    global _ALCHEMY_MODULE
+    if _ALCHEMY_MODULE is None:
+        package = __package__ or "tinyagent"
+        try:
+            module = importlib.import_module(f"{package}._alchemy")
+        except Exception as e:  # pragma: no cover
+            raise RuntimeError(
+                "tinyagent._alchemy is not installed. "
+                "Build it via `maturin develop` in the project root"
+            ) from e
+        _ALCHEMY_MODULE = cast(_AlchemyModule, module)
+    return _ALCHEMY_MODULE
 
 
 @dataclass
@@ -106,13 +134,7 @@ async def stream_alchemy_openai_completions(
 ) -> AlchemyStreamResponse:
     """Stream using the Rust alchemy-llm implementation (OpenAI-compatible)."""
 
-    try:
-        from tinyagent import _alchemy as alchemy_llm_py
-    except Exception as e:  # pragma: no cover
-        raise RuntimeError(
-            "tinyagent._alchemy is not installed. "
-            "Build it via `maturin develop` in the project root"
-        ) from e
+    alchemy_llm_py = _get_alchemy_module()
 
     base_url = getattr(model, "base_url", None)
     if not isinstance(base_url, str) or not base_url:
