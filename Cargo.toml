@@ -21,3 +21,6 @@ serde_json = "1"
 
 # The Rust LLM abstraction
 alchemy-llm = "0.1.1"
+
+# Vendor OpenSSL for cross-compilation (compiles from source)
+openssl = { version = "0.10", features = ["vendored"] }
