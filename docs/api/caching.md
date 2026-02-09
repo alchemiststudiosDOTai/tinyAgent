@@ -1,0 +1,144 @@
+---
+title: Prompt Caching
+description: Reduce token costs and latency by caching repeated prompt prefixes across turns.
+ontological_relations:
+  - composes_with: agent.md#AgentOptions
+  - transforms: agent_types.md#AgentMessage
+  - consumed_by: providers.md#OpenRouter-Provider
+  - depends_on: agent_types.md#CacheControl
+---
+
+# Prompt Caching
+
+Reduce token costs and latency by reusing cached prompt prefixes across conversation turns.
+
+## When to Use
+
+- Multi-turn conversations with a long system prompt (the system prompt is cached and reused every turn)
+- Repeated interactions where the message history grows but the prefix stays stable
+- Any workload where `input_tokens` dominates cost
+
+**Requirements**:
+- Anthropic models: cached prefix must be >= 1024 tokens
+- OpenAI models: caching is automatic when the provider supports `prompt_tokens_details`
+
+**When NOT to use**:
+- Single-shot prompts with no follow-up turns
+- Very short system prompts (below the 1024-token threshold)
+
+## How It Works
+
+```
+Turn 1:  [system_prompt + user_msg_1]  -->  cache MISS  (cacheWrite)
+Turn 2:  [system_prompt + user_msg_1 + assistant_msg_1 + user_msg_2]  -->  cache HIT on prefix  (cacheRead)
+Turn 3:  [system_prompt + ... + user_msg_3]  -->  cache HIT on longer prefix  (cacheRead)
+```
+
+Two things are annotated with `cache_control: {"type": "ephemeral"}`:
+
+1. **System prompt** -- wrapped in a structured content block by the provider
+2. **Last user message** -- the final content block gets the breakpoint
+
+The LLM provider caches everything up to the last breakpoint. On the next request, matching prefix tokens are read from cache instead of reprocessed.
+
+## Usage
+
+```python
+from tinyagent import Agent, AgentOptions, OpenRouterModel, stream_openrouter
+
+agent = Agent(
+    AgentOptions(
+        stream_fn=stream_openrouter,
+        enable_prompt_caching=True,
+    )
+)
+agent.set_model(OpenRouterModel(id="anthropic/claude-3.5-sonnet"))
+agent.set_system_prompt("You are a helpful assistant. ...")
+
+# Turn 1 -- populates the cache
+msg1 = await agent.prompt("What is the capital of France?")
+print(msg1["usage"])
+# {"input": 3182, "output": 11, "cacheWrite": 0, "cacheRead": 0}
+
+# Turn 2 -- reads from cache
+msg2 = await agent.prompt("What is the capital of Germany?")
+print(msg2["usage"])
+# {"input": 3203, "output": 11, "cacheWrite": 0, "cacheRead": 3178}
+```
+
+## Composing with transform_context
+
+When both `enable_prompt_caching` and a custom `transform_context` are set, caching runs first, then the custom transform receives the annotated messages.
+
+```python
+async def my_transform(messages, signal=None):
+    # messages already have cache_control annotations here
+    return messages
+
+agent = Agent(
+    AgentOptions(
+        stream_fn=stream_openrouter,
+        enable_prompt_caching=True,
+        transform_context=my_transform,  # runs after caching
+    )
+)
+```
+
+## Direct Use
+
+The transform function can be used standalone without the Agent class:
+
+```python
+from tinyagent.caching import add_cache_breakpoints
+
+messages = [
+    {"role": "user", "content": [{"type": "text", "text": "hello"}]},
+]
+annotated = await add_cache_breakpoints(messages)
+# annotated[0]["content"][-1]["cache_control"] == {"type": "ephemeral"}
+```
+
+## add_cache_breakpoints
+
+```python
+async def add_cache_breakpoints(
+    messages: list[AgentMessage],
+    signal: asyncio.Event | None = None,
+) -> list[AgentMessage]
+```
+
+Transform function matching the `TransformContextFn` signature.
+
+Finds the last user message and annotates its final content block with `cache_control: {"type": "ephemeral"}`. Does not mutate the original messages.
+
+**Parameters**:
+- `messages`: The conversation message list
+- `signal`: Optional cancellation event (unused, present for signature compatibility)
+
+**Returns**: A new message list with the cache breakpoint applied
+
+## Usage Stats
+
+The `usage` dict on assistant messages includes cache fields:
+
+| Field | Description |
+|-------|-------------|
+| `input` | Total input tokens |
+| `output` | Total output tokens |
+| `cacheRead` | Tokens read from cache (saved reprocessing) |
+| `cacheWrite` | Tokens written to cache (first-time cost) |
+| `totalTokens` | `input + output` |
+
+**Provider differences**:
+- Anthropic reports `cache_creation_input_tokens` and `cache_read_input_tokens`
+- OpenAI reports `prompt_tokens_details.cached_tokens` (maps to `cacheRead`)
+- `cacheWrite` may be 0 when the provider does not report write stats
+
+## Provider Behavior
+
+When caching is active, the OpenRouter provider:
+
+1. Wraps the system prompt in a structured content block with `cache_control`
+2. Emits structured content blocks (not flattened strings) for user messages that carry `cache_control`
+3. Sends the `anthropic-beta: prompt-caching-2024-07-31` header for Anthropic models
+4. Parses cache stats from the final SSE usage chunk

@@ -248,6 +248,7 @@ class AgentOptions:
     session_id: str | None = None
     get_api_key: ApiKeyResolverCallback | None = None
     thinking_budgets: ThinkingBudgets | None = None
+    enable_prompt_caching: bool = False
 ```
 
 **Options**:
@@ -258,6 +259,7 @@ class AgentOptions:
 - `steering_mode`: "one-at-a-time" (default) or "all" - how to process steering queue
 - `follow_up_mode`: "one-at-a-time" (default) or "all" - how to process follow-up queue
 - `get_api_key`: Callback to resolve API keys dynamically
+- `enable_prompt_caching`: Enable Anthropic-style prompt caching. See [Prompt Caching](caching.md)
 
 ## Helper Functions
 

@@ -1,5 +1,7 @@
 # TinyAgent
 
+![tinyAgent Logo](static/images/new-ta-logo.jpg)
+
 A small, modular agent framework for building LLM-powered applications in Python.
 
 ## Overview

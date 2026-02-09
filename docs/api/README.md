@@ -11,6 +11,12 @@ Complete API documentation for the tinyagent package.
 | [agent_loop](agent_loop.md) | Core execution loop |
 | [agent_tool_execution](agent_tool_execution.md) | Tool execution helpers |
 
+## Features
+
+| Module | Description |
+|--------|-------------|
+| [caching](caching.md) | Prompt caching for reduced cost and latency |
+
 ## Providers
 
 | Module | Description |

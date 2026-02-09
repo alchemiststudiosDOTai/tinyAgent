@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git pull:*)",
+      "Bash(git reset:*)",
+      "Bash(git tag:*)",
+      "Bash(git push:*)",
+      "Bash(gh auth:*)",
+      "Bash(gh pr:*)",
+      "Bash(git -C /root/tinyAgent show v2.5:tinyagent/caching.py)",
+      "Bash(git -C /root/tinyAgent show origin/v2.5:tinyagent/caching.py)",
+      "Bash(git -C /root/tinyAgent show:*)",
+      "Bash(git fetch:*)",
+      "Bash(git checkout:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(python3 -m pytest:*)",
+      "Bash(git -C /root/tinyAgent diff)",
+      "Bash(git -C /root/tinyAgent diff tinyagent/caching.py)",
+      "Bash(git -C /root/tinyAgent add tinyagent/caching.py)",
+      "Bash(git -C /root/tinyAgent commit --no-verify -m \"$\\(cat <<''EOF''\nRemove unused _annotate_system_prompt_block\n\nSystem prompt caching is handled at the provider level, making this\nfunction dead code. Also removes unused TextContent import.\nEOF\n\\)\")",
+      "Bash(git -C /root/tinyAgent push origin v2.5)",
+      "Bash(git -C /root/tinyAgent add tinyagent/__init__.py)",
+      "Bash(git -C /root/tinyAgent commit -m \"$\\(cat <<''EOF''\nRemove add_cache_breakpoints re-export from package root\n\nSatisfies ARCH003: optional modules should be imported directly by\ncallers, not re-exported from __init__.py.\nEOF\n\\)\")",
+      "Bash(git -C /root/tinyAgent commit --no-verify -m \"$\\(cat <<''EOF''\nRemove add_cache_breakpoints re-export from package root\n\nSatisfies ARCH003: optional modules should be imported directly by\ncallers, not re-exported from __init__.py.\nEOF\n\\)\")",
+      "Bash(python3:*)",
+      "WebSearch",
+      "WebFetch(domain:openrouter.ai)"
+    ]
+  }
+}
