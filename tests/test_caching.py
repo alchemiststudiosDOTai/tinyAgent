@@ -2,75 +2,69 @@
 
 from __future__ import annotations
 
-import asyncio
+from typing import cast
 
 import pytest
 
-from tinyagent.agent_types import (
-    AgentMessage,
-    AssistantMessage,
-    Context,
-    TextContent,
-    UserMessage,
-)
+from tinyagent.agent_types import AgentMessage, Context, TextContent, UserMessage
 from tinyagent.caching import add_cache_breakpoints
 from tinyagent.openrouter_provider import (
     _any_block_has_cache_control,
     _build_usage_dict,
     _context_has_cache_control,
     _convert_user_message,
-    _is_anthropic_model,
 )
-
 
 # -- add_cache_breakpoints tests --
 
 
 @pytest.mark.asyncio
-async def test_cache_breakpoints_annotates_last_user_message() -> None:
-    """Only the last user message's final block gets cache_control."""
-    messages: list[AgentMessage] = [
-        {"role": "user", "content": [{"type": "text", "text": "first user msg"}]},
-        {"role": "assistant", "content": [{"type": "text", "text": "reply"}]},
-        {"role": "user", "content": [{"type": "text", "text": "second user msg"}]},
-        {"role": "assistant", "content": [{"type": "text", "text": "reply 2"}]},
-        {"role": "user", "content": [{"type": "text", "text": "third user msg"}]},
-    ]
+async def test_cache_breakpoints_annotates_all_user_messages() -> None:
+    """All user messages' final blocks get cache_control.
+
+    This keeps cache breakpoints stable across turns (so earlier user messages
+    keep matching the cached prefix written in prior turns).
+    """
+
+    messages: list[AgentMessage] = cast(
+        list[AgentMessage],
+        [
+            {"role": "user", "content": [{"type": "text", "text": "first user msg"}]},
+            {"role": "assistant", "content": [{"type": "text", "text": "reply"}]},
+            {"role": "user", "content": [{"type": "text", "text": "second user msg"}]},
+            {"role": "assistant", "content": [{"type": "text", "text": "reply 2"}]},
+            {"role": "user", "content": [{"type": "text", "text": "third user msg"}]},
+        ],
+    )
 
     result = await add_cache_breakpoints(messages)
 
-    # First two user messages should NOT have cache_control
-    first_user = result[0]
-    assert first_user.get("role") == "user"
-    first_content = first_user.get("content", [])
-    assert "cache_control" not in first_content[0]
-
-    second_user = result[2]
-    assert second_user.get("role") == "user"
-    second_content = second_user.get("content", [])
-    assert "cache_control" not in second_content[0]
-
-    # Last user message SHOULD have cache_control
-    last_user = result[4]
-    assert last_user.get("role") == "user"
-    last_content = last_user.get("content", [])
-    assert last_content[0].get("cache_control") == {"type": "ephemeral"}
+    # All user messages should have cache_control on the last block
+    for idx in (0, 2, 4):
+        user_msg = cast(UserMessage, result[idx])
+        assert user_msg["role"] == "user"
+        content = user_msg["content"]
+        assert content[-1].get("cache_control") == {"type": "ephemeral"}
 
 
 @pytest.mark.asyncio
 async def test_cache_breakpoints_does_not_mutate_original() -> None:
     """add_cache_breakpoints should not mutate the original messages."""
     original_content: list[TextContent] = [{"type": "text", "text": "hello"}]
-    messages: list[AgentMessage] = [
-        {"role": "user", "content": original_content},
-    ]
+    messages: list[AgentMessage] = cast(
+        list[AgentMessage],
+        [
+            {"role": "user", "content": original_content},
+        ],
+    )
 
     result = await add_cache_breakpoints(messages)
 
     # Original should be untouched
     assert "cache_control" not in original_content[0]
     # Result should have it
-    assert result[0]["content"][-1].get("cache_control") == {"type": "ephemeral"}
+    user_msg = cast(UserMessage, result[0])
+    assert user_msg["content"][-1].get("cache_control") == {"type": "ephemeral"}
 
 
 @pytest.mark.asyncio
@@ -83,9 +77,12 @@ async def test_cache_breakpoints_empty_messages() -> None:
 @pytest.mark.asyncio
 async def test_cache_breakpoints_no_user_messages() -> None:
     """If no user messages, return unchanged."""
-    messages: list[AgentMessage] = [
-        {"role": "assistant", "content": [{"type": "text", "text": "hi"}]},
-    ]
+    messages: list[AgentMessage] = cast(
+        list[AgentMessage],
+        [
+            {"role": "assistant", "content": [{"type": "text", "text": "hi"}]},
+        ],
+    )
     result = await add_cache_breakpoints(messages)
     assert len(result) == 1
     assert result[0].get("role") == "assistant"
@@ -94,19 +91,11 @@ async def test_cache_breakpoints_no_user_messages() -> None:
 # -- OpenRouter helpers tests --
 
 
-def test_is_anthropic_model() -> None:
-    assert _is_anthropic_model("anthropic/claude-3.5-sonnet") is True
-    assert _is_anthropic_model("anthropic/claude-3-opus") is True
-    assert _is_anthropic_model("openai/gpt-4") is False
-    assert _is_anthropic_model("google/gemini-pro") is False
-    assert _is_anthropic_model("Claude-Instant") is True
-
-
 def test_any_block_has_cache_control() -> None:
-    blocks_with: list[TextContent] = [
+    blocks_with: list[TextContent | dict[str, object]] = [
         {"type": "text", "text": "hi", "cache_control": {"type": "ephemeral"}},
     ]
-    blocks_without: list[TextContent] = [
+    blocks_without: list[TextContent | dict[str, object]] = [
         {"type": "text", "text": "hi"},
     ]
     assert _any_block_has_cache_control(blocks_with) is True
@@ -166,7 +155,7 @@ def test_context_has_cache_control_false() -> None:
 
 
 def test_build_usage_dict_with_cache_fields() -> None:
-    usage = {
+    usage: dict[str, object] = {
         "prompt_tokens": 100,
         "completion_tokens": 50,
         "cache_creation_input_tokens": 80,
@@ -181,7 +170,7 @@ def test_build_usage_dict_with_cache_fields() -> None:
 
 
 def test_build_usage_dict_without_cache_fields() -> None:
-    usage = {
+    usage: dict[str, object] = {
         "prompt_tokens": 100,
         "completion_tokens": 50,
     }
@@ -191,7 +180,7 @@ def test_build_usage_dict_without_cache_fields() -> None:
 
 
 def test_build_usage_dict_with_prompt_tokens_details() -> None:
-    usage = {
+    usage: dict[str, object] = {
         "prompt_tokens": 100,
         "completion_tokens": 50,
         "prompt_tokens_details": {"cached_tokens": 30},

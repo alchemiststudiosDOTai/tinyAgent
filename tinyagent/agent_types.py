@@ -418,7 +418,12 @@ class AgentState(TypedDict, total=False):
 
 
 class EventStream:
-    """Async event stream that yields events and returns a final result."""
+    """Async event stream that yields events and returns a final result.
+
+    Important: Some agent loops run in background tasks via `asyncio.create_task()`.
+    If that background task fails, we must propagate the exception to the consumer
+    of the stream. Otherwise callers awaiting `agent.prompt()` can hang forever.
+    """
 
     def __init__(
         self,
@@ -430,6 +435,7 @@ class EventStream:
         self._get_result = get_result
         self._result: list[AgentMessage] | None = None
         self._ended = False
+        self._exception: BaseException | None = None
 
     def push(self, event: AgentEvent) -> None:
         if self._ended:
@@ -440,12 +446,29 @@ class EventStream:
         self._result = result
         self._ended = True
 
+    def set_exception(self, exc: BaseException) -> None:
+        """Terminate the stream with an exception.
+
+        The next consumer read will raise `exc` once all already-queued events
+        are drained.
+        """
+
+        if self._ended:
+            return
+        self._exception = exc
+        self._ended = True
+
     def __aiter__(self) -> AsyncIterator[AgentEvent]:
         return self
 
     async def __anext__(self) -> AgentEvent:
-        if self._ended and self._queue.empty():
-            raise StopAsyncIteration
+        if self._queue.empty():
+            if self._exception is not None:
+                exc = self._exception
+                self._exception = None
+                raise exc
+            if self._ended:
+                raise StopAsyncIteration
 
         event = await self._queue.get()
         if self._is_end_event(event):
@@ -454,7 +477,13 @@ class EventStream:
         return event
 
     async def result(self) -> list[AgentMessage]:
-        while not self._ended:
+        while True:
+            if self._queue.empty() and self._exception is not None:
+                exc = self._exception
+                self._exception = None
+                raise exc
+            if self._ended and self._queue.empty():
+                break
             try:
                 await self.__anext__()
             except StopAsyncIteration:

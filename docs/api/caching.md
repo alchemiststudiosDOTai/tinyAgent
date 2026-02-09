@@ -19,12 +19,12 @@ Reduce token costs and latency by reusing cached prompt prefixes across conversa
 - Any workload where `input_tokens` dominates cost
 
 **Requirements**:
-- Anthropic models: cached prefix must be >= 1024 tokens
+- Anthropic models: cached prefix must meet the model’s minimum (e.g. Claude 3.5 Sonnet >= 1,024 tokens; Claude 3.5 Haiku >= 2,048 tokens)
 - OpenAI models: caching is automatic when the provider supports `prompt_tokens_details`
 
 **When NOT to use**:
 - Single-shot prompts with no follow-up turns
-- Very short system prompts (below the 1024-token threshold)
+- Very short system prompts (below the model’s cacheable-prefix minimum; caching will silently do nothing)
 
 ## How It Works
 
@@ -37,7 +37,7 @@ Turn 3:  [system_prompt + ... + user_msg_3]  -->  cache HIT on longer prefix  (c
 Two things are annotated with `cache_control: {"type": "ephemeral"}`:
 
 1. **System prompt** -- wrapped in a structured content block by the provider
-2. **Last user message** -- the final content block gets the breakpoint
+2. **Every user message** -- each user message’s final content block gets the breakpoint (this keeps the cached prefix stable across turns)
 
 The LLM provider caches everything up to the last breakpoint. On the next request, matching prefix tokens are read from cache instead of reprocessed.
 
@@ -109,7 +109,9 @@ async def add_cache_breakpoints(
 
 Transform function matching the `TransformContextFn` signature.
 
-Finds the last user message and annotates its final content block with `cache_control: {"type": "ephemeral"}`. Does not mutate the original messages.
+Annotates every user message’s final content block with `cache_control: {"type": "ephemeral"}`. Does not mutate the original messages.
+
+This is intentionally applied to *all* user messages (not just the last one) so that cache breakpoints remain stable across turns.
 
 **Parameters**:
 - `messages`: The conversation message list
@@ -140,5 +142,4 @@ When caching is active, the OpenRouter provider:
 
 1. Wraps the system prompt in a structured content block with `cache_control`
 2. Emits structured content blocks (not flattened strings) for user messages that carry `cache_control`
-3. Sends the `anthropic-beta: prompt-caching-2024-07-31` header for Anthropic models
-4. Parses cache stats from the final SSE usage chunk
+3. Parses cache stats from the final SSE usage chunk (note: OpenRouter may only report cache *reads* via `cached_tokens`, and not cache writes)

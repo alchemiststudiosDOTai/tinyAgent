@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import sys
 from dataclasses import dataclass, field
 from typing import TypeGuard, cast
 
@@ -30,13 +31,16 @@ from .agent_types import (
 )
 
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
-ANTHROPIC_BETA_HEADER = "prompt-caching-2024-07-31"
 
 
-def _is_anthropic_model(model_id: str) -> bool:
-    """Check if model ID refers to an Anthropic/Claude model."""
-    lower = model_id.lower()
-    return "anthropic" in lower or "claude" in lower
+def _openrouter_debug_enabled() -> bool:
+    return os.environ.get("TINYAGENT_OPENROUTER_DEBUG", "").lower() in {"1", "true", "yes"}
+
+
+def _openrouter_debug(msg: str) -> None:
+    if not _openrouter_debug_enabled():
+        return
+    print(f"[tinyagent.openrouter] {msg}", file=sys.stderr, flush=True)
 
 
 def _build_usage_dict(usage: dict[str, object]) -> JsonObject:
@@ -50,23 +54,29 @@ def _build_usage_dict(usage: dict[str, object]) -> JsonObject:
     if isinstance(details, dict):
         if not cache_read:
             cache_read = details.get("cached_tokens", 0)
+        if not cache_write:
+            # OpenRouter uses `cache_write_tokens` in prompt_tokens_details.
+            cache_write = details.get("cache_write_tokens", 0)
 
-    if not isinstance(input_tokens, (int, float)):
+    if not isinstance(input_tokens, int | float):
         input_tokens = 0
-    if not isinstance(output_tokens, (int, float)):
+    if not isinstance(output_tokens, int | float):
         output_tokens = 0
-    if not isinstance(cache_read, (int, float)):
+    if not isinstance(cache_read, int | float):
         cache_read = 0
-    if not isinstance(cache_write, (int, float)):
+    if not isinstance(cache_write, int | float):
         cache_write = 0
 
-    return cast(JsonObject, {
-        "input": int(input_tokens),
-        "output": int(output_tokens),
-        "cacheRead": int(cache_read),
-        "cacheWrite": int(cache_write),
-        "totalTokens": int(input_tokens) + int(output_tokens),
-    })
+    return cast(
+        JsonObject,
+        {
+            "input": int(input_tokens),
+            "output": int(output_tokens),
+            "cacheRead": int(cache_read),
+            "cacheWrite": int(cache_write),
+            "totalTokens": int(input_tokens) + int(output_tokens),
+        },
+    )
 
 
 def _context_has_cache_control(context: Context) -> bool:
@@ -88,6 +98,12 @@ class OpenRouterModel(Model):
     provider: str = "openrouter"
     id: str = "anthropic/claude-3.5-sonnet"
     api: str = "openrouter"
+
+    # OpenRouter-specific request controls.
+    # Passed through to the OpenRouter request body as `provider` / `route`.
+    # See: https://openrouter.ai/docs (provider routing)
+    openrouter_provider: dict[str, object] | None = None
+    openrouter_route: str | None = None
 
 
 def _convert_tools_to_openai_format(
@@ -127,10 +143,7 @@ def _extract_text_parts(blocks: list[TextContent | dict[str, object]]) -> list[s
 
 def _any_block_has_cache_control(blocks: list[TextContent | dict[str, object]]) -> bool:
     """Check if any content block carries a cache_control directive."""
-    for block in blocks:
-        if isinstance(block, dict) and block.get("cache_control"):
-            return True
-    return False
+    return any(isinstance(block, dict) and block.get("cache_control") for block in blocks)
 
 
 def _convert_content_blocks_structured(
@@ -428,6 +441,121 @@ def _parse_openrouter_sse_line(line: str) -> _OpenRouterSseEvent | None:
     return _OpenRouterSseEvent(done=False, delta=delta, finish_reason=finish_reason, usage=usage)
 
 
+def _add_openrouter_system_prompt(
+    messages: list[dict[str, object]],
+    system_prompt: str | None,
+    caching_active: bool,
+) -> None:
+    if not system_prompt:
+        return
+
+    if caching_active:
+        messages.insert(
+            0,
+            {
+                "role": "system",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": system_prompt,
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                ],
+            },
+        )
+        return
+
+    messages.insert(0, {"role": "system", "content": system_prompt})
+
+
+def _apply_openrouter_routing_controls(
+    request_body: dict[str, object],
+    model: OpenRouterModel,
+) -> None:
+    if isinstance(model.openrouter_provider, dict):
+        request_body["provider"] = model.openrouter_provider
+
+    route = model.openrouter_route
+    if isinstance(route, str) and route:
+        request_body["route"] = route
+
+
+def _build_openrouter_headers(api_key: str) -> dict[str, str]:
+    return {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+
+
+def _debug_openrouter_request(
+    model_id: str,
+    caching_active: bool,
+    headers: dict[str, str],
+    request_body: dict[str, object],
+) -> None:
+    if not _openrouter_debug_enabled():
+        return
+
+    redacted_headers = {k: v for k, v in headers.items() if k.lower() != "authorization"}
+    _openrouter_debug(f"model={model_id} caching_active={caching_active}")
+    _openrouter_debug(f"request headers={json.dumps(redacted_headers, indent=2)}")
+    _openrouter_debug(f"request body={json.dumps(request_body, indent=2)}")
+
+
+async def _raise_for_openrouter_error(http_response: httpx.Response) -> None:
+    if http_response.status_code == 200:
+        return
+
+    error_data = await http_response.aread()
+    raise RuntimeError(f"OpenRouter error {http_response.status_code}: {error_data.decode()}")
+
+
+def _debug_openrouter_response_headers(http_response: httpx.Response) -> None:
+    if not _openrouter_debug_enabled():
+        return
+
+    _openrouter_debug(
+        "response headers=" + json.dumps({k: v for k, v in http_response.headers.items()}, indent=2)
+    )
+
+
+async def _consume_openrouter_sse(
+    http_response: httpx.Response,
+    response: OpenRouterStreamResponse,
+    partial: AssistantMessage,
+    tool_calls_map: dict[int, dict[str, str]],
+) -> None:
+    current_text = ""
+    debug = _openrouter_debug_enabled()
+
+    async for line in http_response.aiter_lines():
+        parsed = _parse_openrouter_sse_line(line)
+        if parsed is None:
+            continue
+        if parsed.done:
+            break
+
+        delta = parsed.delta or {}
+        current_text = _handle_text_delta(delta, current_text, partial, response)
+        _handle_tool_call_delta(delta, tool_calls_map, partial, response)
+
+        if parsed.usage:
+            if debug:
+                clip = line if len(line) <= 2000 else (line[:2000] + "…")
+                _openrouter_debug(f"raw SSE line (usage chunk)={clip}")
+                _openrouter_debug(f"parsed usage dict={json.dumps(parsed.usage, indent=2)}")
+
+            partial["usage"] = _build_usage_dict(parsed.usage)
+
+            if debug:
+                _openrouter_debug(f"normalized usage={json.dumps(partial['usage'], indent=2)}")
+
+        if parsed.finish_reason:
+            partial["stop_reason"] = (
+                "tool_calls" if parsed.finish_reason == "tool_calls" else "complete"
+            )
+
+
 async def stream_openrouter(
     model: Model,
     context: Context,
@@ -443,27 +571,16 @@ async def stream_openrouter(
 
     # Detect if any message carries cache_control (prompt caching is active)
     caching_active = _context_has_cache_control(context)
-
-    if context.system_prompt:
-        if caching_active:
-            messages.insert(
-                0,
-                {
-                    "role": "system",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": context.system_prompt,
-                            "cache_control": {"type": "ephemeral"},
-                        }
-                    ],
-                },
-            )
-        else:
-            messages.insert(0, {"role": "system", "content": context.system_prompt})
+    _add_openrouter_system_prompt(messages, context.system_prompt, caching_active)
 
     tools = _convert_tools_to_openai_format(context.tools)
     request_body = _build_request_body(model.id, messages, tools, options)
+
+    # OpenRouter routing controls (optional)
+    _apply_openrouter_routing_controls(request_body, cast(OpenRouterModel, model))
+
+    headers = _build_openrouter_headers(api_key)
+    _debug_openrouter_request(model.id, caching_active, headers, request_body)
 
     response = OpenRouterStreamResponse()
     partial: AssistantMessage = {
@@ -472,16 +589,7 @@ async def stream_openrouter(
         "stop_reason": None,
         "timestamp": int(asyncio.get_event_loop().time() * 1000),
     }
-
-    current_text = ""
     tool_calls_map: dict[int, dict[str, str]] = {}
-
-    headers: dict[str, str] = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-    if caching_active and _is_anthropic_model(model.id):
-        headers["anthropic-beta"] = ANTHROPIC_BETA_HEADER
 
     async with httpx.AsyncClient() as client:
         async with client.stream(
@@ -491,32 +599,11 @@ async def stream_openrouter(
             json=request_body,
             timeout=None,
         ) as http_response:
-            if http_response.status_code != 200:
-                error_data = await http_response.aread()
-                raise RuntimeError(
-                    f"OpenRouter error {http_response.status_code}: {error_data.decode()}"
-                )
+            await _raise_for_openrouter_error(http_response)
+            _debug_openrouter_response_headers(http_response)
 
             response._events.append({"type": "start", "partial": partial})
-
-            async for line in http_response.aiter_lines():
-                parsed = _parse_openrouter_sse_line(line)
-                if parsed is None:
-                    continue
-                if parsed.done:
-                    break
-
-                delta = parsed.delta or {}
-                current_text = _handle_text_delta(delta, current_text, partial, response)
-                _handle_tool_call_delta(delta, tool_calls_map, partial, response)
-
-                if parsed.usage:
-                    partial["usage"] = _build_usage_dict(parsed.usage)
-
-                if parsed.finish_reason:
-                    partial["stop_reason"] = (
-                        "tool_calls" if parsed.finish_reason == "tool_calls" else "complete"
-                    )
+            await _consume_openrouter_sse(http_response, response, partial, tool_calls_map)
 
     _finalize_tool_calls(tool_calls_map, partial)
     response._final_message = partial

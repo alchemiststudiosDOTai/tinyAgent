@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from typing import TypeAlias, TypeGuard, TypeVar, cast
 
 from .agent_loop import agent_loop, agent_loop_continue
-from .caching import add_cache_breakpoints
 from .agent_types import (
     AgentContext,
     AgentEndEvent,
@@ -26,6 +25,7 @@ from .agent_types import (
     ThinkingBudgets,
     ThinkingLevel,
 )
+from .caching import add_cache_breakpoints
 
 TDefault = TypeVar("TDefault")
 
@@ -255,12 +255,14 @@ def _build_transform_context(
         return user_transform
     if user_transform is None:
         return add_cache_breakpoints
+
     # Compose: run caching transform first, then user transform
     async def _composed(
         messages: list[AgentMessage], signal: asyncio.Event | None
     ) -> list[AgentMessage]:
         messages = await add_cache_breakpoints(messages, signal)
         return await user_transform(messages, signal)
+
     return _composed
 
 

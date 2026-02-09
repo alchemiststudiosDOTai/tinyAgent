@@ -383,7 +383,15 @@ def agent_loop(
 
         await run_loop(current_context, new_messages, config, signal, stream, stream_fn)
 
-    asyncio.create_task(run())
+    task = asyncio.create_task(run())
+
+    def _done(t: asyncio.Task[None]) -> None:
+        try:
+            t.result()
+        except Exception as exc:  # noqa: BLE001
+            stream.set_exception(exc)
+
+    task.add_done_callback(_done)
 
     return stream
 
@@ -425,6 +433,14 @@ def agent_loop_continue(
 
         await run_loop(current_context, new_messages, config, signal, stream, stream_fn)
 
-    asyncio.create_task(run())
+    task = asyncio.create_task(run())
+
+    def _done(t: asyncio.Task[None]) -> None:
+        try:
+            t.result()
+        except Exception as exc:  # noqa: BLE001
+            stream.set_exception(exc)
+
+    task.add_done_callback(_done)
 
     return stream

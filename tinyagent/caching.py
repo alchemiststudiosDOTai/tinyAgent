@@ -11,10 +11,21 @@ from .agent_types import AgentMessage, CacheControl, UserMessage
 EPHEMERAL_CACHE: CacheControl = {"type": "ephemeral"}
 
 
-def _annotate_last_user_message(messages: list[AgentMessage]) -> list[AgentMessage]:
-    """Find the last user message and annotate its final content block."""
-    for i in range(len(messages) - 1, -1, -1):
-        msg = messages[i]
+def _annotate_user_messages(messages: list[AgentMessage]) -> list[AgentMessage]:
+    """Annotate each user message's final content block with cache_control.
+
+    This is intentionally applied to *all* user messages (not just the last one)
+    so that cache breakpoints remain stable across turns.
+
+    If we only annotate the last user message, then on the next turn that same
+    message moves earlier in the history and would lose its cache_control marker,
+    which changes the serialized prompt prefix and prevents cache hits.
+    """
+
+    changed = False
+    new_messages = list(messages)
+
+    for i, msg in enumerate(messages):
         if msg.get("role") != "user":
             continue
 
@@ -26,18 +37,17 @@ def _annotate_last_user_message(messages: list[AgentMessage]) -> list[AgentMessa
         if not isinstance(last_block, dict):
             continue
 
+        # Avoid mutating the original structures.
         annotated_block = copy.copy(last_block)
         annotated_block["cache_control"] = EPHEMERAL_CACHE
 
         new_content = list(content)
         new_content[-1] = annotated_block
 
-        new_msg = cast(UserMessage, {**msg, "content": new_content})
-        messages = list(messages)
-        messages[i] = new_msg
-        return messages
+        new_messages[i] = cast(UserMessage, {**msg, "content": new_content})
+        changed = True
 
-    return messages
+    return new_messages if changed else messages
 
 
 async def add_cache_breakpoints(
@@ -50,9 +60,9 @@ async def add_cache_breakpoints(
     1. The system prompt's content blocks (handled at the Context level,
        not here -- system prompt is a plain string, so the provider must
        handle wrapping it into a structured block with cache_control).
-    2. The last user message's final content block with
+    2. Each user message’s final content block with
        cache_control: {"type": "ephemeral"}.
 
     Matches the TransformContextFn signature.
     """
-    return _annotate_last_user_message(messages)
+    return _annotate_user_messages(messages)

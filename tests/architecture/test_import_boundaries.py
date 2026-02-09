@@ -35,6 +35,7 @@ LAYERS = [
         "openrouter_provider",
         "alchemy_provider",
         "proxy_event_handlers",
+        "caching",
         independent=True,
     ),
     grimp.Layer("agent_types"),
@@ -50,6 +51,7 @@ GOVERNED_MODULES = {
     f"{PKG}.openrouter_provider",
     f"{PKG}.proxy",
     f"{PKG}.proxy_event_handlers",
+    f"{PKG}.caching",
 }
 
 
