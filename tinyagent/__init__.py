@@ -4,7 +4,6 @@ A small agent framework for building LLM-powered applications.
 """
 
 from .agent import Agent, AgentOptions, default_convert_to_llm, extract_text
-from .caching import add_cache_breakpoints
 from .agent_loop import (
     agent_loop,
     agent_loop_continue,
@@ -115,8 +114,6 @@ __all__ = [
     "AgentState",
     "EventStream",
     "StreamFn",
-    # Caching
-    "add_cache_breakpoints",
     # Proxy
     "ProxyStreamOptions",
     "ProxyStreamResponse",
