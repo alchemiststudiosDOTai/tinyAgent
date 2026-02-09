@@ -134,7 +134,8 @@ The `usage` dict on assistant messages includes cache fields:
 **Provider differences**:
 - Anthropic reports `cache_creation_input_tokens` and `cache_read_input_tokens`
 - OpenAI reports `prompt_tokens_details.cached_tokens` (maps to `cacheRead`)
-- `cacheWrite` may be 0 when the provider does not report write stats
+- OpenRouter may surface either Anthropic-style or OpenAI-style cache fields depending on the upstream provider
+- `cacheWrite` may be 0 when the provider does not report write stats (or reports it inconsistently)
 
 ## Provider Behavior
 
@@ -142,4 +143,4 @@ When caching is active, the OpenRouter provider:
 
 1. Wraps the system prompt in a structured content block with `cache_control`
 2. Emits structured content blocks (not flattened strings) for user messages that carry `cache_control`
-3. Parses cache stats from the final SSE usage chunk (note: OpenRouter may only report cache *reads* via `cached_tokens`, and not cache writes)
+3. Parses cache stats from the final SSE usage chunk (OpenRouter reporting can vary by upstream; rely primarily on `cacheRead`, as `cacheWrite` may be 0/unreported)
