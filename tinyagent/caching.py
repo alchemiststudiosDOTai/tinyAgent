@@ -6,16 +6,9 @@ import asyncio
 import copy
 from typing import cast
 
-from .agent_types import AgentMessage, CacheControl, TextContent, UserMessage
+from .agent_types import AgentMessage, CacheControl, UserMessage
 
 EPHEMERAL_CACHE: CacheControl = {"type": "ephemeral"}
-
-
-def _annotate_system_prompt_block(content_block: TextContent) -> TextContent:
-    """Add cache_control to a system-prompt text block."""
-    block = copy.copy(content_block)
-    block["cache_control"] = EPHEMERAL_CACHE
-    return block
 
 
 def _annotate_last_user_message(messages: list[AgentMessage]) -> list[AgentMessage]:
