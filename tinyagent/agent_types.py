@@ -45,12 +45,19 @@ class ThinkingLevel(str, Enum):
     XHIGH = "xhigh"
 
 
+class CacheControl(TypedDict, total=False):
+    """Cache control directive for Anthropic prompt caching."""
+
+    type: str
+
+
 class TextContent(TypedDict, total=False):
     """Text content block."""
 
     type: Literal["text"]
     text: str
     text_signature: str | None
+    cache_control: CacheControl
 
 
 class ImageContent(TypedDict, total=False):
@@ -67,6 +74,7 @@ class ThinkingContent(TypedDict, total=False):
     type: Literal["thinking"]
     thinking: str
     thinking_signature: str | None
+    cache_control: CacheControl
 
 
 class ToolCallContent(TypedDict, total=False):

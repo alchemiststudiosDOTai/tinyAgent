@@ -30,6 +30,55 @@ from .agent_types import (
 )
 
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+ANTHROPIC_BETA_HEADER = "prompt-caching-2024-07-31"
+
+
+def _is_anthropic_model(model_id: str) -> bool:
+    """Check if model ID refers to an Anthropic/Claude model."""
+    lower = model_id.lower()
+    return "anthropic" in lower or "claude" in lower
+
+
+def _build_usage_dict(usage: dict[str, object]) -> JsonObject:
+    """Build a normalized usage dict from API response usage, including cache stats."""
+    input_tokens = usage.get("prompt_tokens", 0)
+    output_tokens = usage.get("completion_tokens", 0)
+    cache_read = usage.get("cache_read_input_tokens", 0)
+    cache_write = usage.get("cache_creation_input_tokens", 0)
+    # OpenRouter may also use prompt_tokens_details for cache info
+    details = usage.get("prompt_tokens_details")
+    if isinstance(details, dict):
+        if not cache_read:
+            cache_read = details.get("cached_tokens", 0)
+
+    if not isinstance(input_tokens, (int, float)):
+        input_tokens = 0
+    if not isinstance(output_tokens, (int, float)):
+        output_tokens = 0
+    if not isinstance(cache_read, (int, float)):
+        cache_read = 0
+    if not isinstance(cache_write, (int, float)):
+        cache_write = 0
+
+    return cast(JsonObject, {
+        "input": int(input_tokens),
+        "output": int(output_tokens),
+        "cacheRead": int(cache_read),
+        "cacheWrite": int(cache_write),
+        "totalTokens": int(input_tokens) + int(output_tokens),
+    })
+
+
+def _context_has_cache_control(context: Context) -> bool:
+    """Check if any message in the context has cache_control on a content block."""
+    for msg in context.messages:
+        content = msg.get("content")
+        if not isinstance(content, list):
+            continue
+        for block in content:
+            if isinstance(block, dict) and block.get("cache_control"):
+                return True
+    return False
 
 
 @dataclass
@@ -76,9 +125,36 @@ def _extract_text_parts(blocks: list[TextContent | dict[str, object]]) -> list[s
     return text_parts
 
 
+def _any_block_has_cache_control(blocks: list[TextContent | dict[str, object]]) -> bool:
+    """Check if any content block carries a cache_control directive."""
+    for block in blocks:
+        if isinstance(block, dict) and block.get("cache_control"):
+            return True
+    return False
+
+
+def _convert_content_blocks_structured(
+    blocks: list[TextContent | dict[str, object]],
+) -> list[dict[str, object]]:
+    """Convert content blocks to structured format preserving cache_control."""
+    result: list[dict[str, object]] = []
+    for block in blocks:
+        if not isinstance(block, dict) or block.get("type") != "text":
+            continue
+        entry: dict[str, object] = {"type": "text", "text": block.get("text", "")}
+        cc = block.get("cache_control")
+        if cc:
+            entry["cache_control"] = cc
+        result.append(entry)
+    return result
+
+
 def _convert_user_message(msg: UserMessage) -> dict[str, object]:
     content = msg.get("content", [])
-    text_parts = _extract_text_parts(cast(list[TextContent | dict[str, object]], content))
+    blocks = cast(list[TextContent | dict[str, object]], content)
+    if _any_block_has_cache_control(blocks):
+        return {"role": "user", "content": _convert_content_blocks_structured(blocks)}
+    text_parts = _extract_text_parts(blocks)
     return {"role": "user", "content": "\n".join(text_parts)}
 
 
@@ -292,6 +368,7 @@ class _OpenRouterSseEvent:
     done: bool
     delta: dict[str, object] | None = None
     finish_reason: str | None = None
+    usage: dict[str, object] | None = None
 
 
 def _extract_sse_data(line: str) -> str | None:
@@ -300,7 +377,9 @@ def _extract_sse_data(line: str) -> str | None:
     return line[6:].strip()
 
 
-def _parse_openrouter_chunk(data: str) -> tuple[dict[str, object], str | None] | None:
+def _parse_openrouter_chunk(
+    data: str,
+) -> tuple[dict[str, object], str | None, dict[str, object] | None] | None:
     try:
         chunk_raw = json.loads(data)
     except json.JSONDecodeError:
@@ -309,8 +388,15 @@ def _parse_openrouter_chunk(data: str) -> tuple[dict[str, object], str | None] |
     if not isinstance(chunk_raw, dict):
         return None
 
+    # Extract usage from the top-level chunk (present in final chunk)
+    usage_raw = chunk_raw.get("usage")
+    usage = cast(dict[str, object], usage_raw) if isinstance(usage_raw, dict) else None
+
     choices = chunk_raw.get("choices")
     if not isinstance(choices, list) or not choices:
+        # Some chunks only have usage, no choices
+        if usage:
+            return {}, None, usage
         return None
 
     choice0 = choices[0]
@@ -323,7 +409,7 @@ def _parse_openrouter_chunk(data: str) -> tuple[dict[str, object], str | None] |
     finish_raw = choice0.get("finish_reason")
     finish_reason = finish_raw if isinstance(finish_raw, str) and finish_raw else None
 
-    return delta, finish_reason
+    return delta, finish_reason, usage
 
 
 def _parse_openrouter_sse_line(line: str) -> _OpenRouterSseEvent | None:
@@ -338,8 +424,8 @@ def _parse_openrouter_sse_line(line: str) -> _OpenRouterSseEvent | None:
     if parsed is None:
         return None
 
-    delta, finish_reason = parsed
-    return _OpenRouterSseEvent(done=False, delta=delta, finish_reason=finish_reason)
+    delta, finish_reason, usage = parsed
+    return _OpenRouterSseEvent(done=False, delta=delta, finish_reason=finish_reason, usage=usage)
 
 
 async def stream_openrouter(
@@ -354,8 +440,27 @@ async def stream_openrouter(
         raise ValueError("OpenRouter API key required")
 
     messages = _convert_messages_to_openai_format(context.messages)
+
+    # Detect if any message carries cache_control (prompt caching is active)
+    caching_active = _context_has_cache_control(context)
+
     if context.system_prompt:
-        messages.insert(0, {"role": "system", "content": context.system_prompt})
+        if caching_active:
+            messages.insert(
+                0,
+                {
+                    "role": "system",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": context.system_prompt,
+                            "cache_control": {"type": "ephemeral"},
+                        }
+                    ],
+                },
+            )
+        else:
+            messages.insert(0, {"role": "system", "content": context.system_prompt})
 
     tools = _convert_tools_to_openai_format(context.tools)
     request_body = _build_request_body(model.id, messages, tools, options)
@@ -371,14 +476,18 @@ async def stream_openrouter(
     current_text = ""
     tool_calls_map: dict[int, dict[str, str]] = {}
 
+    headers: dict[str, str] = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    if caching_active and _is_anthropic_model(model.id):
+        headers["anthropic-beta"] = ANTHROPIC_BETA_HEADER
+
     async with httpx.AsyncClient() as client:
         async with client.stream(
             "POST",
             OPENROUTER_API_URL,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
+            headers=headers,
             json=request_body,
             timeout=None,
         ) as http_response:
@@ -400,6 +509,9 @@ async def stream_openrouter(
                 delta = parsed.delta or {}
                 current_text = _handle_text_delta(delta, current_text, partial, response)
                 _handle_tool_call_delta(delta, tool_calls_map, partial, response)
+
+                if parsed.usage:
+                    partial["usage"] = _build_usage_dict(parsed.usage)
 
                 if parsed.finish_reason:
                     partial["stop_reason"] = (
