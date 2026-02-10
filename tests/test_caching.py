@@ -167,6 +167,8 @@ def test_build_usage_dict_with_cache_fields() -> None:
     assert result["cacheWrite"] == 80
     assert result["cacheRead"] == 20
     assert result["totalTokens"] == 150
+    assert result["prompt_tokens"] == 100
+    assert result["completion_tokens"] == 50
 
 
 def test_build_usage_dict_without_cache_fields() -> None:
@@ -177,6 +179,8 @@ def test_build_usage_dict_without_cache_fields() -> None:
     result = _build_usage_dict(usage)
     assert result["cacheRead"] == 0
     assert result["cacheWrite"] == 0
+    assert result["prompt_tokens"] == 100
+    assert result["completion_tokens"] == 50
 
 
 def test_build_usage_dict_with_prompt_tokens_details() -> None:
@@ -187,3 +191,5 @@ def test_build_usage_dict_with_prompt_tokens_details() -> None:
     }
     result = _build_usage_dict(usage)
     assert result["cacheRead"] == 30
+    assert result["prompt_tokens"] == 100
+    assert result["completion_tokens"] == 50

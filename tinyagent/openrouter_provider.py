@@ -75,6 +75,9 @@ def _build_usage_dict(usage: dict[str, object]) -> JsonObject:
             "cacheRead": int(cache_read),
             "cacheWrite": int(cache_write),
             "totalTokens": int(input_tokens) + int(output_tokens),
+            # raw aliases for downstream consumers (OpenAI-compatible)
+            "prompt_tokens": int(input_tokens),
+            "completion_tokens": int(output_tokens),
         },
     )
 
