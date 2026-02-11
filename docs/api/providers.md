@@ -146,6 +146,27 @@ async def stream_alchemy_openrouter(
 Convenience alias for Rust-backed OpenRouter/OpenAI-compatible streaming.
 Works with `OpenRouterModel` (including `base_url` overrides).
 
+**Live-verified compatibility**:
+- OpenRouter default endpoint via Rust binding
+- Chutes endpoint (`https://llm.chutes.ai/v1/chat/completions`) via Rust binding with `OpenRouterModel(base_url=...)`
+
+**Rust + Chutes example**:
+```python
+from tinyagent import OpenRouterModel
+from tinyagent.alchemy_provider import stream_alchemy_openrouter
+
+model = OpenRouterModel(
+    id="Qwen/Qwen3-32B",
+    base_url="https://llm.chutes.ai/v1/chat/completions",
+)
+
+response = await stream_alchemy_openrouter(
+    model,
+    context,
+    {"api_key": chutes_api_key},
+)
+```
+
 **Requirements**:
 ```bash
 pip install maturin

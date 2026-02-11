@@ -3,8 +3,11 @@ title: OpenAI-Compatible Endpoints via OpenRouterModel
 description: Use OpenRouterModel.base_url to target OpenAI-compatible /chat/completions endpoints (OpenRouter, OpenAI, Chutes, local servers) without custom HTTP wrappers.
 ontological_relations:
   - extends: providers.md#OpenRouter-Provider
+  - extends: providers.md#Alchemy-Provider
   - implemented_by: ../../tinyagent/openrouter_provider.py
+  - implemented_by: ../../tinyagent/alchemy_provider.py
   - validated_by: ../../tests/test_openrouter_provider.py
+  - validated_by: ../../tests/test_alchemy_provider.py
   - composes_with: agent.md#AgentOptions
 ---
 
@@ -12,13 +15,16 @@ ontological_relations:
 
 ## Summary
 
-TinyAgent’s native OpenRouter model config now supports a `base_url` override on `OpenRouterModel`.
+TinyAgent’s native OpenRouter model config supports a `base_url` override on `OpenRouterModel`.
 You can use this with both provider paths:
 
 - `stream_openrouter` (pure Python)
 - `stream_alchemy_openrouter` / `stream_alchemy_openai_completions` (Rust binding via PyO3)
 
 This means you can target **any OpenAI-compatible** `/chat/completions` endpoint without maintaining a custom wrapper.
+
+This has been live-verified with both Python and Rust paths, including Chutes
+(`https://llm.chutes.ai/v1/chat/completions`) using `Qwen/Qwen3-32B`.
 
 This unifies behavior in one provider path:
 
@@ -33,6 +39,8 @@ Read this guide when you need to:
 - use TinyAgent with **non-OpenRouter OpenAI-compatible backends**
 - point TinyAgent to **direct OpenAI** or **hosted compatible providers**
 - run TinyAgent against **self-hosted/local** inference endpoints (vLLM, LM Studio proxy, etc.)
+- use the Rust binding path with OpenRouterModel (`stream_alchemy_openrouter`)
+- confirm compatibility for Chutes or other hosted OpenAI-compatible gateways
 - delete provider-specific wrappers and standardize on TinyAgent’s native provider implementation
 
 ## What Changed
@@ -43,11 +51,21 @@ Read this guide when you need to:
 base_url: str = "https://openrouter.ai/api/v1/chat/completions"
 ```
 
-And `stream_openrouter` now:
+And the providers now behave as follows:
+
+### `stream_openrouter` (Python path)
 
 1. resolves URL from `model.base_url` (fallback: OpenRouter default)
 2. validates that `base_url` is a non-empty string
 3. posts streaming requests to that resolved URL
+
+### `stream_alchemy_openai_completions` / `stream_alchemy_openrouter` (Rust path)
+
+1. accepts `OpenRouterModel` and `OpenAICompatModel`
+2. resolves URL from `model.base_url` with the same non-empty validation behavior
+3. supports endpoint-aware API key fallback
+   - `OPENAI_API_KEY` when `provider == "openai"`
+   - `OPENROUTER_API_KEY` when `provider == "openrouter"`
 
 ## Endpoint Contract
 
@@ -108,6 +126,8 @@ model = OpenRouterModel(
 
 ### Rust binding path (PyO3)
 
+Using `OpenRouterModel` (same model config object as Python path):
+
 ```python
 from tinyagent import OpenRouterModel
 from tinyagent.alchemy_provider import stream_alchemy_openrouter
@@ -117,7 +137,29 @@ model = OpenRouterModel(
     base_url="https://llm.chutes.ai/v1/chat/completions",
 )
 
-response = await stream_alchemy_openrouter(model, context, {"api_key": chutes_api_key})
+response = await stream_alchemy_openrouter(
+    model,
+    context,
+    {"api_key": chutes_api_key, "temperature": 0, "max_tokens": 256},
+)
+```
+
+Using `OpenAICompatModel` directly:
+
+```python
+from tinyagent.alchemy_provider import OpenAICompatModel, stream_alchemy_openai_completions
+
+model = OpenAICompatModel(
+    provider="openrouter",  # or "openai" / custom label used in your integration
+    id="Qwen/Qwen3-32B",
+    base_url="https://llm.chutes.ai/v1/chat/completions",
+)
+
+response = await stream_alchemy_openai_completions(
+    model,
+    context,
+    {"api_key": chutes_api_key},
+)
 ```
 
 ## API Key Behavior
@@ -166,7 +208,28 @@ Validated against:
 - OpenRouter default endpoint (Python provider)
 - OpenRouter endpoint via explicit `base_url` (Python provider)
 - Chutes endpoint (`https://llm.chutes.ai/v1/chat/completions`) with `Qwen/Qwen3-32B` (Python provider)
-- OpenRouter default endpoint via Rust binding (`stream_alchemy_openai_completions` + `OpenRouterModel`)
+- OpenRouter default endpoint via Rust binding (`stream_alchemy_openai_completions`)
+- Chutes endpoint via Rust binding (`stream_alchemy_openrouter` + `OpenRouterModel`)
+
+### Verified compatibility matrix
+
+| Provider path | Endpoint | Model | Status |
+|---|---|---|---|
+| Python (`stream_openrouter`) | OpenRouter default | `openai/gpt-4o-mini` | ✅ |
+| Python (`stream_openrouter`) | Chutes | `Qwen/Qwen3-32B` | ✅ |
+| Rust (`stream_alchemy_openai_completions`) | OpenRouter default | `openai/gpt-4o-mini` | ✅ |
+| Rust (`stream_alchemy_openrouter`) | Chutes | `Qwen/Qwen3-32B` | ✅ |
+
+## Observed Backend Differences
+
+Some reasoning-capable models (for example `Qwen/Qwen3-32B` on Chutes) may include
+`<think> ... </think>` content before the final answer in text output.
+
+This is model/backend behavior, not a TinyAgent provider parsing bug. TinyAgent streams
+and returns what the backend emits.
+
+If you need plain final answers only, enforce that in prompts or add a post-processing
+step in your app layer.
 
 ## Troubleshooting
 

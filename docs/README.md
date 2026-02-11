@@ -245,7 +245,7 @@ agent.set_model(
 
 - [Architecture](ARCHITECTURE.md): System design and component interactions
 - [API Reference](api/): Detailed module documentation
-- [OpenAI-Compatible Endpoints](api/openai-compatible-endpoints.md): Using `OpenRouterModel.base_url` with OpenRouter, OpenAI, Chutes, and local compatible backends
+- [OpenAI-Compatible Endpoints](api/openai-compatible-endpoints.md): Using `OpenRouterModel.base_url` with OpenRouter, OpenAI, Chutes, and local compatible backends (Python and Rust binding paths)
 
 ## Project Structure
 
