@@ -22,6 +22,7 @@ Complete API documentation for the tinyagent package.
 | Module | Description |
 |--------|-------------|
 | [providers](providers.md) | OpenRouter, Alchemy (Rust), and Proxy providers |
+| [openai-compatible-endpoints](openai-compatible-endpoints.md) | Using `OpenRouterModel.base_url` with OpenAI-compatible endpoints |
 
 ## Quick Reference
 

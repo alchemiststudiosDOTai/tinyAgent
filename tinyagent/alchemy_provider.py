@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib
+import os
 from dataclasses import dataclass
 from typing import Any, Protocol, cast
 
@@ -44,6 +45,8 @@ class _AlchemyModule(Protocol):
 
 
 _ALCHEMY_MODULE: _AlchemyModule | None = None
+
+DEFAULT_OPENAI_COMPAT_CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 
 def _get_alchemy_module() -> _AlchemyModule:
@@ -71,7 +74,7 @@ class OpenAICompatModel(Model):
     api: str = "openai-completions"
 
     # additional fields used by the Rust binding
-    base_url: str = "https://openrouter.ai/api/v1/chat/completions"
+    base_url: str = DEFAULT_OPENAI_COMPAT_CHAT_COMPLETIONS_URL
     name: str | None = None
     headers: dict[str, str] | None = None
 
@@ -127,6 +130,27 @@ def _convert_tools(tools: list[AgentTool] | None) -> list[dict[str, Any]] | None
     return out
 
 
+def _resolve_base_url(model: Model) -> str:
+    base_url = getattr(model, "base_url", DEFAULT_OPENAI_COMPAT_CHAT_COMPLETIONS_URL)
+    if not isinstance(base_url, str) or not base_url.strip():
+        raise ValueError("Model `base_url` must be a non-empty string")
+    return base_url.strip()
+
+
+def _resolve_api_key(model: Model, options: SimpleStreamOptions) -> str | None:
+    explicit = options.get("api_key")
+    if explicit:
+        return explicit
+
+    provider = model.provider.strip().lower() if isinstance(model.provider, str) else ""
+    if provider == "openai":
+        return os.environ.get("OPENAI_API_KEY")
+    if provider == "openrouter":
+        return os.environ.get("OPENROUTER_API_KEY")
+
+    return None
+
+
 async def stream_alchemy_openai_completions(
     model: Model,
     context: Context,
@@ -136,9 +160,7 @@ async def stream_alchemy_openai_completions(
 
     alchemy_llm_py = _get_alchemy_module()
 
-    base_url = getattr(model, "base_url", None)
-    if not isinstance(base_url, str) or not base_url:
-        raise ValueError("Model must have a non-empty `base_url` attribute")
+    base_url = _resolve_base_url(model)
 
     model_dict: dict[str, Any] = {
         "id": model.id,
@@ -158,7 +180,7 @@ async def stream_alchemy_openai_completions(
     }
 
     options_dict: dict[str, Any] = {
-        "api_key": options.get("api_key"),
+        "api_key": _resolve_api_key(model, options),
         "temperature": options.get("temperature"),
         "max_tokens": options.get("max_tokens"),
     }
@@ -172,3 +194,12 @@ async def stream_alchemy_openai_completions(
     )
 
     return AlchemyStreamResponse(_handle=handle)
+
+
+async def stream_alchemy_openrouter(
+    model: Model,
+    context: Context,
+    options: SimpleStreamOptions,
+) -> AlchemyStreamResponse:
+    """Rust-backed stream compatible with OpenRouterModel and base_url overrides."""
+    return await stream_alchemy_openai_completions(model, context, options)

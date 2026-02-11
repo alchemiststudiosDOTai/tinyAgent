@@ -31,6 +31,8 @@ agent = Agent(
 # Configure
 agent.set_system_prompt("You are a helpful assistant.")
 agent.set_model(OpenRouterModel(id="anthropic/claude-3.5-sonnet"))
+# Optional: use any OpenAI-compatible /chat/completions endpoint
+# agent.set_model(OpenRouterModel(id="gpt-4o-mini", base_url="https://api.openai.com/v1/chat/completions"))
 
 # Simple prompt
 async def main():
@@ -243,6 +245,7 @@ agent.set_model(
 
 - [Architecture](ARCHITECTURE.md): System design and component interactions
 - [API Reference](api/): Detailed module documentation
+- [OpenAI-Compatible Endpoints](api/openai-compatible-endpoints.md): Using `OpenRouterModel.base_url` with OpenRouter, OpenAI, Chutes, and local compatible backends
 
 ## Project Structure
 

@@ -102,6 +102,10 @@ class OpenRouterModel(Model):
     id: str = "anthropic/claude-3.5-sonnet"
     api: str = "openrouter"
 
+    # OpenAI-compatible `/chat/completions` endpoint.
+    # Defaults to OpenRouter, but can target any compatible backend.
+    base_url: str = OPENROUTER_API_URL
+
     # OpenRouter-specific request controls.
     # Passed through to the OpenRouter request body as `provider` / `route`.
     # See: https://openrouter.ai/docs (provider routing)
@@ -483,6 +487,13 @@ def _apply_openrouter_routing_controls(
         request_body["route"] = route
 
 
+def _resolve_openrouter_api_url(model: Model) -> str:
+    base_url = getattr(model, "base_url", OPENROUTER_API_URL)
+    if not isinstance(base_url, str) or not base_url.strip():
+        raise ValueError("Model `base_url` must be a non-empty string")
+    return base_url.strip()
+
+
 def _build_openrouter_headers(api_key: str) -> dict[str, str]:
     return {
         "Authorization": f"Bearer {api_key}",
@@ -492,6 +503,7 @@ def _build_openrouter_headers(api_key: str) -> dict[str, str]:
 
 def _debug_openrouter_request(
     model_id: str,
+    api_url: str,
     caching_active: bool,
     headers: dict[str, str],
     request_body: dict[str, object],
@@ -500,7 +512,7 @@ def _debug_openrouter_request(
         return
 
     redacted_headers = {k: v for k, v in headers.items() if k.lower() != "authorization"}
-    _openrouter_debug(f"model={model_id} caching_active={caching_active}")
+    _openrouter_debug(f"model={model_id} api_url={api_url} caching_active={caching_active}")
     _openrouter_debug(f"request headers={json.dumps(redacted_headers, indent=2)}")
     _openrouter_debug(f"request body={json.dumps(request_body, indent=2)}")
 
@@ -582,8 +594,9 @@ async def stream_openrouter(
     # OpenRouter routing controls (optional)
     _apply_openrouter_routing_controls(request_body, cast(OpenRouterModel, model))
 
+    api_url = _resolve_openrouter_api_url(model)
     headers = _build_openrouter_headers(api_key)
-    _debug_openrouter_request(model.id, caching_active, headers, request_body)
+    _debug_openrouter_request(model.id, api_url, caching_active, headers, request_body)
 
     response = OpenRouterStreamResponse()
     partial: AssistantMessage = {
@@ -597,7 +610,7 @@ async def stream_openrouter(
     async with httpx.AsyncClient() as client:
         async with client.stream(
             "POST",
-            OPENROUTER_API_URL,
+            api_url,
             headers=headers,
             json=request_body,
             timeout=None,

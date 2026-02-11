@@ -10,6 +10,9 @@ from tinyagent import OpenRouterModel, stream_openrouter
 
 OpenRouter provides unified access to multiple LLM providers through a single API.
 
+For detailed guidance on targeting non-OpenRouter backends with `base_url`, see:
+[`openai-compatible-endpoints.md`](openai-compatible-endpoints.md).
+
 ### OpenRouterModel
 ```python
 @dataclass
@@ -17,9 +20,16 @@ class OpenRouterModel(Model):
     provider: str = "openrouter"
     id: str = "anthropic/claude-3.5-sonnet"
     api: str = "openrouter"
+
+    # OpenAI-compatible /chat/completions endpoint
+    base_url: str = "https://openrouter.ai/api/v1/chat/completions"
+
+    # OpenRouter-specific routing controls (optional)
+    openrouter_provider: dict[str, object] | None = None
+    openrouter_route: str | None = None
 ```
 
-Model configuration for OpenRouter.
+Model configuration for OpenRouter (or any OpenAI-compatible endpoint via `base_url`).
 
 **Common Model IDs**:
 - `anthropic/claude-3.5-sonnet`
@@ -63,6 +73,16 @@ agent.set_system_prompt("You are a helpful assistant.")
 response = await agent.prompt_text("What is the meaning of life?")
 ```
 
+**Custom OpenAI-compatible endpoint**:
+```python
+agent.set_model(
+    OpenRouterModel(
+        id="gpt-4o-mini",
+        base_url="https://api.openai.com/v1/chat/completions",
+    )
+)
+```
+
 ### OpenRouterStreamResponse
 ```python
 class OpenRouterStreamResponse:
@@ -78,6 +98,7 @@ Response object that implements the `StreamResponse` protocol.
 from tinyagent.alchemy_provider import (
     OpenAICompatModel,
     stream_alchemy_openai_completions,
+    stream_alchemy_openrouter,
 )
 ```
 
@@ -112,6 +133,18 @@ async def stream_alchemy_openai_completions(
 ```
 
 Stream using the Rust alchemy-llm implementation.
+
+### stream_alchemy_openrouter
+```python
+async def stream_alchemy_openrouter(
+    model: Model,
+    context: Context,
+    options: SimpleStreamOptions,
+) -> AlchemyStreamResponse
+```
+
+Convenience alias for Rust-backed OpenRouter/OpenAI-compatible streaming.
+Works with `OpenRouterModel` (including `base_url` overrides).
 
 **Requirements**:
 ```bash
