@@ -7,13 +7,17 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.5] - 2026-02-12
+
 ### Changed
-- Upgraded Rust dependency to `alchemy-llm` `0.1.2`.
+- Upgraded Rust dependency to `alchemy-llm` `0.1.3`.
 - Aligned usage semantics with provider-raw reporting across Python and Rust paths.
 - OpenRouter usage normalization now prefers provider `total_tokens` when present.
+- Rust OpenAI-compatible stream path now maps OpenRouter cost fields into `usage.cost`.
 
 ### Tests
 - Expanded usage normalization tests for provider `total_tokens`, cache precedence, and nested cache-write details.
+- Added Rust-side cost mapping coverage for `cost`, `cost_details`, and fallback behavior.
 
 ### Docs
 - Updated caching and OpenAI-compatible endpoint docs to use snake_case usage keys and document provider-raw semantics.
@@ -69,7 +73,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Code quality gates (dead code, duplicates, debt)
 - Rust `alchemy_llm_py` binding documentation
 
-[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.1.3...HEAD
+[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.1.5...HEAD
+[1.1.5]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.1.4...v1.1.5
 [1.1.3]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.1.0...v1.1.1
