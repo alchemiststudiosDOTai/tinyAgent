@@ -177,6 +177,7 @@ def _build_request_body(
         "model": model_id,
         "messages": messages,
         "stream": True,
+        "stream_options": {"include_usage": True},
     }
 
     if tools:
@@ -292,6 +293,7 @@ class _OpenRouterSseEvent:
     done: bool
     delta: dict[str, object] | None = None
     finish_reason: str | None = None
+    usage: dict[str, object] | None = None
 
 
 def _extract_sse_data(line: str) -> str | None:
@@ -300,7 +302,14 @@ def _extract_sse_data(line: str) -> str | None:
     return line[6:].strip()
 
 
-def _parse_openrouter_chunk(data: str) -> tuple[dict[str, object], str | None] | None:
+def _parse_openrouter_sse_line(line: str) -> _OpenRouterSseEvent | None:
+    data = _extract_sse_data(line)
+    if data is None:
+        return None
+
+    if data == "[DONE]":
+        return _OpenRouterSseEvent(done=True)
+
     try:
         chunk_raw = json.loads(data)
     except json.JSONDecodeError:
@@ -309,8 +318,15 @@ def _parse_openrouter_chunk(data: str) -> tuple[dict[str, object], str | None] |
     if not isinstance(chunk_raw, dict):
         return None
 
+    # Extract usage from any chunk (the API sends it in the final chunk).
+    usage_raw = chunk_raw.get("usage")
+    usage = cast(dict[str, object], usage_raw) if isinstance(usage_raw, dict) else None
+
     choices = chunk_raw.get("choices")
     if not isinstance(choices, list) or not choices:
+        # Usage-only chunk (empty choices) — return it so the caller captures usage.
+        if usage:
+            return _OpenRouterSseEvent(done=False, usage=usage)
         return None
 
     choice0 = choices[0]
@@ -323,23 +339,39 @@ def _parse_openrouter_chunk(data: str) -> tuple[dict[str, object], str | None] |
     finish_raw = choice0.get("finish_reason")
     finish_reason = finish_raw if isinstance(finish_raw, str) and finish_raw else None
 
-    return delta, finish_reason
+    return _OpenRouterSseEvent(done=False, delta=delta, finish_reason=finish_reason, usage=usage)
 
 
-def _parse_openrouter_sse_line(line: str) -> _OpenRouterSseEvent | None:
-    data = _extract_sse_data(line)
-    if data is None:
-        return None
+def _normalize_openai_usage(raw: dict[str, object]) -> JsonObject:
+    """Convert OpenAI usage format to tinyagent usage format."""
+    prompt_tokens = raw.get("prompt_tokens", 0)
+    completion_tokens = raw.get("completion_tokens", 0)
 
-    if data == "[DONE]":
-        return _OpenRouterSseEvent(done=True)
+    prompt_tokens = prompt_tokens if isinstance(prompt_tokens, int) else 0
+    completion_tokens = completion_tokens if isinstance(completion_tokens, int) else 0
 
-    parsed = _parse_openrouter_chunk(data)
-    if parsed is None:
-        return None
+    details = raw.get("prompt_tokens_details")
+    cached = 0
+    if isinstance(details, dict):
+        cached_val = details.get("cached_tokens", 0)
+        cached = cached_val if isinstance(cached_val, int) else 0
 
-    delta, finish_reason = parsed
-    return _OpenRouterSseEvent(done=False, delta=delta, finish_reason=finish_reason)
+    input_tokens = prompt_tokens - cached
+
+    return {
+        "input": input_tokens,
+        "output": completion_tokens,
+        "cache_read": cached,
+        "cache_write": 0,
+        "total_tokens": input_tokens + completion_tokens + cached,
+        "cost": {
+            "input": 0.0,
+            "output": 0.0,
+            "cache_read": 0.0,
+            "cache_write": 0.0,
+            "total": 0.0,
+        },
+    }
 
 
 async def stream_openrouter(
@@ -365,6 +397,7 @@ async def stream_openrouter(
         "role": "assistant",
         "content": [],
         "stop_reason": None,
+        "usage": None,
         "timestamp": int(asyncio.get_event_loop().time() * 1000),
     }
 
@@ -396,6 +429,9 @@ async def stream_openrouter(
                     continue
                 if parsed.done:
                     break
+
+                if parsed.usage:
+                    partial["usage"] = _normalize_openai_usage(parsed.usage)
 
                 delta = parsed.delta or {}
                 current_text = _handle_text_delta(delta, current_text, partial, response)

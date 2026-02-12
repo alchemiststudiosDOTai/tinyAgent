@@ -703,6 +703,12 @@ impl OpenAICompletionsStream {
                     "content": [{"type": "text", "text": ""}],
                     "stop_reason": "error",
                     "error_message": "stream ended without final message",
+                    "usage": {
+                        "input": 0, "output": 0,
+                        "cache_read": 0, "cache_write": 0,
+                        "total_tokens": 0,
+                        "cost": {"input": 0.0, "output": 0.0, "cache_read": 0.0, "cache_write": 0.0, "total": 0.0}
+                    }
                 })
             })
         });
@@ -774,6 +780,12 @@ fn openai_completions_stream(
                     "content": [{"type": "text", "text": ""}],
                     "stop_reason": "error",
                     "error_message": "stream ended without terminal event",
+                    "usage": {
+                        "input": 0, "output": 0,
+                        "cache_read": 0, "cache_write": 0,
+                        "total_tokens": 0,
+                        "cost": {"input": 0.0, "output": 0.0, "cache_read": 0.0, "cache_write": 0.0, "total": 0.0}
+                    }
                 })
             });
 
