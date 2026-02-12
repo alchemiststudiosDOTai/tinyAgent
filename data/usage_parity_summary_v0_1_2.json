@@ -1,0 +1,35 @@
+{
+  "generated_at": 1770921587,
+  "rust_file": "data/rust_binding_full_run_v0_1_2.json",
+  "python_file": "data/python_provider_full_run_v0_1_2.json",
+  "rust_event_count": 101,
+  "python_event_count": 17,
+  "rust_usage": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cost": {
+      "cache_read": 0.0,
+      "cache_write": 0.0,
+      "input": 0.0,
+      "output": 0.0,
+      "total": 0.0
+    },
+    "input": 33,
+    "output": 92,
+    "total_tokens": 125
+  },
+  "python_usage": {
+    "input": 41,
+    "output": 64,
+    "cache_read": 0,
+    "cache_write": 0,
+    "total_tokens": 105,
+    "cost": {
+      "input": 0.0,
+      "output": 0.0,
+      "cache_read": 0.0,
+      "cache_write": 0.0,
+      "total": 0.0
+    }
+  }
+}

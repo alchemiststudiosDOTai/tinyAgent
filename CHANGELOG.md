@@ -5,6 +5,19 @@ All notable changes to `tiny-agent-os` are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- Upgraded Rust dependency to `alchemy-llm` `0.1.2`.
+- Aligned usage semantics with provider-raw reporting across Python and Rust paths.
+- OpenRouter usage normalization now prefers provider `total_tokens` when present.
+
+### Tests
+- Expanded usage normalization tests for provider `total_tokens`, cache precedence, and nested cache-write details.
+
+### Docs
+- Updated caching and OpenAI-compatible endpoint docs to use snake_case usage keys and document provider-raw semantics.
+
 ## [1.1.3] - 2026-02-11
 
 ### Added
@@ -56,6 +69,7 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Code quality gates (dead code, duplicates, debt)
 - Rust `alchemy_llm_py` binding documentation
 
+[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.1.3...HEAD
 [1.1.3]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.1.0...v1.1.1

@@ -30,7 +30,7 @@ This unifies behavior in one provider path:
 
 - consistent TinyAgent event streaming (`start`, `text_delta`, `tool_call_delta`, `done`)
 - consistent message/tool conversion logic
-- consistent usage normalization in final assistant messages
+- consistent usage contract shape and provider-raw semantics in final assistant messages
 
 ## When to Read
 
@@ -50,6 +50,14 @@ Read this guide when you need to:
 ```python
 base_url: str = "https://openrouter.ai/api/v1/chat/completions"
 ```
+
+Usage semantics are aligned across both provider paths:
+
+- `usage.input` = provider-reported prompt/input tokens
+- `usage.output` = provider-reported completion/output tokens
+- `usage.total_tokens` = provider-reported total when present, else `input + output`
+- cache fields map from provider cache-read/cache-write fields (including OpenAI-style nested details)
+- reasoning-token breakdown fields are not folded into `usage.output`
 
 And the providers now behave as follows:
 

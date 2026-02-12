@@ -15,6 +15,7 @@ from typing import TypeGuard, cast
 import httpx
 
 from .agent_types import (
+    ZERO_USAGE,
     AgentTool,
     AssistantContent,
     AssistantMessage,
@@ -43,6 +44,14 @@ def _openrouter_debug(msg: str) -> None:
     print(f"[tinyagent.openrouter] {msg}", file=sys.stderr, flush=True)
 
 
+def _copy_zero_usage() -> JsonObject:
+    """Copy ZERO_USAGE with a fresh nested cost dict."""
+    usage_copy: dict[str, object] = dict(ZERO_USAGE)
+    cost = usage_copy.get("cost")
+    usage_copy["cost"] = dict(cost) if isinstance(cost, dict) else {}
+    return cast(JsonObject, usage_copy)
+
+
 def _build_usage_dict(usage: dict[str, object]) -> JsonObject:
     """Build a normalized usage dict from API response usage, including cache stats."""
     input_tokens = usage.get("prompt_tokens", 0)
@@ -67,19 +76,17 @@ def _build_usage_dict(usage: dict[str, object]) -> JsonObject:
     if not isinstance(cache_write, int | float):
         cache_write = 0
 
-    return cast(
-        JsonObject,
-        {
-            "input": int(input_tokens),
-            "output": int(output_tokens),
-            "cacheRead": int(cache_read),
-            "cacheWrite": int(cache_write),
-            "totalTokens": int(input_tokens) + int(output_tokens),
-            # raw aliases for downstream consumers (OpenAI-compatible)
-            "prompt_tokens": int(input_tokens),
-            "completion_tokens": int(output_tokens),
-        },
-    )
+    total_tokens = usage.get("total_tokens")
+    if not isinstance(total_tokens, int | float):
+        total_tokens = int(input_tokens) + int(output_tokens)
+
+    normalized = _copy_zero_usage()
+    normalized["input"] = int(input_tokens)
+    normalized["output"] = int(output_tokens)
+    normalized["cache_read"] = int(cache_read)
+    normalized["cache_write"] = int(cache_write)
+    normalized["total_tokens"] = int(total_tokens)
+    return normalized
 
 
 def _context_has_cache_control(context: Context) -> bool:
@@ -273,6 +280,7 @@ def _build_request_body(
         "model": model_id,
         "messages": messages,
         "stream": True,
+        "stream_options": {"include_usage": True},
     }
 
     if tools:
@@ -603,6 +611,7 @@ async def stream_openrouter(
         "role": "assistant",
         "content": [],
         "stop_reason": None,
+        "usage": ZERO_USAGE,
         "timestamp": int(asyncio.get_event_loop().time() * 1000),
     }
     tool_calls_map: dict[int, dict[str, str]] = {}

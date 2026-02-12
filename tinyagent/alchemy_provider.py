@@ -30,6 +30,7 @@ from .agent_types import (
     AssistantMessage,
     AssistantMessageEvent,
     Context,
+    JsonObject,
     Model,
     SimpleStreamOptions,
 )
@@ -47,6 +48,51 @@ class _AlchemyModule(Protocol):
 _ALCHEMY_MODULE: _AlchemyModule | None = None
 
 DEFAULT_OPENAI_COMPAT_CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+_USAGE_KEYS = frozenset({"input", "output", "cache_read", "cache_write", "total_tokens", "cost"})
+_COST_KEYS = frozenset({"input", "output", "cache_read", "cache_write", "total"})
+
+
+def _missing_keys(data: dict[str, object], required: frozenset[str]) -> list[str]:
+    return sorted(key for key in required if key not in data)
+
+
+def _validate_usage_contract(raw_usage: object, *, where: str) -> JsonObject:
+    if not isinstance(raw_usage, dict):
+        raise RuntimeError(f"{where}: usage must be a dict")
+
+    usage = cast(dict[str, object], raw_usage)
+    missing_usage = _missing_keys(usage, _USAGE_KEYS)
+    if missing_usage:
+        raise RuntimeError(f"{where}: usage missing key(s): {', '.join(missing_usage)}")
+
+    cost_raw = usage.get("cost")
+    if not isinstance(cost_raw, dict):
+        raise RuntimeError(f"{where}: usage.cost must be a dict")
+
+    cost = cast(dict[str, object], cost_raw)
+    missing_cost = _missing_keys(cost, _COST_KEYS)
+    if missing_cost:
+        raise RuntimeError(f"{where}: usage.cost missing key(s): {', '.join(missing_cost)}")
+
+    return cast(JsonObject, usage)
+
+
+def _validate_assistant_message_contract(
+    raw_message: object,
+    *,
+    where: str,
+    require_usage: bool,
+) -> AssistantMessage:
+    if not isinstance(raw_message, dict):
+        raise RuntimeError(f"{where}: assistant message must be a dict")
+
+    message = cast(dict[str, object], raw_message)
+
+    if require_usage:
+        _validate_usage_contract(message.get("usage"), where=where)
+
+    return cast(AssistantMessage, message)
 
 
 def _get_alchemy_module() -> _AlchemyModule:
@@ -96,10 +142,11 @@ class AlchemyStreamResponse:
             return self._final_message
 
         msg = await asyncio.to_thread(self._handle.result)
-        if not isinstance(msg, dict):
-            raise RuntimeError("alchemy_llm_py returned an invalid final message")
-
-        final_message = cast(AssistantMessage, msg)
+        final_message = _validate_assistant_message_contract(
+            msg,
+            where="result",
+            require_usage=True,
+        )
         self._final_message = final_message
         return final_message
 

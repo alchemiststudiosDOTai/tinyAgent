@@ -67,3 +67,6 @@ Cargo.lock
 
 # Local tickets (tk)
 .tickets/
+
+# Local upstream checkout (not part of tinyAgent repo)
+alchemy-rs/

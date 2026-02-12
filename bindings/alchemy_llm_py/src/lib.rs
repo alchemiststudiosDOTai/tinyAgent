@@ -326,6 +326,23 @@ fn content_to_py_value(c: &a::Content) -> Value {
     }
 }
 
+fn usage_to_py_value(u: &a::Usage) -> Value {
+    serde_json::json!({
+        "input": u.input,
+        "output": u.output,
+        "cache_read": u.cache_read,
+        "cache_write": u.cache_write,
+        "total_tokens": u.total_tokens,
+        "cost": {
+            "input": u.cost.input,
+            "output": u.cost.output,
+            "cache_read": u.cost.cache_read,
+            "cache_write": u.cost.cache_write,
+            "total": u.cost.total,
+        }
+    })
+}
+
 fn assistant_message_to_py_value(m: &a::AssistantMessage) -> Value {
     serde_json::json!({
         "role": "assistant",
@@ -335,7 +352,7 @@ fn assistant_message_to_py_value(m: &a::AssistantMessage) -> Value {
         "api": m.api.to_string(),
         "provider": m.provider.to_string(),
         "model": m.model,
-        // intentionally omit usage for now (tinyagent doesn't require it)
+        "usage": usage_to_py_value(&m.usage),
         "error_message": m.error_message,
     })
 }
@@ -686,6 +703,12 @@ impl OpenAICompletionsStream {
                     "content": [{"type": "text", "text": ""}],
                     "stop_reason": "error",
                     "error_message": "stream ended without final message",
+                    "usage": {
+                        "input": 0, "output": 0,
+                        "cache_read": 0, "cache_write": 0,
+                        "total_tokens": 0,
+                        "cost": {"input": 0.0, "output": 0.0, "cache_read": 0.0, "cache_write": 0.0, "total": 0.0}
+                    }
                 })
             })
         });
@@ -757,6 +780,12 @@ fn openai_completions_stream(
                     "content": [{"type": "text", "text": ""}],
                     "stop_reason": "error",
                     "error_message": "stream ended without terminal event",
+                    "usage": {
+                        "input": 0, "output": 0,
+                        "cache_read": 0, "cache_write": 0,
+                        "total_tokens": 0,
+                        "cost": {"input": 0.0, "output": 0.0, "cache_read": 0.0, "cache_write": 0.0, "total": 0.0}
+                    }
                 })
             });
 

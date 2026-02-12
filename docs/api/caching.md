@@ -29,9 +29,9 @@ Reduce token costs and latency by reusing cached prompt prefixes across conversa
 ## How It Works
 
 ```
-Turn 1:  [system_prompt + user_msg_1]  -->  cache MISS  (cacheWrite)
-Turn 2:  [system_prompt + user_msg_1 + assistant_msg_1 + user_msg_2]  -->  cache HIT on prefix  (cacheRead)
-Turn 3:  [system_prompt + ... + user_msg_3]  -->  cache HIT on longer prefix  (cacheRead)
+Turn 1:  [system_prompt + user_msg_1]  -->  cache MISS  (cache_write)
+Turn 2:  [system_prompt + user_msg_1 + assistant_msg_1 + user_msg_2]  -->  cache HIT on prefix  (cache_read)
+Turn 3:  [system_prompt + ... + user_msg_3]  -->  cache HIT on longer prefix  (cache_read)
 ```
 
 Two things are annotated with `cache_control: {"type": "ephemeral"}`:
@@ -58,12 +58,12 @@ agent.set_system_prompt("You are a helpful assistant. ...")
 # Turn 1 -- populates the cache
 msg1 = await agent.prompt("What is the capital of France?")
 print(msg1["usage"])
-# {"input": 3182, "output": 11, "cacheWrite": 0, "cacheRead": 0}
+# {"input": 3182, "output": 11, "cache_write": 0, "cache_read": 0, "total_tokens": 3193}
 
 # Turn 2 -- reads from cache
 msg2 = await agent.prompt("What is the capital of Germany?")
 print(msg2["usage"])
-# {"input": 3203, "output": 11, "cacheWrite": 0, "cacheRead": 3178}
+# {"input": 3203, "output": 11, "cache_write": 0, "cache_read": 3178, "total_tokens": 3214}
 ```
 
 ## Composing with transform_context
@@ -125,17 +125,21 @@ The `usage` dict on assistant messages includes cache fields:
 
 | Field | Description |
 |-------|-------------|
-| `input` | Total input tokens |
-| `output` | Total output tokens |
-| `cacheRead` | Tokens read from cache (saved reprocessing) |
-| `cacheWrite` | Tokens written to cache (first-time cost) |
-| `totalTokens` | `input + output` |
+| `input` | Provider-reported prompt/input tokens |
+| `output` | Provider-reported completion/output tokens |
+| `cache_read` | Tokens read from cache (saved reprocessing) |
+| `cache_write` | Tokens written to cache (first-time cost) |
+| `total_tokens` | Provider-reported total when available; otherwise `input + output` |
+
+TinyAgent uses **provider-raw usage semantics** across Python and Rust providers:
+- `output` is the provider-reported completion tokens
+- reasoning-token breakdown fields (for example `completion_tokens_details.reasoning_tokens`) are **not** added into `output`
 
 **Provider differences**:
-- Anthropic reports `cache_creation_input_tokens` and `cache_read_input_tokens`
-- OpenAI reports `prompt_tokens_details.cached_tokens` (maps to `cacheRead`)
-- OpenRouter may surface either Anthropic-style or OpenAI-style cache fields depending on the upstream provider
-- `cacheWrite` may be 0 when the provider does not report write stats (or reports it inconsistently)
+- Anthropic-style payloads may report `cache_creation_input_tokens` and `cache_read_input_tokens`
+- OpenAI-style payloads may report `prompt_tokens_details.cached_tokens` and `prompt_tokens_details.cache_write_tokens`
+- OpenRouter may surface either variant depending on the upstream provider
+- `cache_write` may be `0` when the provider does not report write stats (or reports them inconsistently)
 
 ## Provider Behavior
 
@@ -143,4 +147,4 @@ When caching is active, the OpenRouter provider:
 
 1. Wraps the system prompt in a structured content block with `cache_control`
 2. Emits structured content blocks (not flattened strings) for user messages that carry `cache_control`
-3. Parses cache stats from the final SSE usage chunk (OpenRouter reporting can vary by upstream; rely primarily on `cacheRead`, as `cacheWrite` may be 0/unreported)
+3. Parses cache stats from the final SSE usage chunk (OpenRouter reporting can vary by upstream; rely primarily on `cache_read`, as `cache_write` may be 0/unreported)

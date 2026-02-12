@@ -9,6 +9,7 @@ from typing import TypeAlias, TypeGuard, TypeVar, cast
 
 from .agent_loop import agent_loop, agent_loop_continue
 from .agent_types import (
+    ZERO_USAGE,
     AgentContext,
     AgentEndEvent,
     AgentEvent,
@@ -213,14 +214,7 @@ def _create_error_message(model: Model, error: Exception, was_aborted: bool) -> 
         "api": model.api,
         "provider": model.provider,
         "model": model.id,
-        "usage": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0,
-            "totalTokens": 0,
-            "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0, "total": 0},
-        },
+        "usage": ZERO_USAGE,
         "stop_reason": "aborted" if was_aborted else "error",
         "error_message": str(error),
         "timestamp": int(asyncio.get_event_loop().time() * 1000),

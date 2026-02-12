@@ -164,11 +164,9 @@ def test_build_usage_dict_with_cache_fields() -> None:
     result = _build_usage_dict(usage)
     assert result["input"] == 100
     assert result["output"] == 50
-    assert result["cacheWrite"] == 80
-    assert result["cacheRead"] == 20
-    assert result["totalTokens"] == 150
-    assert result["prompt_tokens"] == 100
-    assert result["completion_tokens"] == 50
+    assert result["cache_write"] == 80
+    assert result["cache_read"] == 20
+    assert result["total_tokens"] == 150
 
 
 def test_build_usage_dict_without_cache_fields() -> None:
@@ -177,19 +175,52 @@ def test_build_usage_dict_without_cache_fields() -> None:
         "completion_tokens": 50,
     }
     result = _build_usage_dict(usage)
-    assert result["cacheRead"] == 0
-    assert result["cacheWrite"] == 0
-    assert result["prompt_tokens"] == 100
-    assert result["completion_tokens"] == 50
+    assert result["cache_read"] == 0
+    assert result["cache_write"] == 0
 
 
 def test_build_usage_dict_with_prompt_tokens_details() -> None:
     usage: dict[str, object] = {
         "prompt_tokens": 100,
         "completion_tokens": 50,
-        "prompt_tokens_details": {"cached_tokens": 30},
+        "prompt_tokens_details": {"cached_tokens": 30, "cache_write_tokens": 11},
     }
     result = _build_usage_dict(usage)
-    assert result["cacheRead"] == 30
-    assert result["prompt_tokens"] == 100
-    assert result["completion_tokens"] == 50
+    assert result["cache_read"] == 30
+    assert result["cache_write"] == 11
+
+
+def test_build_usage_dict_prefers_provider_total_tokens() -> None:
+    usage: dict[str, object] = {
+        "prompt_tokens": 79,
+        "completion_tokens": 114,
+        "completion_tokens_details": {"reasoning_tokens": 91},
+        "total_tokens": 193,
+    }
+    result = _build_usage_dict(usage)
+    assert result["input"] == 79
+    assert result["output"] == 114
+    assert result["total_tokens"] == 193
+
+
+def test_build_usage_dict_total_tokens_fallback_when_invalid() -> None:
+    usage: dict[str, object] = {
+        "prompt_tokens": 40,
+        "completion_tokens": 8,
+        "total_tokens": "invalid",
+    }
+    result = _build_usage_dict(usage)
+    assert result["total_tokens"] == 48
+
+
+def test_build_usage_dict_prefers_explicit_cache_fields_over_prompt_details() -> None:
+    usage: dict[str, object] = {
+        "prompt_tokens": 100,
+        "completion_tokens": 25,
+        "cache_read_input_tokens": 12,
+        "cache_creation_input_tokens": 9,
+        "prompt_tokens_details": {"cached_tokens": 7, "cache_write_tokens": 5},
+    }
+    result = _build_usage_dict(usage)
+    assert result["cache_read"] == 12
+    assert result["cache_write"] == 9

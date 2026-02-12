@@ -1,0 +1,439 @@
+{
+  "run": {
+    "stream_fn": "stream_openrouter",
+    "model": {
+      "provider": "openrouter",
+      "id": "moonshotai/kimi-k2.5",
+      "api": "openrouter",
+      "base_url": "https://openrouter.ai/api/v1/chat/completions",
+      "openrouter_provider": null,
+      "openrouter_route": null
+    },
+    "system_prompt": "You are concise. Reply in one short line.",
+    "input": "Reply exactly: python provider contract ok"
+  },
+  "events": [
+    {
+      "type": "agent_start"
+    },
+    {
+      "type": "turn_start"
+    },
+    {
+      "type": "message_start",
+      "message": {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Reply exactly: python provider contract ok"
+          }
+        ],
+        "timestamp": 4672587
+      }
+    },
+    {
+      "type": "message_end",
+      "message": {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Reply exactly: python provider contract ok"
+          }
+        ],
+        "timestamp": 4672587
+      }
+    },
+    {
+      "type": "message_start",
+      "message": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "python provider contract ok"
+          }
+        ],
+        "stop_reason": "complete",
+        "usage": {
+          "input": 28,
+          "output": 92,
+          "cache_read": 0,
+          "cache_write": 0,
+          "total_tokens": 120,
+          "cost": {
+            "input": 0.0,
+            "output": 0.0,
+            "cache_read": 0.0,
+            "cache_write": 0.0,
+            "total": 0.0
+          }
+        },
+        "timestamp": 4672587
+      }
+    },
+    {
+      "type": "message_update",
+      "message": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "python provider contract ok"
+          }
+        ],
+        "stop_reason": "complete",
+        "usage": {
+          "input": 28,
+          "output": 92,
+          "cache_read": 0,
+          "cache_write": 0,
+          "total_tokens": 120,
+          "cost": {
+            "input": 0.0,
+            "output": 0.0,
+            "cache_read": 0.0,
+            "cache_write": 0.0,
+            "total": 0.0
+          }
+        },
+        "timestamp": 4672587
+      },
+      "assistant_message_event": {
+        "type": "text_delta",
+        "partial": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "python provider contract ok"
+            }
+          ],
+          "stop_reason": "complete",
+          "usage": {
+            "input": 28,
+            "output": 92,
+            "cache_read": 0,
+            "cache_write": 0,
+            "total_tokens": 120,
+            "cost": {
+              "input": 0.0,
+              "output": 0.0,
+              "cache_read": 0.0,
+              "cache_write": 0.0,
+              "total": 0.0
+            }
+          },
+          "timestamp": 4672587
+        },
+        "delta": "python"
+      }
+    },
+    {
+      "type": "message_update",
+      "message": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "python provider contract ok"
+          }
+        ],
+        "stop_reason": "complete",
+        "usage": {
+          "input": 28,
+          "output": 92,
+          "cache_read": 0,
+          "cache_write": 0,
+          "total_tokens": 120,
+          "cost": {
+            "input": 0.0,
+            "output": 0.0,
+            "cache_read": 0.0,
+            "cache_write": 0.0,
+            "total": 0.0
+          }
+        },
+        "timestamp": 4672587
+      },
+      "assistant_message_event": {
+        "type": "text_delta",
+        "partial": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "python provider contract ok"
+            }
+          ],
+          "stop_reason": "complete",
+          "usage": {
+            "input": 28,
+            "output": 92,
+            "cache_read": 0,
+            "cache_write": 0,
+            "total_tokens": 120,
+            "cost": {
+              "input": 0.0,
+              "output": 0.0,
+              "cache_read": 0.0,
+              "cache_write": 0.0,
+              "total": 0.0
+            }
+          },
+          "timestamp": 4672587
+        },
+        "delta": " provider"
+      }
+    },
+    {
+      "type": "message_update",
+      "message": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "python provider contract ok"
+          }
+        ],
+        "stop_reason": "complete",
+        "usage": {
+          "input": 28,
+          "output": 92,
+          "cache_read": 0,
+          "cache_write": 0,
+          "total_tokens": 120,
+          "cost": {
+            "input": 0.0,
+            "output": 0.0,
+            "cache_read": 0.0,
+            "cache_write": 0.0,
+            "total": 0.0
+          }
+        },
+        "timestamp": 4672587
+      },
+      "assistant_message_event": {
+        "type": "text_delta",
+        "partial": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "python provider contract ok"
+            }
+          ],
+          "stop_reason": "complete",
+          "usage": {
+            "input": 28,
+            "output": 92,
+            "cache_read": 0,
+            "cache_write": 0,
+            "total_tokens": 120,
+            "cost": {
+              "input": 0.0,
+              "output": 0.0,
+              "cache_read": 0.0,
+              "cache_write": 0.0,
+              "total": 0.0
+            }
+          },
+          "timestamp": 4672587
+        },
+        "delta": " contract"
+      }
+    },
+    {
+      "type": "message_update",
+      "message": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "python provider contract ok"
+          }
+        ],
+        "stop_reason": "complete",
+        "usage": {
+          "input": 28,
+          "output": 92,
+          "cache_read": 0,
+          "cache_write": 0,
+          "total_tokens": 120,
+          "cost": {
+            "input": 0.0,
+            "output": 0.0,
+            "cache_read": 0.0,
+            "cache_write": 0.0,
+            "total": 0.0
+          }
+        },
+        "timestamp": 4672587
+      },
+      "assistant_message_event": {
+        "type": "text_delta",
+        "partial": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "python provider contract ok"
+            }
+          ],
+          "stop_reason": "complete",
+          "usage": {
+            "input": 28,
+            "output": 92,
+            "cache_read": 0,
+            "cache_write": 0,
+            "total_tokens": 120,
+            "cost": {
+              "input": 0.0,
+              "output": 0.0,
+              "cache_read": 0.0,
+              "cache_write": 0.0,
+              "total": 0.0
+            }
+          },
+          "timestamp": 4672587
+        },
+        "delta": " ok"
+      }
+    },
+    {
+      "type": "message_end",
+      "message": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "python provider contract ok"
+          }
+        ],
+        "stop_reason": "complete",
+        "usage": {
+          "input": 28,
+          "output": 92,
+          "cache_read": 0,
+          "cache_write": 0,
+          "total_tokens": 120,
+          "cost": {
+            "input": 0.0,
+            "output": 0.0,
+            "cache_read": 0.0,
+            "cache_write": 0.0,
+            "total": 0.0
+          }
+        },
+        "timestamp": 4672587
+      }
+    },
+    {
+      "type": "turn_end",
+      "message": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "python provider contract ok"
+          }
+        ],
+        "stop_reason": "complete",
+        "usage": {
+          "input": 28,
+          "output": 92,
+          "cache_read": 0,
+          "cache_write": 0,
+          "total_tokens": 120,
+          "cost": {
+            "input": 0.0,
+            "output": 0.0,
+            "cache_read": 0.0,
+            "cache_write": 0.0,
+            "total": 0.0
+          }
+        },
+        "timestamp": 4672587
+      },
+      "tool_results": []
+    },
+    {
+      "type": "agent_end",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Reply exactly: python provider contract ok"
+            }
+          ],
+          "timestamp": 4672587
+        },
+        {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "python provider contract ok"
+            }
+          ],
+          "stop_reason": "complete",
+          "usage": {
+            "input": 28,
+            "output": 92,
+            "cache_read": 0,
+            "cache_write": 0,
+            "total_tokens": 120,
+            "cost": {
+              "input": 0.0,
+              "output": 0.0,
+              "cache_read": 0.0,
+              "cache_write": 0.0,
+              "total": 0.0
+            }
+          },
+          "timestamp": 4672587
+        }
+      ]
+    }
+  ],
+  "agent_state_messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Reply exactly: python provider contract ok"
+        }
+      ],
+      "timestamp": 4672587
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "python provider contract ok"
+        }
+      ],
+      "stop_reason": "complete",
+      "usage": {
+        "input": 28,
+        "output": 92,
+        "cache_read": 0,
+        "cache_write": 0,
+        "total_tokens": 120,
+        "cost": {
+          "input": 0.0,
+          "output": 0.0,
+          "cache_read": 0.0,
+          "cache_write": 0.0,
+          "total": 0.0
+        }
+      },
+      "timestamp": 4672587
+    }
+  ]
+}
