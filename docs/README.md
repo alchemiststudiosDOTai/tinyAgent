@@ -1,6 +1,6 @@
 # TinyAgent
 
-![tinyAgent Logo](static/images/new-ta-logo.jpg)
+![tinyAgent Logo](../static/images/new-ta-logo.jpg)
 
 A small, modular agent framework for building LLM-powered applications in Python.
 
@@ -246,7 +246,7 @@ agent.set_model(
 - [Architecture](ARCHITECTURE.md): System design and component interactions
 - [API Reference](api/): Detailed module documentation
 - [OpenAI-Compatible Endpoints](api/openai-compatible-endpoints.md): Using `OpenRouterModel.base_url` with OpenRouter, OpenAI, Chutes, and local compatible backends (Python and Rust binding paths)
-- [Usage Semantics](docs/api/usage-semantics.md): Unified `message["usage"]` schema and field semantics across Python and Rust provider paths
+- [Usage Semantics](api/usage-semantics.md): Unified `message["usage"]` schema and field semantics across Python and Rust provider paths
 
 ## Project Structure
 
