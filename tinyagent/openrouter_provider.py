@@ -342,6 +342,22 @@ def _parse_openrouter_sse_line(line: str) -> _OpenRouterSseEvent | None:
     return _OpenRouterSseEvent(done=False, delta=delta, finish_reason=finish_reason, usage=usage)
 
 
+_ZERO_USAGE: JsonObject = {
+    "input": 0,
+    "output": 0,
+    "cache_read": 0,
+    "cache_write": 0,
+    "total_tokens": 0,
+    "cost": {
+        "input": 0.0,
+        "output": 0.0,
+        "cache_read": 0.0,
+        "cache_write": 0.0,
+        "total": 0.0,
+    },
+}
+
+
 def _normalize_openai_usage(raw: dict[str, object]) -> JsonObject:
     """Convert OpenAI usage format to tinyagent usage format."""
     prompt_tokens = raw.get("prompt_tokens", 0)
@@ -397,7 +413,7 @@ async def stream_openrouter(
         "role": "assistant",
         "content": [],
         "stop_reason": None,
-        "usage": None,
+        "usage": _ZERO_USAGE,
         "timestamp": int(asyncio.get_event_loop().time() * 1000),
     }
 
