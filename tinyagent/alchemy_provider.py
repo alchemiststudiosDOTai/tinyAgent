@@ -29,6 +29,7 @@ from .agent_types import (
     AssistantMessage,
     AssistantMessageEvent,
     Context,
+    JsonObject,
     Model,
     SimpleStreamOptions,
 )
@@ -45,6 +46,24 @@ class _AlchemyModule(Protocol):
 
 _ALCHEMY_MODULE: _AlchemyModule | None = None
 
+_USAGE_KEYS = frozenset({"input", "output", "cache_read", "cache_write", "total_tokens", "cost"})
+_COST_KEYS = frozenset({"input", "output", "cache_read", "cache_write", "total"})
+_EVENT_TYPES_WITH_PARTIAL = frozenset(
+    {
+        "start",
+        "text_start",
+        "text_delta",
+        "text_end",
+        "thinking_start",
+        "thinking_delta",
+        "thinking_end",
+        "tool_call_start",
+        "tool_call_delta",
+        "tool_call_end",
+    }
+)
+_ALLOWED_EVENT_TYPES = _EVENT_TYPES_WITH_PARTIAL | {"done", "error"}
+
 
 def _get_alchemy_module() -> _AlchemyModule:
     global _ALCHEMY_MODULE
@@ -59,6 +78,99 @@ def _get_alchemy_module() -> _AlchemyModule:
             ) from e
         _ALCHEMY_MODULE = cast(_AlchemyModule, module)
     return _ALCHEMY_MODULE
+
+
+def _missing_keys(data: dict[str, object], required: frozenset[str]) -> list[str]:
+    return sorted(key for key in required if key not in data)
+
+
+def _validate_usage_contract(raw_usage: object, *, where: str) -> JsonObject:
+    if not isinstance(raw_usage, dict):
+        raise RuntimeError(f"{where}: usage must be a dict")
+
+    usage = cast(dict[str, object], raw_usage)
+    missing_usage = _missing_keys(usage, _USAGE_KEYS)
+    if missing_usage:
+        raise RuntimeError(f"{where}: usage missing key(s): {', '.join(missing_usage)}")
+
+    cost_raw = usage.get("cost")
+    if not isinstance(cost_raw, dict):
+        raise RuntimeError(f"{where}: usage.cost must be a dict")
+
+    cost = cast(dict[str, object], cost_raw)
+    missing_cost = _missing_keys(cost, _COST_KEYS)
+    if missing_cost:
+        raise RuntimeError(f"{where}: usage.cost missing key(s): {', '.join(missing_cost)}")
+
+    return cast(JsonObject, usage)
+
+
+def _validate_assistant_message_contract(
+    raw_message: object,
+    *,
+    where: str,
+    require_usage: bool,
+) -> AssistantMessage:
+    if not isinstance(raw_message, dict):
+        raise RuntimeError(f"{where}: assistant message must be a dict")
+
+    message = cast(dict[str, object], raw_message)
+
+    role = message.get("role")
+    if role != "assistant":
+        raise RuntimeError(f"{where}: assistant message role must be 'assistant'")
+
+    content = message.get("content")
+    if not isinstance(content, list):
+        raise RuntimeError(f"{where}: assistant message content must be a list")
+
+    if require_usage:
+        _validate_usage_contract(message.get("usage"), where=where)
+
+    return cast(AssistantMessage, message)
+
+
+def _validate_event_contract(raw_event: object) -> AssistantMessageEvent:
+    if not isinstance(raw_event, dict):
+        raise RuntimeError("alchemy_llm_py returned an invalid event")
+
+    event = cast(dict[str, object], raw_event)
+    event_type = event.get("type")
+
+    if not isinstance(event_type, str):
+        raise RuntimeError("alchemy_llm_py event is missing a string `type`")
+
+    if event_type not in _ALLOWED_EVENT_TYPES:
+        raise RuntimeError(f"alchemy_llm_py returned unknown event type: {event_type}")
+
+    if event_type in _EVENT_TYPES_WITH_PARTIAL:
+        _validate_assistant_message_contract(
+            event.get("partial"),
+            where=f"event.{event_type}.partial",
+            require_usage=True,
+        )
+
+    if event_type == "done":
+        reason = event.get("reason")
+        if not isinstance(reason, str):
+            raise RuntimeError("alchemy_llm_py done event missing string `reason`")
+        _validate_assistant_message_contract(
+            event.get("message"),
+            where="event.done.message",
+            require_usage=True,
+        )
+
+    if event_type == "error":
+        reason = event.get("reason")
+        if not isinstance(reason, str):
+            raise RuntimeError("alchemy_llm_py error event missing string `reason`")
+        _validate_assistant_message_contract(
+            event.get("error"),
+            where="event.error.error",
+            require_usage=True,
+        )
+
+    return cast(AssistantMessageEvent, event)
 
 
 @dataclass
@@ -93,10 +205,11 @@ class AlchemyStreamResponse:
             return self._final_message
 
         msg = await asyncio.to_thread(self._handle.result)
-        if not isinstance(msg, dict):
-            raise RuntimeError("alchemy_llm_py returned an invalid final message")
-
-        final_message = cast(AssistantMessage, msg)
+        final_message = _validate_assistant_message_contract(
+            msg,
+            where="result",
+            require_usage=True,
+        )
         self._final_message = final_message
         return final_message
 
@@ -107,9 +220,7 @@ class AlchemyStreamResponse:
         ev = await asyncio.to_thread(self._handle.next_event)
         if ev is None:
             raise StopAsyncIteration
-        if not isinstance(ev, dict):
-            raise RuntimeError("alchemy_llm_py returned an invalid event")
-        return cast(AssistantMessageEvent, ev)
+        return _validate_event_contract(ev)
 
 
 def _convert_tools(tools: list[AgentTool] | None) -> list[dict[str, Any]] | None:

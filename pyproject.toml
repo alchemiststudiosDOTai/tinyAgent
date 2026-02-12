@@ -93,3 +93,6 @@ core_modules = [
     "proxy_event_handlers",
 ]
 nih_filenames = ["dotenv.py", "six.py", "compat.py"]
+
+[tool.pylint.similarities]
+min-similarity-lines = 12
