@@ -16,6 +16,7 @@ Complete API documentation for the tinyagent package.
 | Module | Description |
 |--------|-------------|
 | [caching](caching.md) | Prompt caching for reduced cost and latency |
+| [usage-semantics](usage-semantics.md) | Unified usage contract and token semantics across Python and Rust providers |
 
 ## Providers
 
@@ -23,6 +24,7 @@ Complete API documentation for the tinyagent package.
 |--------|-------------|
 | [providers](providers.md) | OpenRouter, Alchemy (Rust), and Proxy providers |
 | [openai-compatible-endpoints](openai-compatible-endpoints.md) | Using `OpenRouterModel.base_url` with OpenAI-compatible endpoints (Python + Rust binding) |
+| [usage-semantics](usage-semantics.md) | Canonical `message["usage"]` schema, field mapping, and precedence rules |
 
 ## Quick Reference
 

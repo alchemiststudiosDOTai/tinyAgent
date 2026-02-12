@@ -13,6 +13,9 @@ OpenRouter provides unified access to multiple LLM providers through a single AP
 For detailed guidance on targeting non-OpenRouter backends with `base_url`, see:
 [`openai-compatible-endpoints.md`](openai-compatible-endpoints.md).
 
+For the unified token/usage contract shared by Python and Rust paths, see:
+[`usage-semantics.md`](usage-semantics.md).
+
 ### OpenRouterModel
 ```python
 @dataclass
