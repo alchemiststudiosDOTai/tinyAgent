@@ -123,7 +123,7 @@ unsubscribe = agent.subscribe(on_event)
 
 ### Prompt Caching
 
-TinyAgent supports [Anthropic-style prompt caching](docs/api/caching.md) to reduce costs on multi-turn conversations. Enable it when creating the agent:
+TinyAgent supports [Anthropic-style prompt caching](api/caching.md) to reduce costs on multi-turn conversations. Enable it when creating the agent:
 
 ```python
 agent = Agent(
@@ -135,7 +135,7 @@ agent = Agent(
 )
 ```
 
-Cache breakpoints are automatically placed on user message content blocks so the prompt prefix stays cached across turns. See [Prompt Caching](docs/api/caching.md) for details.
+Cache breakpoints are automatically placed on user message content blocks so the prompt prefix stays cached across turns. See [Prompt Caching](api/caching.md) for details.
 
 ## Rust Binding: `alchemy_llm_py`
 
@@ -266,11 +266,11 @@ agent.set_model(
 ## Documentation
 
 - [Architecture](ARCHITECTURE.md): System design and component interactions
-- [API Reference](docs/api/): Detailed module documentation
-- [Prompt Caching](docs/api/caching.md): Cache breakpoints, cost savings, and provider requirements
-- [OpenAI-Compatible Endpoints](docs/api/openai-compatible-endpoints.md): Using `OpenRouterModel.base_url` with OpenRouter, OpenAI, Chutes, and local compatible backends
-- [Usage Semantics](docs/api/usage-semantics.md): Unified `message["usage"]` schema across Python and Rust provider paths
-- [Changelog](CHANGELOG.md): Release history
+- [API Reference](api/): Detailed module documentation
+- [Prompt Caching](api/caching.md): Cache breakpoints, cost savings, and provider requirements
+- [OpenAI-Compatible Endpoints](api/openai-compatible-endpoints.md): Using `OpenRouterModel.base_url` with OpenRouter, OpenAI, Chutes, and local compatible backends
+- [Usage Semantics](api/usage-semantics.md): Unified `message["usage"]` schema across Python and Rust provider paths
+- [Changelog](../CHANGELOG.md): Release history
 
 ## Project Structure
 
