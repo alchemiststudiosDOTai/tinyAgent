@@ -4,6 +4,10 @@
 
 A small, modular agent framework for building LLM-powered applications in Python.
 
+Inspired by [smolagents](https://github.com/huggingface/smolagents) and [Pi](https://github.com/badlogic/pi-mono) — borrowing the minimal-abstraction philosophy from the former and the conversational agent loop from the latter.
+
+> **Beta** — TinyAgent is usable but not production-ready. APIs may change between minor versions.
+
 ## Overview
 
 TinyAgent provides a lightweight foundation for creating conversational AI agents with tool use capabilities. It features:
@@ -11,7 +15,9 @@ TinyAgent provides a lightweight foundation for creating conversational AI agent
 - **Streaming-first architecture**: All LLM interactions support streaming responses
 - **Tool execution**: Define and execute tools with structured outputs
 - **Event-driven**: Subscribe to agent events for real-time UI updates
-- **Provider agnostic**: Works with OpenRouter, proxy servers, or custom providers
+- **Provider agnostic**: Works with any OpenAI-compatible `/chat/completions` endpoint (OpenRouter, OpenAI, Chutes, local servers)
+- **Prompt caching**: Reduce token costs and latency with Anthropic-style cache breakpoints
+- **Dual provider paths**: Pure-Python or optional Rust binding via PyO3 for native-speed streaming
 - **Type-safe**: Full type hints throughout
 
 ## Quick Start
@@ -45,7 +51,7 @@ asyncio.run(main())
 ## Installation
 
 ```bash
-pip install tinyagent
+pip install tiny-agent-os
 ```
 
 ## Core Concepts
@@ -114,6 +120,22 @@ def on_event(event):
 
 unsubscribe = agent.subscribe(on_event)
 ```
+
+### Prompt Caching
+
+TinyAgent supports [Anthropic-style prompt caching](docs/api/caching.md) to reduce costs on multi-turn conversations. Enable it when creating the agent:
+
+```python
+agent = Agent(
+    AgentOptions(
+        stream_fn=stream_openrouter,
+        session_id="my-session",
+        enable_prompt_caching=True,
+    )
+)
+```
+
+Cache breakpoints are automatically placed on user message content blocks so the prompt prefix stays cached across turns. See [Prompt Caching](docs/api/caching.md) for details.
 
 ## Rust Binding: `alchemy_llm_py`
 
@@ -244,9 +266,11 @@ agent.set_model(
 ## Documentation
 
 - [Architecture](ARCHITECTURE.md): System design and component interactions
-- [API Reference](api/): Detailed module documentation
-- [OpenAI-Compatible Endpoints](api/openai-compatible-endpoints.md): Using `OpenRouterModel.base_url` with OpenRouter, OpenAI, Chutes, and local compatible backends (Python and Rust binding paths)
-- [Usage Semantics](api/usage-semantics.md): Unified `message["usage"]` schema and field semantics across Python and Rust provider paths
+- [API Reference](docs/api/): Detailed module documentation
+- [Prompt Caching](docs/api/caching.md): Cache breakpoints, cost savings, and provider requirements
+- [OpenAI-Compatible Endpoints](docs/api/openai-compatible-endpoints.md): Using `OpenRouterModel.base_url` with OpenRouter, OpenAI, Chutes, and local compatible backends
+- [Usage Semantics](docs/api/usage-semantics.md): Unified `message["usage"]` schema across Python and Rust provider paths
+- [Changelog](CHANGELOG.md): Release history
 
 ## Project Structure
 
@@ -256,8 +280,9 @@ tinyagent/
 ├── agent_loop.py         # Core agent execution loop
 ├── agent_tool_execution.py  # Tool execution helpers
 ├── agent_types.py        # Type definitions
+├── caching.py            # Prompt caching utilities
 ├── openrouter_provider.py   # OpenRouter integration
-├── alchemy_provider.py   # Rust-based provider
+├── alchemy_provider.py   # Rust-based provider (PyO3)
 ├── proxy.py              # Proxy server integration
 └── proxy_event_handlers.py  # Proxy event parsing
 ```
