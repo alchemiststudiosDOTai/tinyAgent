@@ -1,6 +1,6 @@
 # TinyAgent
 
-![tinyAgent Logo](../static/images/new-ta-logo.jpg)
+![tinyAgent Logo](https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/master/static/images/new-ta-logo.jpg)
 
 A small, modular agent framework for building LLM-powered applications in Python.
 
