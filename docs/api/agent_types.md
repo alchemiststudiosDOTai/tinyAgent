@@ -29,7 +29,10 @@ class ThinkingContent(TypedDict, total=False):
     thinking: str
     thinking_signature: str | None
 ```
-Reasoning/thinking block (for models like Claude 3.7).
+Reasoning/thinking block returned by models with reasoning capability
+(e.g., `deepseek/deepseek-r1` via alchemy provider with `reasoning=True`).
+
+See [providers.md](providers.md#reasoning-responses) for usage with the alchemy provider.
 
 ### ToolCallContent
 ```python
@@ -41,6 +44,24 @@ class ToolCallContent(TypedDict, total=False):
     partial_json: str
 ```
 Tool invocation block. `partial_json` is used during streaming.
+
+### AssistantContent
+```python
+AssistantContent: TypeAlias = TextContent | ThinkingContent | ToolCallContent
+```
+Union of all content types that can appear in assistant messages.
+
+**Type Narrowing with TypeGuard**:
+```python
+from typing import TypeGuard
+from tinyagent.agent_types import AssistantContent, ThinkingContent, TextContent
+
+def is_thinking_content(block: AssistantContent | None) -> TypeGuard[ThinkingContent]:
+    return block is not None and block.get("type") == "thinking"
+
+def is_text_content(block: AssistantContent | None) -> TypeGuard[TextContent]:
+    return block is not None and block.get("type") == "text"
+```
 
 ## Message Types
 

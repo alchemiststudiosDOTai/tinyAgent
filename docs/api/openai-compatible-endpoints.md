@@ -228,16 +228,53 @@ Validated against:
 | Rust (`stream_alchemy_openai_completions`) | OpenRouter default | `openai/gpt-4o-mini` | ✅ |
 | Rust (`stream_alchemy_openrouter`) | Chutes | `Qwen/Qwen3-32B` | ✅ |
 
+## Reasoning Support
+
+Models that support reasoning (e.g., `deepseek/deepseek-r1`) can be configured with
+effort levels via `OpenAICompatModel`:
+
+```python
+from tinyagent.alchemy_provider import OpenAICompatModel
+
+model = OpenAICompatModel(
+    provider="openrouter",
+    id="deepseek/deepseek-r1",
+    base_url="https://openrouter.ai/api/v1/chat/completions",
+    reasoning="high",  # or True, "minimal", "low", "medium", "xhigh"
+)
+```
+
+**Response Structure**:
+
+When reasoning is enabled, responses contain separate content blocks:
+
+```python
+{
+    "content": [
+        {"type": "thinking", "thinking": "Step 1: Count initial apples..."},
+        {"type": "text", "text": "You have 5 apples."}
+    ]
+}
+```
+
+**Streaming Events**:
+- `thinking_start`, `thinking_delta`, `thinking_end` for reasoning
+- `text_start`, `text_delta`, `text_end` for final answer
+
+See `examples/example_reasoning.py` and [providers.md](providers.md#reasoning-responses)
+for typed helpers to filter content blocks.
+
 ## Observed Backend Differences
 
 Some reasoning-capable models (for example `Qwen/Qwen3-32B` on Chutes) may include
-`<think> ... </think>` content before the final answer in text output.
+`<think> ... </think>` content before the final answer in text output when reasoning
+is not explicitly enabled via the API.
 
 This is model/backend behavior, not a TinyAgent provider parsing bug. TinyAgent streams
 and returns what the backend emits.
 
-If you need plain final answers only, enforce that in prompts or add a post-processing
-step in your app layer.
+When using models with native reasoning support (like DeepSeek R1), enable
+`reasoning=True` to get properly structured `ThinkingContent` blocks instead.
 
 ## Troubleshooting
 

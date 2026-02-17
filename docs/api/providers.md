@@ -109,6 +109,9 @@ Rust-based provider using the `alchemy-llm` crate via PyO3 bindings.
 
 ### OpenAICompatModel
 ```python
+ReasoningEffort = Literal["minimal", "low", "medium", "high", "xhigh"]
+ReasoningMode = bool | ReasoningEffort
+
 @dataclass
 class OpenAICompatModel(Model):
     provider: str = "openrouter"
@@ -121,10 +124,15 @@ class OpenAICompatModel(Model):
     headers: dict[str, str] | None = None
     context_window: int = 128_000
     max_tokens: int = 4096
-    reasoning: bool = False
+    reasoning: ReasoningMode = False
 ```
 
 Model configuration for OpenAI-compatible endpoints via Rust.
+
+**Reasoning Mode**:
+- `False` (default): No reasoning
+- `True`: Enable reasoning (provider default effort)
+- `"minimal"`, `"low"`, `"medium"`, `"high"`, `"xhigh"`: Specific effort level
 
 ### stream_alchemy_openai_completions
 ```python
@@ -185,6 +193,52 @@ maturin develop
 **When to Use**:
 - High-throughput scenarios where Rust performance matters
 - Consistent behavior with Rust-based services
+
+### Reasoning Responses
+
+When `reasoning=True` or a reasoning effort level is set, models that support reasoning
+(e.g., `deepseek/deepseek-r1`) return responses with separate content blocks:
+
+```python
+{
+    "content": [
+        {"type": "thinking", "thinking": "Let me reason step by step..."},
+        {"type": "text", "text": "The answer is 5."}
+    ]
+}
+```
+
+**Content Block Types**:
+- `ThinkingContent`: `type: "thinking"`, `thinking: str`
+- `TextContent`: `type: "text"`, `text: str`
+
+**Filtering Content Blocks**:
+```python
+from typing import TypeGuard
+from tinyagent.agent_types import (
+    AssistantContent,
+    AssistantMessage,
+    TextContent,
+    ThinkingContent,
+)
+
+def is_thinking_content(block: AssistantContent | None) -> TypeGuard[ThinkingContent]:
+    return block is not None and block.get("type") == "thinking"
+
+def is_text_content(block: AssistantContent | None) -> TypeGuard[TextContent]:
+    return block is not None and block.get("type") == "text"
+
+# Usage
+content = message.get("content") or []
+thinking_blocks = [b for b in content if is_thinking_content(b)]
+text_blocks = [b for b in content if is_text_content(b)]
+```
+
+**Streaming Events**:
+- `thinking_start`, `thinking_delta`, `thinking_end`: Reasoning content
+- `text_start`, `text_delta`, `text_end`: Final answer content
+
+See `examples/example_reasoning.py` for a complete example.
 
 ## Proxy Provider
 
