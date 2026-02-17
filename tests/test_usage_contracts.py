@@ -216,6 +216,43 @@ def test_alchemy_provider_forwards_full_payload_and_enforces_contract(
     _run(_scenario())
 
 
+def test_alchemy_provider_forwards_reasoning_effort_string(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _scenario() -> None:
+        final_message = _assistant_message("hello")
+        done_event: AssistantMessageEvent = {
+            "type": "done",
+            "reason": "stop",
+            "message": final_message,
+        }
+        fake_module = FakeAlchemyModule(FakeHandle([done_event], final_message))
+        monkeypatch.setattr(alchemy_provider, "_ALCHEMY_MODULE", fake_module)
+
+        model = alchemy_provider.OpenAICompatModel(
+            provider="openrouter",
+            id="moonshotai/kimi-k2.5",
+            base_url="https://openrouter.ai/api/v1/chat/completions",
+            name="Kimi",
+            headers={"X-Title": "contract-test"},
+            reasoning="high",
+            context_window=200_000,
+            max_tokens=2_048,
+        )
+        context = Context(
+            system_prompt="Be concise.",
+            messages=[{"role": "user", "content": [{"type": "text", "text": "hello"}]}],
+        )
+        options: SimpleStreamOptions = {"max_tokens": 77}
+
+        _ = await alchemy_provider.stream_alchemy_openai_completions(model, context, options)
+
+        assert fake_module.captured_model is not None
+        assert fake_module.captured_model["reasoning"] == "high"
+
+    _run(_scenario())
+
+
 def test_alchemy_provider_rejects_missing_usage_in_final_message() -> None:
     async def _scenario() -> None:
         bad_final: dict[str, object] = {
