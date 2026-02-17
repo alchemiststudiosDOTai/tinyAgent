@@ -7,6 +7,19 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-02-17
+
+### Added
+- Reasoning effort levels support in Alchemy provider (`low`, `medium`, `high`)
+- `ThinkingContent` type for reasoning/thinking blocks with `cache_control` support
+
+### Docs
+- Documented reasoning effort levels and ThinkingContent usage
+- Added example demonstrating reasoning vs text block separation
+
+### Fixed
+- Use absolute URL for logo in README
+
 ## [1.1.5] - 2026-02-12
 
 ### Changed
@@ -73,7 +86,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Code quality gates (dead code, duplicates, debt)
 - Rust `alchemy_llm_py` binding documentation
 
-[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.1.5...HEAD
+[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.1.5...v1.2.0
 [1.1.5]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.1.4...v1.1.5
 [1.1.3]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.1.1...v1.1.2
