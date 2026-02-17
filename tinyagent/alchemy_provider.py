@@ -23,7 +23,7 @@ import asyncio
 import importlib
 import os
 from dataclasses import dataclass
-from typing import Any, Protocol, cast
+from typing import Any, Literal, Protocol, TypeAlias, cast
 
 from .agent_types import (
     AgentTool,
@@ -34,6 +34,9 @@ from .agent_types import (
     Model,
     SimpleStreamOptions,
 )
+
+ReasoningEffort: TypeAlias = Literal["minimal", "low", "medium", "high", "xhigh"]
+ReasoningMode: TypeAlias = bool | ReasoningEffort
 
 
 class _AlchemyModule(Protocol):
@@ -114,20 +117,17 @@ def _get_alchemy_module() -> _AlchemyModule:
 class OpenAICompatModel(Model):
     """Model config for OpenAI-compatible chat/completions endpoints."""
 
-    # tinyagent's Model fields
     provider: str = "openrouter"
     id: str = "moonshotai/kimi-k2.5"
     api: str = "openai-completions"
 
-    # additional fields used by the Rust binding
     base_url: str = DEFAULT_OPENAI_COMPAT_CHAT_COMPLETIONS_URL
     name: str | None = None
     headers: dict[str, str] | None = None
 
-    # optional hints (not currently used by tinyagent itself)
     context_window: int = 128_000
     max_tokens: int = 4096
-    reasoning: bool = False
+    reasoning: ReasoningMode = False
 
 
 @dataclass
@@ -232,8 +232,6 @@ async def stream_alchemy_openai_completions(
         "max_tokens": options.get("max_tokens"),
     }
 
-    # Start Rust streaming in-process.
-    # The returned handle exposes blocking `next_event()` / `result()`.
     handle = alchemy_llm_py.openai_completions_stream(
         model_dict,
         context_dict,

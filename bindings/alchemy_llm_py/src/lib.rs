@@ -6,6 +6,7 @@ use pyo3::prelude::*;
 use pythonize::{depythonize, pythonize};
 use serde::Deserialize;
 use serde_json::Value;
+use alchemy_llm::providers::openai_completions::ReasoningEffort;
 
 use alchemy_llm::types as a;
 
@@ -31,11 +32,19 @@ struct PyModelConfig {
     #[serde(default)]
     headers: Option<HashMap<String, String>>,
     #[serde(default)]
-    reasoning: Option<bool>,
+    reasoning: Option<PyReasoning>,
+
     #[serde(default)]
     context_window: Option<u32>,
     #[serde(default)]
     max_tokens: Option<u32>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+enum PyReasoning {
+    Enabled(bool),
+    Effort(ReasoningEffort),
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -164,6 +173,14 @@ fn stop_reason_from_py(s: Option<&str>) -> a::StopReason {
         "aborted" => a::StopReason::Aborted,
         "complete" | "stop" | "" => a::StopReason::Stop,
         _ => a::StopReason::Stop,
+    }
+}
+
+fn resolve_reasoning(mode: Option<PyReasoning>) -> (bool, Option<ReasoningEffort>) {
+    match mode {
+        Some(PyReasoning::Enabled(enabled)) => (enabled, None),
+        Some(PyReasoning::Effort(effort)) => (true, Some(effort)),
+        None => (false, None),
     }
 }
 
@@ -540,6 +557,7 @@ fn build_openai_completions_request(
     } else {
         Some(ctx.system_prompt)
     };
+    let (reasoning, reasoning_effort) = resolve_reasoning(model_cfg.reasoning);
 
     let alchemy_ctx = a::Context {
         system_prompt,
@@ -553,7 +571,7 @@ fn build_openai_completions_request(
         api: a::OpenAICompletions,
         provider: provider.clone(),
         base_url: model_cfg.base_url,
-        reasoning: model_cfg.reasoning.unwrap_or(false),
+        reasoning,
         input: vec![a::InputType::Text],
         cost: a::ModelCost {
             input: 0.0,
@@ -572,7 +590,7 @@ fn build_openai_completions_request(
         temperature: opts.temperature,
         max_tokens: opts.max_tokens,
         tool_choice: None,
-        reasoning_effort: None,
+        reasoning_effort,
         headers: None,
     };
 

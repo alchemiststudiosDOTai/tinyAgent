@@ -74,3 +74,8 @@ alchemy-rs/
 # Investigation artifacts
 data/
 memory-bank/
+
+# Example artifacts
+example_reasoning_output.jsonl
+examples/example_reasoning_output.json
+examples/example_reasoning_output.jsonl
