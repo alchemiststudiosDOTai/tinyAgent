@@ -10,6 +10,7 @@ from tinyagent.alchemy_provider import (
     OpenAICompatModel,
     _resolve_api_key,
     _resolve_base_url,
+    _resolve_model_api,
 )
 
 
@@ -34,6 +35,21 @@ def test_resolve_base_url_rejects_blank() -> None:
         _resolve_base_url(model)
 
 
+def test_resolve_model_api_maps_openrouter_alias_to_openai_completions() -> None:
+    model = Model(provider="openrouter", id="x", api="openrouter")
+    assert _resolve_model_api(model, "openrouter") == "openai-completions"
+
+
+def test_resolve_model_api_infers_minimax_completions_from_provider() -> None:
+    model = Model(provider="minimax", id="MiniMax-M2.5", api="")
+    assert _resolve_model_api(model, "minimax") == "minimax-completions"
+
+
+def test_resolve_model_api_explicit_api_overrides_provider_inference() -> None:
+    model = Model(provider="minimax", id="MiniMax-M2.5", api="openai-completions")
+    assert _resolve_model_api(model, "minimax") == "openai-completions"
+
+
 def test_resolve_api_key_prefers_explicit_option(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENROUTER_API_KEY", "env-openrouter")
     model = Model(provider="openrouter", id="x", api="openrouter")
@@ -50,3 +66,20 @@ def test_resolve_api_key_openai_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "env-openai")
     model = Model(provider="openai", id="x", api="openai")
     assert _resolve_api_key(model, {}) == "env-openai"
+
+
+def test_resolve_api_key_minimax_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MINIMAX_API_KEY", "env-minimax")
+    model = Model(provider="minimax", id="MiniMax-M2.5", api="minimax-completions")
+    assert _resolve_api_key(model, {}) == "env-minimax"
+
+
+def test_resolve_api_key_minimax_cn_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MINIMAX_CN_API_KEY", "env-minimax-cn")
+    model = Model(provider="minimax-cn", id="MiniMax-M2.5", api="minimax-completions")
+    assert _resolve_api_key(model, {}) == "env-minimax-cn"
+
+
+def test_resolve_api_key_unknown_provider_returns_none() -> None:
+    model = Model(provider="my-custom-provider", id="x", api="openai-completions")
+    assert _resolve_api_key(model, {}) is None

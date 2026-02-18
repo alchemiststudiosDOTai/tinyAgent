@@ -58,6 +58,13 @@ async def main() -> None:
 
     agent = Agent(AgentOptions(stream_fn=stream_alchemy_openai_completions))
     agent.set_system_prompt("You are a helpful assistant. Be concise.")
+    # Swap providers by changing provider/id/base_url only.
+    # Example MiniMax global:
+    #   provider="minimax", id="MiniMax-M2.5",
+    #   base_url="https://api.minimax.io/v1/chat/completions"
+    # Example MiniMax CN:
+    #   provider="minimax-cn", id="MiniMax-M2.5",
+    #   base_url="https://api.minimax.chat/v1/chat/completions"
     agent.set_model(
         OpenAICompatModel(
             provider="openrouter",

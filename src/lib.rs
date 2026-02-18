@@ -27,6 +27,8 @@ struct PyModelConfig {
     #[serde(default)]
     provider: Option<String>,
     #[serde(default)]
+    api: Option<String>,
+    #[serde(default)]
     name: Option<String>,
     #[serde(default)]
     headers: Option<HashMap<String, String>>,
@@ -233,7 +235,12 @@ fn assistant_block_to_content(block: &PyAssistantBlock) -> a::Content {
     }
 }
 
-fn message_to_alchemy(msg: PyMessage, provider: &a::Provider, model_id: &str) -> Result<a::Message, String> {
+fn message_to_alchemy(
+    msg: PyMessage,
+    provider: &a::Provider,
+    model_id: &str,
+    api: a::Api,
+) -> Result<a::Message, String> {
     match msg {
         PyMessage::User { content, timestamp } => {
             let text = user_blocks_to_text(&content)?;
@@ -254,7 +261,7 @@ fn message_to_alchemy(msg: PyMessage, provider: &a::Provider, model_id: &str) ->
 
             Ok(a::Message::Assistant(a::AssistantMessage {
                 content: out,
-                api: a::Api::OpenAICompletions,
+                api,
                 provider: provider.clone(),
                 model: model_id.to_string(),
                 usage: a::Usage::default(),
@@ -490,13 +497,123 @@ fn event_to_py_value(e: &a::AssistantMessageEvent) -> Value {
 // Public Python API
 // ------------------------------
 
-type BuildResult = (
-    a::Model<a::OpenAICompletions>,
-    a::Context,
-    alchemy_llm::OpenAICompletionsOptions,
-);
+enum BuildResult {
+    OpenAICompletions {
+        model: a::Model<a::OpenAICompletions>,
+        context: a::Context,
+        options: alchemy_llm::OpenAICompletionsOptions,
+    },
+    MinimaxCompletions {
+        model: a::Model<a::MinimaxCompletions>,
+        context: a::Context,
+        options: alchemy_llm::OpenAICompletionsOptions,
+    },
+}
 
-fn build_openai_completions_request(
+#[derive(Debug, Clone)]
+struct SharedModelFields {
+    id: String,
+    name: String,
+    provider: a::Provider,
+    base_url: String,
+    reasoning: bool,
+    context_window: u32,
+    max_tokens: u32,
+    headers: Option<HashMap<String, String>>,
+}
+
+fn unsupported_api_error(api: &str) -> PyErr {
+    PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+        "unsupported model.api '{api}'. supported values: openai-completions, minimax-completions"
+    ))
+}
+
+fn parse_model_api(api: Option<String>) -> Result<a::Api, PyErr> {
+    let raw_api = api.unwrap_or_default();
+    let normalized = raw_api.trim().to_ascii_lowercase();
+
+    if normalized.is_empty() {
+        return Ok(a::Api::OpenAICompletions);
+    }
+
+    let parsed = match normalized.as_str() {
+        // Legacy aliases from tinyagent Model.api.
+        "openai" | "openrouter" | "openai-compatible" | "chat-completions" => {
+            a::Api::OpenAICompletions
+        }
+        "minimax" => a::Api::MinimaxCompletions,
+        other => other
+            .parse::<a::Api>()
+            .map_err(|_| unsupported_api_error(other))?,
+    };
+
+    match parsed {
+        a::Api::OpenAICompletions | a::Api::MinimaxCompletions => Ok(parsed),
+        _ => Err(unsupported_api_error(&normalized)),
+    }
+}
+
+fn build_shared_model_fields(model_cfg: PyModelConfig, provider: a::Provider) -> SharedModelFields {
+    let id = model_cfg.id;
+    let name = model_cfg.name.unwrap_or_else(|| id.clone());
+
+    SharedModelFields {
+        id,
+        name,
+        provider,
+        base_url: model_cfg.base_url,
+        reasoning: model_cfg.reasoning.unwrap_or(false),
+        context_window: model_cfg.context_window.unwrap_or(128_000),
+        max_tokens: model_cfg.max_tokens.unwrap_or(4096),
+        headers: model_cfg.headers,
+    }
+}
+
+fn build_openai_completions_model(fields: SharedModelFields) -> a::Model<a::OpenAICompletions> {
+    a::Model {
+        id: fields.id,
+        name: fields.name,
+        api: a::OpenAICompletions,
+        provider: fields.provider,
+        base_url: fields.base_url,
+        reasoning: fields.reasoning,
+        input: vec![a::InputType::Text],
+        cost: a::ModelCost {
+            input: 0.0,
+            output: 0.0,
+            cache_read: 0.0,
+            cache_write: 0.0,
+        },
+        context_window: fields.context_window,
+        max_tokens: fields.max_tokens,
+        headers: fields.headers,
+        compat: None,
+    }
+}
+
+fn build_minimax_completions_model(fields: SharedModelFields) -> a::Model<a::MinimaxCompletions> {
+    a::Model {
+        id: fields.id,
+        name: fields.name,
+        api: a::MinimaxCompletions,
+        provider: fields.provider,
+        base_url: fields.base_url,
+        reasoning: fields.reasoning,
+        input: vec![a::InputType::Text],
+        cost: a::ModelCost {
+            input: 0.0,
+            output: 0.0,
+            cache_read: 0.0,
+            cache_write: 0.0,
+        },
+        context_window: fields.context_window,
+        max_tokens: fields.max_tokens,
+        headers: fields.headers,
+        compat: None,
+    }
+}
+
+fn build_stream_request(
     model: &Bound<'_, PyAny>,
     context: &Bound<'_, PyAny>,
     options: Option<&Bound<'_, PyAny>>,
@@ -504,6 +621,8 @@ fn build_openai_completions_request(
     let model_cfg: PyModelConfig = depythonize(model).map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("invalid model: {e}"))
     })?;
+
+    let requested_api = parse_model_api(model_cfg.api.clone())?;
 
     let ctx: PyContext = depythonize(context).map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("invalid context: {e}"))
@@ -530,9 +649,10 @@ fn build_openai_completions_request(
 
     let mut messages: Vec<a::Message> = Vec::with_capacity(ctx.messages.len());
     for m in ctx.messages {
-        messages.push(message_to_alchemy(m, &provider, &model_cfg.id).map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyValueError, _>(e)
-        })?);
+        messages.push(
+            message_to_alchemy(m, &provider, &model_cfg.id, requested_api)
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e))?,
+        );
     }
 
     let system_prompt = if ctx.system_prompt.trim().is_empty() {
@@ -547,26 +667,6 @@ fn build_openai_completions_request(
         tools,
     };
 
-    let alchemy_model: a::Model<a::OpenAICompletions> = a::Model {
-        id: model_cfg.id.clone(),
-        name: model_cfg.name.unwrap_or_else(|| model_cfg.id.clone()),
-        api: a::OpenAICompletions,
-        provider: provider.clone(),
-        base_url: model_cfg.base_url,
-        reasoning: model_cfg.reasoning.unwrap_or(false),
-        input: vec![a::InputType::Text],
-        cost: a::ModelCost {
-            input: 0.0,
-            output: 0.0,
-            cache_read: 0.0,
-            cache_write: 0.0,
-        },
-        context_window: model_cfg.context_window.unwrap_or(128_000),
-        max_tokens: model_cfg.max_tokens.unwrap_or(4096),
-        headers: model_cfg.headers,
-        compat: None,
-    };
-
     let alchemy_opts = alchemy_llm::OpenAICompletionsOptions {
         api_key: opts.api_key,
         temperature: opts.temperature,
@@ -576,10 +676,26 @@ fn build_openai_completions_request(
         headers: None,
     };
 
-    Ok((alchemy_model, alchemy_ctx, alchemy_opts))
+    let shared_fields = build_shared_model_fields(model_cfg, provider.clone());
+
+    let request = match requested_api {
+        a::Api::OpenAICompletions => BuildResult::OpenAICompletions {
+            model: build_openai_completions_model(shared_fields),
+            context: alchemy_ctx,
+            options: alchemy_opts,
+        },
+        a::Api::MinimaxCompletions => BuildResult::MinimaxCompletions {
+            model: build_minimax_completions_model(shared_fields),
+            context: alchemy_ctx,
+            options: alchemy_opts,
+        },
+        _ => return Err(unsupported_api_error(&requested_api.to_string())),
+    };
+
+    Ok(request)
 }
 
-/// Collect an OpenAI-compatible streaming response using alchemy-llm.
+/// Collect a streaming response using alchemy-llm.
 ///
 /// This is a *blocking* function (it runs an internal Tokio runtime). Call it via
 /// `asyncio.to_thread(...)` from async Python code.
@@ -590,14 +706,27 @@ fn collect_openai_completions(
     context: &Bound<'_, PyAny>,
     options: Option<&Bound<'_, PyAny>>,
 ) -> PyResult<Py<PyAny>> {
-    let (alchemy_model, alchemy_ctx, alchemy_opts) =
-        build_openai_completions_request(model, context, options)?;
+    let request = build_stream_request(model, context, options)?;
 
     let res: Result<(Vec<Value>, Value), String> = py.allow_threads(move || {
         RUNTIME.block_on(async move {
-            let mut stream = match alchemy_llm::stream(&alchemy_model, &alchemy_ctx, Some(alchemy_opts)) {
-                Ok(s) => s,
-                Err(e) => return Err(e.to_string()),
+            let mut stream = match request {
+                BuildResult::OpenAICompletions {
+                    model,
+                    context,
+                    options,
+                } => match alchemy_llm::stream(&model, &context, Some(options)) {
+                    Ok(s) => s,
+                    Err(e) => return Err(e.to_string()),
+                },
+                BuildResult::MinimaxCompletions {
+                    model,
+                    context,
+                    options,
+                } => match alchemy_llm::stream(&model, &context, Some(options)) {
+                    Ok(s) => s,
+                    Err(e) => return Err(e.to_string()),
+                },
             };
 
             let mut out_events: Vec<Value> = Vec::new();
@@ -725,7 +854,7 @@ impl OpenAICompletionsStream {
     }
 }
 
-/// Start an OpenAI-compatible streaming completion and return a handle.
+/// Start a streaming completion and return a handle.
 ///
 /// Consume events via `handle.next_event()` (blocking) from Python.
 #[pyfunction]
@@ -734,15 +863,27 @@ fn openai_completions_stream(
     context: &Bound<'_, PyAny>,
     options: Option<&Bound<'_, PyAny>>,
 ) -> PyResult<OpenAICompletionsStream> {
-    let (alchemy_model, alchemy_ctx, alchemy_opts) =
-        build_openai_completions_request(model, context, options)?;
+    let request = build_stream_request(model, context, options)?;
 
     // alchemy-llm providers call `tokio::spawn`, which requires a runtime context.
     let _rt_guard = RUNTIME.enter();
 
-    let mut stream = alchemy_llm::stream(&alchemy_model, &alchemy_ctx, Some(alchemy_opts)).map_err(
-        |e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("alchemy-llm failed: {e}")),
-    )?;
+    let mut stream = match request {
+        BuildResult::OpenAICompletions {
+            model,
+            context,
+            options,
+        } => alchemy_llm::stream(&model, &context, Some(options)).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("alchemy-llm failed: {e}"))
+        })?,
+        BuildResult::MinimaxCompletions {
+            model,
+            context,
+            options,
+        } => alchemy_llm::stream(&model, &context, Some(options)).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("alchemy-llm failed: {e}"))
+        })?,
+    };
 
     let (tx, rx) = std::sync::mpsc::channel::<Value>();
     let (final_tx, final_rx) = std::sync::mpsc::channel::<Value>();
@@ -807,4 +948,58 @@ fn _alchemy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(openai_completions_stream, m)?)?;
     m.add_class::<OpenAICompletionsStream>()?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_model_api_supports_openai_and_minimax_values() {
+        assert_eq!(
+            parse_model_api(Some("openai-completions".to_string())).expect("openai api"),
+            a::Api::OpenAICompletions
+        );
+        assert_eq!(
+            parse_model_api(Some("openrouter".to_string())).expect("legacy alias"),
+            a::Api::OpenAICompletions
+        );
+        assert_eq!(
+            parse_model_api(Some("minimax-completions".to_string())).expect("minimax api"),
+            a::Api::MinimaxCompletions
+        );
+        assert_eq!(
+            parse_model_api(Some("minimax".to_string())).expect("legacy minimax alias"),
+            a::Api::MinimaxCompletions
+        );
+    }
+
+    #[test]
+    fn parse_model_api_rejects_unsupported_values() {
+        let err = parse_model_api(Some("anthropic-messages".to_string()))
+            .expect_err("unsupported api should error");
+        let message = err.to_string();
+        assert!(message.contains("unsupported model.api"));
+        assert!(message.contains("openai-completions"));
+        assert!(message.contains("minimax-completions"));
+    }
+
+    #[test]
+    fn minimax_model_builder_sets_first_class_minimax_api_type() {
+        let fields = SharedModelFields {
+            id: "MiniMax-M2.5".to_string(),
+            name: "MiniMax M2.5".to_string(),
+            provider: a::Provider::Known(a::KnownProvider::Minimax),
+            base_url: "https://api.minimax.io/v1/chat/completions".to_string(),
+            reasoning: true,
+            context_window: 204_800,
+            max_tokens: 16_384,
+            headers: None,
+        };
+
+        let model = build_minimax_completions_model(fields);
+
+        assert_eq!(a::ApiType::api(&model.api), a::Api::MinimaxCompletions);
+        assert_eq!(model.id, "MiniMax-M2.5");
+    }
 }

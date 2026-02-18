@@ -11,8 +11,8 @@ This linter fails when legacy duplicate binding artifacts are reintroduced
 
 from __future__ import annotations
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 try:
     import tomllib
@@ -70,9 +70,7 @@ def _check_root_binding_configuration(violations: list[str]) -> None:
     data = tomllib.loads(ROOT_PYPROJECT.read_text(encoding="utf-8"))
     module_name = data.get("tool", {}).get("maturin", {}).get("module-name")
     if module_name != "tinyagent._alchemy":
-        violations.append(
-            "pyproject.toml [tool.maturin].module-name must be 'tinyagent._alchemy'"
-        )
+        violations.append("pyproject.toml [tool.maturin].module-name must be 'tinyagent._alchemy'")
 
     if not ROOT_RUST_BINDING.exists():
         violations.append("missing canonical binding source: src/lib.rs")

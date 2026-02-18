@@ -186,6 +186,7 @@ def test_alchemy_provider_forwards_full_payload_and_enforces_contract(
         assert fake_module.captured_model == {
             "id": "moonshotai/kimi-k2.5",
             "provider": "openrouter",
+            "api": "openai-completions",
             "base_url": "https://openrouter.ai/api/v1/chat/completions",
             "name": "Kimi",
             "headers": {"X-Title": "contract-test"},
@@ -249,6 +250,94 @@ def test_alchemy_provider_forwards_reasoning_effort_string(
 
         assert fake_module.captured_model is not None
         assert fake_module.captured_model["reasoning"] == "high"
+
+    _run(_scenario())
+
+
+def test_alchemy_provider_infers_minimax_api_from_provider(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _scenario() -> None:
+        final_message = _assistant_message("hello")
+        done_event: AssistantMessageEvent = {
+            "type": "done",
+            "reason": "stop",
+            "message": final_message,
+        }
+        fake_module = FakeAlchemyModule(FakeHandle([done_event], final_message))
+        monkeypatch.setattr(alchemy_provider, "_ALCHEMY_MODULE", fake_module)
+
+        model = Model(provider="minimax", id="MiniMax-M2.5", api="")
+        context = Context(
+            system_prompt="Be concise.",
+            messages=[{"role": "user", "content": [{"type": "text", "text": "hello"}]}],
+        )
+
+        _ = await alchemy_provider.stream_alchemy_openai_completions(model, context, {})
+
+        assert fake_module.captured_model is not None
+        assert fake_module.captured_model["provider"] == "minimax"
+        assert fake_module.captured_model["api"] == "minimax-completions"
+
+    _run(_scenario())
+
+
+def test_alchemy_provider_explicit_api_override_is_forwarded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _scenario() -> None:
+        final_message = _assistant_message("hello")
+        done_event: AssistantMessageEvent = {
+            "type": "done",
+            "reason": "stop",
+            "message": final_message,
+        }
+        fake_module = FakeAlchemyModule(FakeHandle([done_event], final_message))
+        monkeypatch.setattr(alchemy_provider, "_ALCHEMY_MODULE", fake_module)
+
+        model = Model(
+            provider="minimax",
+            id="MiniMax-M2.5",
+            api="openai-completions",
+        )
+        context = Context(
+            system_prompt="Be concise.",
+            messages=[{"role": "user", "content": [{"type": "text", "text": "hello"}]}],
+        )
+
+        _ = await alchemy_provider.stream_alchemy_openai_completions(model, context, {})
+
+        assert fake_module.captured_model is not None
+        assert fake_module.captured_model["provider"] == "minimax"
+        assert fake_module.captured_model["api"] == "openai-completions"
+
+    _run(_scenario())
+
+
+def test_alchemy_provider_legacy_openrouter_api_alias_maps_to_openai_completions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _scenario() -> None:
+        final_message = _assistant_message("hello")
+        done_event: AssistantMessageEvent = {
+            "type": "done",
+            "reason": "stop",
+            "message": final_message,
+        }
+        fake_module = FakeAlchemyModule(FakeHandle([done_event], final_message))
+        monkeypatch.setattr(alchemy_provider, "_ALCHEMY_MODULE", fake_module)
+
+        model = Model(provider="openrouter", id="moonshotai/kimi-k2.5", api="openrouter")
+        context = Context(
+            system_prompt="Be concise.",
+            messages=[{"role": "user", "content": [{"type": "text", "text": "hello"}]}],
+        )
+
+        _ = await alchemy_provider.stream_alchemy_openai_completions(model, context, {})
+
+        assert fake_module.captured_model is not None
+        assert fake_module.captured_model["provider"] == "openrouter"
+        assert fake_module.captured_model["api"] == "openai-completions"
 
     _run(_scenario())
 

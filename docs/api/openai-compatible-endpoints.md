@@ -51,6 +51,15 @@ Read this guide when you need to:
 base_url: str = "https://openrouter.ai/api/v1/chat/completions"
 ```
 
+For the Rust binding path, routing is determined by three fields together:
+- `provider`: backend identity and env-key fallback source
+- `api`: unified alchemy API selector (`openai-completions` or `minimax-completions`)
+- `base_url`: concrete endpoint URL
+
+If `api` is omitted/blank, TinyAgent infers:
+- `provider in {"minimax", "minimax-cn"}` => `minimax-completions`
+- otherwise => `openai-completions`
+
 Usage semantics are aligned across both provider paths:
 
 - `usage.input` = provider-reported prompt/input tokens
@@ -74,6 +83,8 @@ And the providers now behave as follows:
 3. supports endpoint-aware API key fallback
    - `OPENAI_API_KEY` when `provider == "openai"`
    - `OPENROUTER_API_KEY` when `provider == "openrouter"`
+   - `MINIMAX_API_KEY` when `provider == "minimax"`
+   - `MINIMAX_CN_API_KEY` when `provider == "minimax-cn"`
 
 ## Endpoint Contract
 
@@ -170,6 +181,32 @@ response = await stream_alchemy_openai_completions(
 )
 ```
 
+MiniMax global via the same Rust provider path:
+
+```python
+model = OpenAICompatModel(
+    provider="minimax",
+    id="MiniMax-M2.5",
+    base_url="https://api.minimax.io/v1/chat/completions",
+    # api omitted => inferred as "minimax-completions"
+)
+
+response = await stream_alchemy_openai_completions(model, context, {})
+```
+
+MiniMax CN:
+
+```python
+model = OpenAICompatModel(
+    provider="minimax-cn",
+    id="MiniMax-M2.5",
+    base_url="https://api.minimax.chat/v1/chat/completions",
+    # api omitted => inferred as "minimax-completions"
+)
+
+response = await stream_alchemy_openai_completions(model, context, {})
+```
+
 ## API Key Behavior
 
 `stream_openrouter` resolves auth in this order:
@@ -182,6 +219,8 @@ response = await stream_alchemy_openai_completions(
 1. `options["api_key"]`
 2. `OPENAI_API_KEY` when `model.provider == "openai"`
 3. `OPENROUTER_API_KEY` when `model.provider == "openrouter"`
+4. `MINIMAX_API_KEY` when `model.provider == "minimax"`
+5. `MINIMAX_CN_API_KEY` when `model.provider == "minimax-cn"`
 
 For non-OpenRouter endpoints, passing `options["api_key"]` explicitly is recommended.
 That keeps auth source unambiguous and avoids environment-variable mismatch.

@@ -4,7 +4,8 @@ This provider uses the Rust crate `alchemy-llm` via the PyO3 extension module
 `tinyagent._alchemy` (implemented in `src/lib.rs`).
 
 Important limitations:
-- Only OpenAI-compatible `/chat/completions` streaming is supported.
+- Rust binding currently dispatches only `openai-completions` and
+  `minimax-completions` APIs.
 - Image blocks are not supported yet.
 - Python receives events by calling a blocking `next_event()` method in a thread,
   so it is real-time but has more overhead than a native async generator.
@@ -50,6 +51,13 @@ class _AlchemyModule(Protocol):
 _ALCHEMY_MODULE: _AlchemyModule | None = None
 
 DEFAULT_OPENAI_COMPAT_CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+_PROVIDER_API_KEY_ENV = {
+    "openai": "OPENAI_API_KEY",
+    "openrouter": "OPENROUTER_API_KEY",
+    "minimax": "MINIMAX_API_KEY",
+    "minimax-cn": "MINIMAX_CN_API_KEY",
+}
 
 _USAGE_KEYS = frozenset({"input", "output", "cache_read", "cache_write", "total_tokens", "cost"})
 _COST_KEYS = frozenset({"input", "output", "cache_read", "cache_write", "total"})
@@ -183,18 +191,68 @@ def _resolve_base_url(model: Model) -> str:
     return base_url.strip()
 
 
+def _resolve_provider(model: Model) -> str:
+    raw_provider = getattr(model, "provider", "")
+    if not isinstance(raw_provider, str):
+        return "openrouter"
+
+    provider = raw_provider.strip()
+    if provider:
+        return provider
+
+    return "openrouter"
+
+
+def _canonicalize_api(raw_api: str) -> str:
+    api = raw_api.strip().lower()
+    if not api:
+        return ""
+
+    # Legacy aliases used in tinyagent Model.api values.
+    if api in {"openai", "openrouter", "openai-compatible", "chat-completions"}:
+        return "openai-completions"
+    if api == "minimax":
+        return "minimax-completions"
+
+    return api
+
+
+def _infer_api_from_provider(provider: str) -> str:
+    provider_lc = provider.strip().lower()
+    if provider_lc in {"minimax", "minimax-cn"}:
+        return "minimax-completions"
+    return "openai-completions"
+
+
+def _resolve_model_api(model: Model, provider: str) -> str:
+    """Resolve alchemy API with explicit override and provider fallback.
+
+    Resolution order:
+    1) `model.api` when present/non-empty (with legacy alias normalization)
+    2) provider-based inference (`minimax|minimax-cn` => minimax-completions,
+       else openai-completions)
+    """
+
+    raw_api = getattr(model, "api", "")
+    if isinstance(raw_api, str):
+        explicit = _canonicalize_api(raw_api)
+        if explicit:
+            return explicit
+
+    return _infer_api_from_provider(provider)
+
+
 def _resolve_api_key(model: Model, options: SimpleStreamOptions) -> str | None:
     explicit = options.get("api_key")
     if explicit:
         return explicit
 
-    provider = model.provider.strip().lower() if isinstance(model.provider, str) else ""
-    if provider == "openai":
-        return os.environ.get("OPENAI_API_KEY")
-    if provider == "openrouter":
-        return os.environ.get("OPENROUTER_API_KEY")
+    provider = _resolve_provider(model).lower()
+    env_var = _PROVIDER_API_KEY_ENV.get(provider)
+    if not env_var:
+        return None
 
-    return None
+    return os.environ.get(env_var)
 
 
 async def stream_alchemy_openai_completions(
@@ -206,11 +264,14 @@ async def stream_alchemy_openai_completions(
 
     alchemy_llm_py = _get_alchemy_module()
 
+    provider = _resolve_provider(model)
     base_url = _resolve_base_url(model)
+    api = _resolve_model_api(model, provider)
 
     model_dict: dict[str, Any] = {
         "id": model.id,
-        "provider": model.provider,
+        "provider": provider,
+        "api": api,
         "base_url": base_url,
         "name": getattr(model, "name", None),
         "headers": getattr(model, "headers", None),

@@ -127,7 +127,21 @@ class OpenAICompatModel(Model):
     reasoning: ReasoningMode = False
 ```
 
-Model configuration for OpenAI-compatible endpoints via Rust.
+Model configuration for the Rust binding (`tinyagent._alchemy`).
+
+**Routing fields (`provider`, `api`, `base_url`)**:
+- `provider`: Which backend family you are targeting (`openrouter`, `openai`, `minimax`, `minimax-cn`, or custom label)
+- `api`: Which alchemy unified API to dispatch to (currently `openai-completions` or `minimax-completions`)
+- `base_url`: Concrete endpoint URL used for the request
+
+**API inference rules** (when using `stream_alchemy_openai_completions` / `stream_alchemy_openrouter`):
+- explicit `model.api` wins
+- if `model.api` is blank:
+  - `provider in {"minimax", "minimax-cn"}` => `api = "minimax-completions"`
+  - otherwise => `api = "openai-completions"`
+- legacy aliases are normalized:
+  - `api="openrouter"` / `api="openai"` => `openai-completions`
+  - `api="minimax"` => `minimax-completions`
 
 **Reasoning Mode**:
 - `False` (default): No reasoning
@@ -145,6 +159,9 @@ async def stream_alchemy_openai_completions(
 
 Stream using the Rust alchemy-llm implementation.
 
+Dispatch is selected from `model.api` (or inferred from `model.provider`) and routed
+through the unified alchemy layer (`openai-completions` / `minimax-completions`).
+
 ### stream_alchemy_openrouter
 ```python
 async def stream_alchemy_openrouter(
@@ -156,6 +173,13 @@ async def stream_alchemy_openrouter(
 
 Convenience alias for Rust-backed OpenRouter/OpenAI-compatible streaming.
 Works with `OpenRouterModel` (including `base_url` overrides).
+
+**API key resolution**:
+1. `options["api_key"]`
+2. `OPENAI_API_KEY` when `provider == "openai"`
+3. `OPENROUTER_API_KEY` when `provider == "openrouter"`
+4. `MINIMAX_API_KEY` when `provider == "minimax"`
+5. `MINIMAX_CN_API_KEY` when `provider == "minimax-cn"`
 
 **Live-verified compatibility**:
 - OpenRouter default endpoint via Rust binding
@@ -178,6 +202,40 @@ response = await stream_alchemy_openrouter(
 )
 ```
 
+**MiniMax global example**:
+```python
+from tinyagent.alchemy_provider import OpenAICompatModel, stream_alchemy_openai_completions
+
+model = OpenAICompatModel(
+    provider="minimax",
+    api="minimax-completions",  # optional if provider is minimax
+    id="MiniMax-M2.5",
+    base_url="https://api.minimax.io/v1/chat/completions",
+)
+
+response = await stream_alchemy_openai_completions(
+    model,
+    context,
+    {},  # resolves MINIMAX_API_KEY when api_key is omitted
+)
+```
+
+**MiniMax CN example**:
+```python
+model = OpenAICompatModel(
+    provider="minimax-cn",
+    api="minimax-completions",  # optional if provider is minimax-cn
+    id="MiniMax-M2.5",
+    base_url="https://api.minimax.chat/v1/chat/completions",
+)
+
+response = await stream_alchemy_openai_completions(
+    model,
+    context,
+    {},  # resolves MINIMAX_CN_API_KEY when api_key is omitted
+)
+```
+
 **Requirements**:
 ```bash
 pip install maturin
@@ -185,7 +243,7 @@ maturin develop
 ```
 
 **Limitations**:
-- Only OpenAI-compatible `/chat/completions` streaming
+- Rust binding currently dispatches only `openai-completions` and `minimax-completions`
 - Image blocks not supported
 - Uses blocking `next_event()` in thread pool (more overhead than native async)
 

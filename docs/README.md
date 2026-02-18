@@ -209,11 +209,12 @@ All three arguments are plain Python dicts:
 model = {
     "id": "anthropic/claude-3.5-sonnet",
     "base_url": "https://openrouter.ai/api/v1/chat/completions",
-    "provider": "openrouter",        # optional
-    "headers": {"X-Custom": "val"},  # optional
-    "reasoning": False,              # optional
-    "context_window": 128000,        # optional
-    "max_tokens": 4096,              # optional
+    "provider": "openrouter",          # required for env-key fallback/inference
+    "api": "openai-completions",       # optional; inferred from provider when omitted/blank
+    "headers": {"X-Custom": "val"},   # optional
+    "reasoning": False,                  # optional
+    "context_window": 128000,            # optional
+    "max_tokens": 4096,                  # optional
 }
 
 context = {
@@ -227,11 +228,24 @@ context = {
 }
 
 options = {
-    "api_key": "sk-...",             # optional
-    "temperature": 0.7,             # optional
-    "max_tokens": 1024,             # optional
+    "api_key": "sk-...",            # optional
+    "temperature": 0.7,              # optional
+    "max_tokens": 1024,              # optional
 }
 ```
+
+**Routing contract (`provider`, `api`, `base_url`)**:
+- `provider`: backend identity used for API-key fallback and provider defaults
+- `api`: alchemy unified API selector (`openai-completions` or `minimax-completions`)
+- `base_url`: concrete HTTP endpoint
+
+If `api` is omitted/blank, the Python side infers:
+- `provider in {"minimax", "minimax-cn"}` => `minimax-completions`
+- otherwise => `openai-completions`
+
+Legacy API aliases are normalized for backward compatibility:
+- `api="openrouter"` / `api="openai"` => `openai-completions`
+- `api="minimax"` => `minimax-completions`
 
 ### Using via TinyAgent (high-level)
 
@@ -249,15 +263,40 @@ agent = Agent(
 )
 agent.set_model(
     OpenAICompatModel(
+        provider="openrouter",
         id="anthropic/claude-3.5-sonnet",
         base_url="https://openrouter.ai/api/v1/chat/completions",
     )
 )
 ```
 
+MiniMax global:
+```python
+agent.set_model(
+    OpenAICompatModel(
+        provider="minimax",
+        id="MiniMax-M2.5",
+        base_url="https://api.minimax.io/v1/chat/completions",
+        # api is optional here; inferred as "minimax-completions"
+    )
+)
+```
+
+MiniMax CN:
+```python
+agent.set_model(
+    OpenAICompatModel(
+        provider="minimax-cn",
+        id="MiniMax-M2.5",
+        base_url="https://api.minimax.chat/v1/chat/completions",
+        # api is optional here; inferred as "minimax-completions"
+    )
+)
+```
+
 ### Limitations
 
-- Only OpenAI-compatible `/chat/completions` streaming is supported.
+- Rust binding currently dispatches only `openai-completions` and `minimax-completions`.
 - Image blocks are not yet supported (text and thinking blocks work).
 - `next_event()` is blocking and runs in a thread via `asyncio.to_thread` -- this adds
   slight overhead compared to a native async generator, but keeps the GIL released during
