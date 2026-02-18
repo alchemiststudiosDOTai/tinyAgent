@@ -63,7 +63,7 @@ import asyncio
 import os
 from typing import Any
 
-from tinyagent.agent import Agent, AgentOptions, extract_text
+from tinyagent import Agent, AgentOptions, extract_text
 from tinyagent.agent_types import (
     AgentEvent,
     AgentTool,

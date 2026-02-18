@@ -8,6 +8,7 @@ These tests enforce two invariants:
 from __future__ import annotations
 
 import asyncio
+import importlib
 from collections.abc import AsyncIterator, Coroutine
 from typing import Any, TypeVar, cast
 
@@ -410,5 +411,81 @@ def test_agent_preserves_usage_and_metadata_from_stream_function() -> None:
 
         context = cast(Context, captured["context"])
         assert context.messages[-1]["role"] == "user"
+
+    _run(_scenario())
+
+
+def test_agent_does_not_continue_turn_when_tool_execution_returns_no_results(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _scenario() -> None:
+        call_count = 0
+
+        async def fake_execute_tool_calls(
+            tools: list[AgentTool] | None,
+            assistant_message: AssistantMessage,
+            signal: asyncio.Event | None,
+            stream: object,
+            get_steering_messages: Any = None,
+        ) -> dict[str, object]:
+            return {"tool_results": [], "steering_messages": None}
+
+        agent_loop_module = importlib.import_module("tinyagent.agent_loop")
+        monkeypatch.setattr(agent_loop_module, "execute_tool_calls", fake_execute_tool_calls)
+
+        tool_call_message: AssistantMessage = {
+            "role": "assistant",
+            "content": [
+                {
+                    "type": "tool_call",
+                    "id": "call_1",
+                    "name": "echo",
+                    "arguments": {"text": "hello"},
+                }
+            ],
+            "stop_reason": "tool_calls",
+            "api": "openai-completions",
+            "provider": "openrouter",
+            "model": "moonshotai/kimi-k2.5",
+            "usage": _usage_payload(),
+            "timestamp": 123,
+        }
+
+        async def fake_stream_fn(
+            model: Model,
+            context: Context,
+            options: SimpleStreamOptions,
+        ) -> FakeStreamResponse:
+            nonlocal call_count
+            call_count += 1
+            if call_count > 1:
+                raise AssertionError("stream_fn should be called exactly once")
+            events: list[AssistantMessageEvent] = [
+                {
+                    "type": "done",
+                    "reason": "tool_calls",
+                    "message": tool_call_message,
+                }
+            ]
+            return FakeStreamResponse(events, tool_call_message)
+
+        agent = Agent(AgentOptions(stream_fn=fake_stream_fn))
+        agent.set_model(
+            Model(
+                provider="openrouter",
+                id="moonshotai/kimi-k2.5",
+                api="openai-completions",
+            )
+        )
+
+        message = await agent.prompt("hello")
+        assistant_message = cast(AssistantMessage, message)
+
+        assert call_count == 1
+        assert assistant_message["stop_reason"] == "tool_calls"
+        assert not any(
+            isinstance(msg, dict) and msg.get("role") == "tool_result"
+            for msg in agent.state["messages"]
+        )
 
     _run(_scenario())

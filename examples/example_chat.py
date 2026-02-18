@@ -9,6 +9,8 @@ This example demonstrates:
 - tool calling (tool_execution_* events)
 """
 
+from __future__ import annotations
+
 import asyncio
 import os
 

@@ -5,6 +5,8 @@ Usage:
     uv run python examples/example_chat_stream_text.py
 """
 
+from __future__ import annotations
+
 import asyncio
 import os
 

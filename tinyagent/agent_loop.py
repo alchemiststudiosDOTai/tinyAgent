@@ -10,7 +10,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TypeAlias, TypeVar
 
-from .agent_tool_execution import _extract_tool_calls, execute_tool_calls
+from .agent_tool_execution import execute_tool_calls
 from .agent_types import (
     STREAM_UPDATE_EVENTS,
     AgentContext,
@@ -31,7 +31,6 @@ from .agent_types import (
     SimpleStreamOptions,
     StreamFn,
     StreamResponse,
-    ToolResultMessage,
     TurnEndEvent,
     TurnStartEvent,
 )
@@ -270,26 +269,19 @@ async def _process_turn(
             should_continue=False,
         )
 
-    tool_calls = _extract_tool_calls(message)
-    has_more_tool_calls = len(tool_calls) > 0
-    tool_results: list[ToolResultMessage] = []
-    steering_after_tools: list[AgentMessage] | None = None
-
-    if has_more_tool_calls:
-        tool_execution = await execute_tool_calls(
-            current_context.tools,
-            message,
-            signal,
-            stream,
-            config.get_steering_messages,
-        )
-        tool_results.extend(tool_execution["tool_results"])
-        steering_after_tools = tool_execution.get("steering_messages")
-
-        for result in tool_results:
-            current_context.messages.append(result)
-            new_messages.append(result)
-
+    tool_execution = await execute_tool_calls(
+        current_context.tools,
+        message,
+        signal,
+        stream,
+        config.get_steering_messages,
+    )
+    tool_results = tool_execution["tool_results"]
+    has_more_tool_calls = len(tool_results) > 0
+    steering_after_tools = tool_execution.get("steering_messages")
+    for result in tool_results:
+        current_context.messages.append(result)
+        new_messages.append(result)
     stream.push(TurnEndEvent(message=message, tool_results=tool_results))
 
     pending_messages = steering_after_tools or (await get_steering_fn() if get_steering_fn else [])
