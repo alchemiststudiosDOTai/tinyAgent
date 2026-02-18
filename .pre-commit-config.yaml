@@ -39,6 +39,13 @@ repos:
         pass_filenames: false
         args: ["--ignore-missing-imports", "--exclude", "lint_file_length\\.py$", "."]
 
+      - id: binding-drift
+        name: bindinglint (single Rust binding enforcement)
+        entry: python3 scripts/lint_binding_drift.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
       - id: vulture
         name: vulture (dead code detection)
         entry: uv run vulture

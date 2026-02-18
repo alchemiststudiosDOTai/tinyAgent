@@ -181,7 +181,6 @@ response = await stream_alchemy_openrouter(
 **Requirements**:
 ```bash
 pip install maturin
-cd bindings/alchemy_llm_py
 maturin develop
 ```
 

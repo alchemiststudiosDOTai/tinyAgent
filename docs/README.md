@@ -137,12 +137,13 @@ agent = Agent(
 
 Cache breakpoints are automatically placed on user message content blocks so the prompt prefix stays cached across turns. See [Prompt Caching](api/caching.md) for details.
 
-## Rust Binding: `alchemy_llm_py`
+## Rust Binding: `tinyagent._alchemy`
 
-TinyAgent ships with an optional Rust-based LLM provider located in
-`bindings/alchemy_llm_py/`. It wraps the [`alchemy-llm`](https://crates.io/crates/alchemy-llm)
-Rust crate and exposes it to Python via [PyO3](https://pyo3.rs), giving you native-speed
-OpenAI-compatible streaming without leaving the Python process.
+TinyAgent ships with an optional Rust-based LLM provider implemented in
+`src/lib.rs`. It wraps the [`alchemy-llm`](https://crates.io/crates/alchemy-llm)
+Rust crate and exposes it to Python via [PyO3](https://pyo3.rs) as
+`tinyagent._alchemy`, giving you native-speed OpenAI-compatible streaming without
+leaving the Python process.
 
 ### Why
 
@@ -182,14 +183,13 @@ Requires a Rust toolchain (1.70+) and [maturin](https://www.maturin.rs/).
 
 ```bash
 pip install maturin
-cd bindings/alchemy_llm_py
-maturin develop          # debug build, installs into current venv
+maturin develop            # debug build, installs into current venv
 maturin develop --release  # optimized build
 ```
 
 ### Python API
 
-Two functions are exposed from the `alchemy_llm_py` module:
+Two functions are exposed from the `tinyagent._alchemy` module:
 
 | Function | Description |
 |---|---|

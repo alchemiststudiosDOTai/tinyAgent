@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """Example: interactive chat using the Rust `alchemy-llm` backend.
 
-This uses the PyO3 binding in `bindings/alchemy_llm_py` and streams events in
+This uses the PyO3 binding `tinyagent._alchemy` and streams events in
 real-time by pulling events from Rust in a thread.
 
 Setup:
   uv pip install -p .venv/bin/python maturin
-  cd bindings/alchemy_llm_py
-  ../../.venv/bin/python -m maturin develop --release --uv
+  .venv/bin/python -m maturin develop --release
 
 Auth:
   Add OPENROUTER_API_KEY to .env or export it.

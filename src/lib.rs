@@ -189,7 +189,7 @@ fn user_blocks_to_text(blocks: &[PyUserBlock]) -> Result<String, String> {
             PyUserBlock::Text { text, .. } => parts.push(text.clone()),
             PyUserBlock::Image { url, .. } => {
                 return Err(format!(
-                    "image blocks are not supported by alchemy_llm_py yet (got url: {url})"
+                    "image blocks are not supported by tinyagent._alchemy yet (got url: {url})"
                 ));
             }
         }

@@ -102,7 +102,7 @@ In `alchemy-rs/src/providers/openai_completions.rs`:
 ## Phase 2 — Align tinyagent Rust binding integration
 
 1. Ensure tinyagent build consumes the updated `alchemy-llm` behavior (path patch or dependency bump).
-2. Confirm `src/lib.rs` / `bindings/alchemy_llm_py/src/lib.rs` need no semantic change beyond pass-through (they already serialize `Usage` fields directly).
+2. Confirm `src/lib.rs` needs no semantic change beyond pass-through (it already serializes `Usage` fields directly).
 3. Rebuild binding and run contract tests.
 
 ## Phase 3 — Harden Python provider parity

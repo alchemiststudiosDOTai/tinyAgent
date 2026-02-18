@@ -1,7 +1,7 @@
 """Alchemy (Rust) provider for tinyagent.
 
-This provider uses the Rust crate `alchemy-llm` via a small PyO3 binding
-(`bindings/alchemy_llm_py`).
+This provider uses the Rust crate `alchemy-llm` via the PyO3 extension module
+`tinyagent._alchemy` (implemented in `src/lib.rs`).
 
 Important limitations:
 - Only OpenAI-compatible `/chat/completions` streaming is supported.
@@ -12,7 +12,6 @@ Important limitations:
 Build/install the binding first (from repo root):
 
     python -m pip install maturin
-    cd bindings/alchemy_llm_py
     maturin develop
 
 """
@@ -158,7 +157,7 @@ class AlchemyStreamResponse:
         if ev is None:
             raise StopAsyncIteration
         if not isinstance(ev, dict):
-            raise RuntimeError("alchemy_llm_py returned an invalid event")
+            raise RuntimeError("tinyagent._alchemy returned an invalid event")
         return cast(AssistantMessageEvent, ev)
 
 
