@@ -7,6 +7,16 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-02-18
+
+### Fixed
+- Prevented an extra agent turn when tool execution returns no tool results.
+- Updated examples to import `Agent` through the package public API.
+
+### Tests
+- Added regression coverage to ensure `Agent.prompt()` does not re-enter the stream loop after empty tool execution results.
+
+
 ## [1.2.0] - 2026-02-17
 
 ### Added
@@ -86,7 +96,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Code quality gates (dead code, duplicates, debt)
 - Rust `alchemy_llm_py` binding documentation
 
-[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.1.5...v1.2.0
 [1.1.5]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.1.4...v1.1.5
 [1.1.3]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.1.2...v1.1.3
