@@ -88,6 +88,7 @@ core_modules = [
     "agent_loop",
     "agent_tool_execution",
     "agent_types",
+    "intake",
     "openrouter_provider",
     "proxy",
     "proxy_event_handlers",

@@ -27,6 +27,7 @@ from .agent_types import (
     ThinkingLevel,
 )
 from .caching import add_cache_breakpoints
+from .intake import Intake
 
 TDefault = TypeVar("TDefault")
 
@@ -313,6 +314,8 @@ class Agent:
         self.get_api_key: ApiKeyResolverCallback | None = opts.get_api_key
         self._running_prompt: asyncio.Future[None] | None = None
         self._thinking_budgets: ThinkingBudgets | None = opts.thinking_budgets
+        self._intake: Intake | None = None
+        self._intake_metadata: dict[str, object] | None = None
 
     @property
     def session_id(self) -> str | None:
@@ -333,6 +336,15 @@ class Agent:
     @thinking_budgets.setter
     def thinking_budgets(self, value: ThinkingBudgets | None) -> None:
         self._thinking_budgets = value
+
+    def set_intake(self, intake: Intake | None) -> None:
+        """Set the L1 intake pipeline for input processing."""
+        self._intake = intake
+
+    @property
+    def intake_metadata(self) -> dict[str, object] | None:
+        """Metadata from the last L1 intake processing, or None."""
+        return self._intake_metadata
 
     @property
     def state(self) -> AgentState:
@@ -414,6 +426,7 @@ class Agent:
         self._state["error"] = None
         self._steering_queue = []
         self._follow_up_queue = []
+        self._intake_metadata = None
 
     def _build_input_messages(
         self,
@@ -436,6 +449,26 @@ class Agent:
                 }
             ]
         return [input_data]
+
+    async def _prepare_input(
+        self,
+        input_data: str | AgentMessage | list[AgentMessage],
+        images: list[ImageContent] | None = None,
+    ) -> list[AgentMessage]:
+        """Prepare input messages, running through L1 intake if configured."""
+        if self._intake is not None and isinstance(input_data, str):
+            raw: str | list[TextContent | ImageContent]
+            if images:
+                content: list[TextContent | ImageContent] = [{"type": "text", "text": input_data}]
+                content.extend(images)
+                raw = content
+            else:
+                raw = input_data
+            result = await self._intake.process(raw)
+            self._intake_metadata = result.metadata
+            return [result.message]
+        self._intake_metadata = None
+        return self._build_input_messages(input_data, images)
 
     def _last_assistant_message(self) -> AgentMessage | None:
         for msg in reversed(self._state.get("messages", [])):
@@ -461,7 +494,7 @@ class Agent:
             raise RuntimeError("No model configured")
 
         before = len(self._state.get("messages", []))
-        msgs = self._build_input_messages(input_data, images)
+        msgs = await self._prepare_input(input_data, images)
         await self._run_loop(msgs)
 
         new_messages = self._state.get("messages", [])[before:]
@@ -496,7 +529,7 @@ class Agent:
             if not model:
                 raise RuntimeError("No model configured")
 
-            msgs = self._build_input_messages(input_data, images)
+            msgs = await self._prepare_input(input_data, images)
 
             self._setup_run_state()
             context, config = self._build_loop_context_and_config(model)

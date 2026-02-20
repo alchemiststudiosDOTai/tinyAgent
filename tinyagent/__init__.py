@@ -54,6 +54,16 @@ from .agent_types import (
     TurnStartEvent,
     UserMessage,
 )
+from .intake import (
+    DEFAULT_ENRICHERS,
+    Enricher,
+    Intake,
+    IntakeResult,
+    IntakeSignal,
+    RawInput,
+    enrich_input_type,
+    enrich_token_estimate,
+)
 from .openrouter_provider import OpenRouterModel, stream_openrouter
 from .proxy import ProxyStreamOptions, ProxyStreamResponse, create_proxy_stream, stream_proxy
 from .proxy_event_handlers import parse_streaming_json
@@ -114,6 +124,15 @@ __all__ = [
     "AgentState",
     "EventStream",
     "StreamFn",
+    # L1 Intake
+    "Intake",
+    "IntakeSignal",
+    "IntakeResult",
+    "RawInput",
+    "Enricher",
+    "DEFAULT_ENRICHERS",
+    "enrich_token_estimate",
+    "enrich_input_type",
     # Proxy
     "ProxyStreamOptions",
     "ProxyStreamResponse",
