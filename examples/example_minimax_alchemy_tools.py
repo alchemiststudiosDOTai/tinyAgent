@@ -18,7 +18,14 @@ from typing import Any
 from dotenv import load_dotenv
 
 from tinyagent import Agent, AgentOptions, extract_text
-from tinyagent.agent_types import AgentEvent, AgentTool, AgentToolResult, TextContent
+from tinyagent.agent_types import (
+    AgentEvent,
+    AgentTool,
+    AgentToolResult,
+    TextContent,
+    ToolExecutionEndEvent,
+    ToolExecutionStartEvent,
+)
 from tinyagent.alchemy_provider import OpenAICompatModel, stream_alchemy_openai_completions
 
 DEFAULT_MINIMAX_BASE_URL = "https://api.minimax.io/v1/chat/completions"
@@ -51,24 +58,11 @@ async def execute_multiply(
     return AgentToolResult(content=[TextContent(type="text", text=str(value))])
 
 
-def _event_type(event: AgentEvent) -> str | None:
-    if isinstance(event, dict):
-        return event.get("type")
-    return getattr(event, "type", None)
-
-
 def log_tool_events(event: AgentEvent) -> None:
-    etype = _event_type(event)
-    if etype == "tool_execution_start":
-        if isinstance(event, dict):
-            print(f"[tool-start] {event.get('tool_name')} ({event.get('tool_call_id')})")
-        else:
-            print(f"[tool-start] {event.tool_name} ({event.tool_call_id})")
-    elif etype == "tool_execution_end":
-        if isinstance(event, dict):
-            print(f"[tool-end] {event.get('tool_name')}")
-        else:
-            print(f"[tool-end] {event.tool_name}")
+    if isinstance(event, ToolExecutionStartEvent):
+        print(f"[tool-start] {event.tool_name} ({event.tool_call_id})")
+    elif isinstance(event, ToolExecutionEndEvent):
+        print(f"[tool-end] {event.tool_name}")
 
 
 async def main() -> None:

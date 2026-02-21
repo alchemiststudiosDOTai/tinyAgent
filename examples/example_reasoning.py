@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 
 from tinyagent import Agent, AgentOptions
 from tinyagent.agent_types import (
+    AgentMessage,
     AssistantContent,
     AssistantMessage,
     TextContent,
@@ -31,6 +32,10 @@ def is_text_content(block: AssistantContent | None) -> TypeGuard[TextContent]:
     return block is not None and block.get("type") == "text"
 
 
+def is_assistant_message(message: AgentMessage) -> TypeGuard[AssistantMessage]:
+    return message.get("role") == "assistant"
+
+
 def print_reasoning_response(message: AssistantMessage) -> None:
     """Print reasoning and answer blocks separately."""
     content = message.get("content") or []
@@ -40,14 +45,14 @@ def print_reasoning_response(message: AssistantMessage) -> None:
 
     if thinking_blocks:
         print("=== REASONING ===")
-        for block in thinking_blocks:
-            print(block.get("thinking", ""))
+        for thinking_block in thinking_blocks:
+            print(thinking_block.get("thinking", ""))
         print()
 
     if text_blocks:
         print("=== ANSWER ===")
-        for block in text_blocks:
-            print(block.get("text", ""))
+        for text_block in text_blocks:
+            print(text_block.get("text", ""))
         print()
 
 
@@ -71,6 +76,8 @@ async def main() -> None:
     prompt = "Question: If I have 3 apples and I buy 2 more, how many apples do I have?"
 
     assistant_message = await agent.prompt(prompt)
+    if not is_assistant_message(assistant_message):
+        raise RuntimeError("Expected assistant message from agent.prompt()")
 
     # Print separated reasoning vs answer
     print_reasoning_response(assistant_message)
