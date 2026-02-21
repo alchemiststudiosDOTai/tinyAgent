@@ -7,6 +7,12 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.4] - 2026-02-21
+
+### Fixed
+- Upgraded `alchemy-llm` 0.1.5 -> 0.1.6: fixes MiniMax multi-turn tool call arguments (turn 2+ no longer send `{}`).
+- Normalized tool call arguments in Rust binding and Python fallback.
+
 ### Added
 - Added `scripts/smoke_rust_tool_calls_three_providers.py` as the canonical raw Rust-binding multi-turn tool-call smoke script (OpenRouter, MiniMax, Chutes).
 
