@@ -296,8 +296,10 @@ agent.set_model(
 )
 ```
 
-Cross-provider tool-call smoke example (single `Agent`, three providers):
-- `examples/example_tool_calls_three_providers.py`
+Cross-provider tool-call smoke examples:
+- One-agent workflow: `examples/example_tool_calls_three_providers.py`
+- Raw Rust binding workflow (multi-turn tools): `scripts/smoke_rust_tool_calls_three_providers.py`
+  - Command: `uv run python scripts/smoke_rust_tool_calls_three_providers.py`
 
 
 ### Limitations

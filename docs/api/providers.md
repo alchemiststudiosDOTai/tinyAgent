@@ -214,6 +214,11 @@ tool_execution_start: [{"tool_name": "add_numbers", "tool_call_id": "call_1fd865
 tool_results: [{"tool_name": "add_numbers", "tool_call_id": "call_1fd865c9091942aa9d523d11"}]
 ```
 
+**Raw Rust binding / three-provider multi-turn smoke**:
+- Script: `scripts/smoke_rust_tool_calls_three_providers.py`
+- Required keys: `OPENROUTER_API_KEY`, `MINIMAX_API_KEY`, `CHUTES_API_KEY`
+- Command: `uv run python scripts/smoke_rust_tool_calls_three_providers.py`
+- Chutes default model: `Qwen/Qwen3-Coder-Next-TEE` (override with `CHUTES_MODEL`)
 
 **Rust + Chutes example**:
 ```python

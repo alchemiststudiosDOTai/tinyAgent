@@ -31,6 +31,7 @@ pytest tests/test_caching.py              # single file
 pytest tests/test_caching.py::test_name   # single test
 pytest -k "pattern"                       # by name pattern
 pytest tests/architecture/ -x -q          # architecture enforcement only
+uv run python scripts/smoke_rust_tool_calls_three_providers.py  # live Rust smoke
 ```
 
 `asyncio_mode = "auto"` is configured -- no need for `@pytest.mark.asyncio` on new tests.

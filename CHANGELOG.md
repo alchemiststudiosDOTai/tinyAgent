@@ -7,6 +7,12 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- Added `scripts/smoke_rust_tool_calls_three_providers.py` as the canonical raw Rust-binding multi-turn tool-call smoke script (OpenRouter, MiniMax, Chutes).
+
+### Changed
+- Default Chutes model in the Rust smoke script is now `Qwen/Qwen3-Coder-Next-TEE` (override with `CHUTES_MODEL`).
+
 ## [1.2.3] - 2026-02-21
 
 ### Changed

@@ -1,4 +1,5 @@
-"""Test 3 sequential tool-call turns via Rust binding - 3 providers."""
+#!/usr/bin/env python3
+"""Smoke test: 3 sequential tool-call turns via Rust binding across 3 providers."""
 
 from __future__ import annotations
 
@@ -66,7 +67,7 @@ PROVIDERS: list[dict[str, Any]] = [
     {
         "label": "Chutes",
         "model": {
-            "id": "deepseek-ai/DeepSeek-V3-0324",
+            "id": os.getenv("CHUTES_MODEL", "Qwen/Qwen3-Coder-Next-TEE"),
             "provider": "chutes",
             "api": "openai-completions",
             "base_url": "https://llm.chutes.ai/v1/chat/completions",
