@@ -95,7 +95,9 @@ Two message queues interrupt or extend agent runs:
 
 Global Tokio multi-thread runtime. Python calls `openai_completions_stream()` which deserializes via pythonize, calls `alchemy_llm::stream()`, sends events through `mpsc` channel. Python reads via blocking `next_event()` wrapped in `asyncio.to_thread`. Supports `openai-completions` and `minimax-completions` API dispatches.
 
-The Rust binding and the `alchemy-llm` crate are maintained by the alchemy team. Bug reports and fixes to the binding layer (`src/lib.rs`) or the upstream crate should be coordinated with them. Do not attempt to rewrite or bypass the Rust binding with Python-side HTTP calls -- all LLM API traffic goes through the Rust binding.
+The Rust binding and the `alchemy-llm` crate are maintained by the alchemy team. Bug reports and fixes to the binding layer (`src/lib.rs`) or the upstream crate should be coordinated with them.
+
+**Policy update:** The Rust binding is the only first-class API. Do not add or rely on any non-Rust fallback/provider path. Do not attempt to rewrite or bypass the Rust binding with Python-side HTTP calls -- all LLM API traffic goes through the Rust binding.
 
 ### Provider-Specific API Key Env Vars
 
