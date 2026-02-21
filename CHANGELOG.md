@@ -7,6 +7,20 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-02-21
+
+### Changed
+- Upgraded Rust dependency to `alchemy-llm` `0.1.5`.
+- Updated the PyO3 binding bridge to map tool call IDs into alchemy's typed `ToolCallId` fields for both assistant tool calls and tool results.
+
+### Added
+- Added `examples/example_tool_calls_three_providers.py` for one-agent tool-call smoke runs across OpenRouter, MiniMax, and Chutes.
+
+### Docs
+- Added explicit cross-provider smoke-run output documentation for Rust-backed tool calls in `docs/api/providers.md`.
+- Added a quick pointer to the three-provider tool-call example in `docs/README.md`.
+
+
 ## [1.2.1] - 2026-02-18
 
 ### Fixed
@@ -96,7 +110,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Code quality gates (dead code, duplicates, debt)
 - Rust `alchemy_llm_py` binding documentation
 
-[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.2...HEAD
+[1.2.2]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.1.5...v1.2.0
 [1.1.5]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.1.4...v1.1.5
