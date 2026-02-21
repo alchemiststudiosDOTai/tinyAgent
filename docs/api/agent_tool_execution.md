@@ -22,26 +22,28 @@ Execute all tool calls found in an assistant message.
 - `assistant_message`: The assistant message containing tool calls
 - `signal`: Abort signal
 - `stream`: Event stream to push execution events
-- `get_steering_messages`: Callback to check for steering (interrupts remaining tools)
+- `get_steering_messages`: Callback to check for steering after all tools complete
 
 **Returns**: `ToolExecutionResult` with tool results and optional steering messages
 
 **Events Emitted**:
-- `ToolExecutionStartEvent` (before each tool)
-- `ToolExecutionUpdateEvent` (if tool calls on_update)
-- `ToolExecutionEndEvent` (after each tool)
-- `MessageStartEvent`, `MessageEndEvent` (for each tool result)
+- `ToolExecutionStartEvent` (for all tools before execution begins)
+- `ToolExecutionUpdateEvent` (if tool calls on_update during execution)
+- `ToolExecutionEndEvent` (for all tools after execution, in original order)
+- `MessageStartEvent`, `MessageEndEvent` (for each tool result, in order)
 
-**Execution Flow**:
+**Execution Flow** (parallel):
 1. Extract tool calls from message content
-2. For each tool call:
-   - Find matching tool by name
-   - Emit `ToolExecutionStartEvent`
-   - Call `_execute_single_tool()`
-   - Emit `ToolExecutionEndEvent`
-   - Create and emit `ToolResultMessage`
-   - Check for steering messages (if found, skip remaining tools)
-3. Return results
+2. Emit `ToolExecutionStartEvent` for all tools
+3. Execute all tools concurrently via `asyncio.gather()`
+4. Emit `ToolExecutionEndEvent` and `ToolResultMessage` events in original order
+5. Check for steering messages once after all tools complete
+6. Return results
+
+**Event ordering**: All start events are emitted before any tool begins executing.
+After all tools complete, end events and result messages are emitted in the
+original tool call order. This ensures consumers see a clear parallel lifecycle:
+all tools start → all tools finish → results delivered in order.
 
 ### skip_tool_call
 ```python
@@ -138,8 +140,8 @@ class ToolExecutionResult(TypedDict):
 
 Result from executing tool calls.
 
-- `tool_results`: Results for all executed/skipped tools
-- `steering_messages`: If steering interrupted execution, the messages to process next
+- `tool_results`: Results for all executed tools
+- `steering_messages`: If steering was queued during execution, the messages to process next
 
 ## Tool Execute Signature
 
