@@ -7,7 +7,7 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [1.2.2] - 2026-02-21
+## [1.2.3] - 2026-02-21
 
 ### Changed
 - Upgraded Rust dependency to `alchemy-llm` `0.1.5`.
@@ -110,7 +110,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Code quality gates (dead code, duplicates, debt)
 - Rust `alchemy_llm_py` binding documentation
 
-[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.2...HEAD
+[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.3...HEAD
+[1.2.3]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.1.5...v1.2.0
