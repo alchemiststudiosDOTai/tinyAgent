@@ -307,6 +307,19 @@ fn message_to_alchemy(
     }
 }
 
+/// Ensure tool-call arguments are always a JSON object, never a JSON string.
+///
+/// Some providers (e.g. MiniMax) may return arguments as a JSON-encoded string
+/// (`Value::String("{\"a\":1}")`).  We parse it here so Python always receives
+/// a dict.
+fn normalize_arguments(v: &Value) -> Value {
+    match v {
+        Value::String(s) => serde_json::from_str(s).unwrap_or(Value::Object(Default::default())),
+        Value::Object(_) => v.clone(),
+        _ => Value::Object(Default::default()),
+    }
+}
+
 fn content_to_py_value(c: &a::Content) -> Value {
     match c {
         a::Content::Text { inner } => serde_json::json!({
@@ -323,7 +336,7 @@ fn content_to_py_value(c: &a::Content) -> Value {
             "type": "tool_call",
             "id": inner.id,
             "name": inner.name,
-            "arguments": inner.arguments,
+            "arguments": normalize_arguments(&inner.arguments),
         }),
         a::Content::Image { inner } => serde_json::json!({
             "type": "image",
@@ -369,7 +382,7 @@ fn tool_call_to_py_value(tc: &a::ToolCall) -> Value {
         "type": "tool_call",
         "id": tc.id,
         "name": tc.name,
-        "arguments": tc.arguments,
+        "arguments": normalize_arguments(&tc.arguments),
     })
 }
 

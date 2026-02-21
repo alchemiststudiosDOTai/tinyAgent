@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import Awaitable, Callable
 from typing import TypedDict, cast
 
@@ -29,12 +30,20 @@ class ToolExecutionResult(TypedDict):
 
 
 def validate_tool_arguments(tool: AgentTool, tool_call: ToolCallContent) -> JsonObject:
-    """Validate tool arguments against the tool's schema.
+    """Validate and normalize tool arguments.
 
-    Placeholder implementation: returns the arguments as-is.
+    Some providers (e.g. MiniMax via alchemy) may return arguments as a JSON
+    string rather than a parsed dict.  Normalize to dict before execution.
     """
 
-    return tool_call.get("arguments", {})
+    raw = tool_call.get("arguments", {})
+    if isinstance(raw, str):
+        try:
+            parsed = json.loads(raw) if raw else {}
+            return cast(JsonObject, parsed) if isinstance(parsed, dict) else {}
+        except (json.JSONDecodeError, ValueError):
+            return {}
+    return raw
 
 
 def _extract_tool_calls(assistant_message: AssistantMessage) -> list[ToolCallContent]:
