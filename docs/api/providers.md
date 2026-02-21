@@ -185,6 +185,36 @@ Works with `OpenRouterModel` (including `base_url` overrides).
 - OpenRouter default endpoint via Rust binding
 - Chutes endpoint (`https://llm.chutes.ai/v1/chat/completions`) via Rust binding with `OpenRouterModel(base_url=...)`
 
+**One-agent / three-provider tool-call smoke (2026-02-21)**:
+- Example script: `examples/example_tool_calls_three_providers.py`
+- Required keys: `OPENROUTER_API_KEY`, `MINIMAX_API_KEY`, `CHUTES_API_KEY`
+- Command: `uv run python examples/example_tool_calls_three_providers.py`
+- Observed output:
+
+```text
+=== openrouter ===
+stop_reason: complete
+final_text:
+tool_execution_start: [{"tool_name": "", "tool_call_id": "functions.add_numbers:0"}, {"tool_name": "add_numbers", "tool_call_id": " functions.add_numbers:1 "}]
+tool_results: [{"tool_name": "", "tool_call_id": "functions.add_numbers:0"}, {"tool_name": "add_numbers", "tool_call_id": " functions.add_numbers:1 "}]
+
+=== minimax ===
+stop_reason: complete
+final_text:
+42
+tool_execution_start: [{"tool_name": "add_numbers", "tool_call_id": "call_function_gfqio31yvev6_1"}]
+tool_results: [{"tool_name": "add_numbers", "tool_call_id": "call_function_gfqio31yvev6_1"}]
+
+=== chutes ===
+stop_reason: complete
+final_text: <think> ... </think>
+
+42
+tool_execution_start: [{"tool_name": "add_numbers", "tool_call_id": "call_1fd865c9091942aa9d523d11"}]
+tool_results: [{"tool_name": "add_numbers", "tool_call_id": "call_1fd865c9091942aa9d523d11"}]
+```
+
+
 **Rust + Chutes example**:
 ```python
 from tinyagent import OpenRouterModel

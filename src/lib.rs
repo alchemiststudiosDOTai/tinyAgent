@@ -226,7 +226,7 @@ fn assistant_block_to_content(block: &PyAssistantBlock) -> a::Content {
             ..
         } => a::Content::ToolCall {
             inner: a::ToolCall {
-                id: id.clone(),
+                id: id.clone().into(),
                 name: name.clone(),
                 arguments: arguments.clone(),
                 thought_signature: None,
@@ -296,7 +296,7 @@ fn message_to_alchemy(
             }
 
             Ok(a::Message::ToolResult(a::ToolResultMessage {
-                tool_call_id,
+                tool_call_id: tool_call_id.into(),
                 tool_name,
                 content: out,
                 details,

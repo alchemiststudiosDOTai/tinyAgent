@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 tinyAgent (`tiny-agent-os` on PyPI) is a minimalist Python LLM agent framework with an optional Rust/PyO3 binding for native-speed streaming. v1.2.1, requires Python >=3.10. Beta -- APIs may change between minor versions.
 
-Reference copy of alchemy-rs available at `/home/tuna/alchemy-rs-ref`.
+> **Local reference:** `./alchemy-rs` (gitignored)
 
 ## Build and Development
 

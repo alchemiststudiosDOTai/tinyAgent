@@ -8,6 +8,8 @@ Inspired by [smolagents](https://github.com/huggingface/smolagents) and [Pi](htt
 
 > **Beta** — TinyAgent is usable but not production-ready. APIs may change between minor versions.
 
+> **Note:** Reference copy of alchemy-rs available at `/home/tuna/alchemy-rs-ref`
+
 ## Overview
 
 TinyAgent provides a lightweight foundation for creating conversational AI agents with tool use capabilities. It features:
@@ -293,6 +295,10 @@ agent.set_model(
     )
 )
 ```
+
+Cross-provider tool-call smoke example (single `Agent`, three providers):
+- `examples/example_tool_calls_three_providers.py`
+
 
 ### Limitations
 
