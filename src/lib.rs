@@ -226,7 +226,7 @@ fn assistant_block_to_content(block: &PyAssistantBlock) -> a::Content {
             ..
         } => a::Content::ToolCall {
             inner: a::ToolCall {
-                id: id.clone(),
+                id: id.clone().into(),
                 name: name.clone(),
                 arguments: arguments.clone(),
                 thought_signature: None,
@@ -296,7 +296,7 @@ fn message_to_alchemy(
             }
 
             Ok(a::Message::ToolResult(a::ToolResultMessage {
-                tool_call_id,
+                tool_call_id: tool_call_id.into(),
                 tool_name,
                 content: out,
                 details,
@@ -304,6 +304,19 @@ fn message_to_alchemy(
                 timestamp: timestamp.unwrap_or(0),
             }))
         }
+    }
+}
+
+/// Ensure tool-call arguments are always a JSON object, never a JSON string.
+///
+/// Some providers (e.g. MiniMax) may return arguments as a JSON-encoded string
+/// (`Value::String("{\"a\":1}")`).  We parse it here so Python always receives
+/// a dict.
+fn normalize_arguments(v: &Value) -> Value {
+    match v {
+        Value::String(s) => serde_json::from_str(s).unwrap_or(Value::Object(Default::default())),
+        Value::Object(_) => v.clone(),
+        _ => Value::Object(Default::default()),
     }
 }
 
@@ -323,7 +336,7 @@ fn content_to_py_value(c: &a::Content) -> Value {
             "type": "tool_call",
             "id": inner.id,
             "name": inner.name,
-            "arguments": inner.arguments,
+            "arguments": normalize_arguments(&inner.arguments),
         }),
         a::Content::Image { inner } => serde_json::json!({
             "type": "image",

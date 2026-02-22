@@ -1,33 +1,11 @@
-"""Parallel tool execution demo.
+"""Parallel vs Sequential tool execution comparison demo.
 
-Demonstrates that tinyAgent executes multiple tool calls concurrently
-via asyncio.gather(). Uses a fake LLM stream so no API key is needed.
+Demonstrates the performance difference between parallel (asyncio.gather)
+and sequential tool execution. Each tool has 0.3s latency.
 
-## What this shows
-
-    User: "Get the weather in Paris, London, and Tokyo"
-        │
-        ▼
-    Fake LLM returns 3 tool calls in one response
-        │
-        ▼
-    ┌──────────────────────────────────────────────────┐
-    │  execute_tool_calls (agent_tool_execution.py)    │
-    │                                                  │
-    │  1. Emit ToolExecutionStartEvent × 3             │
-    │  2. asyncio.gather(                              │
-    │       get_weather("Paris"),   ← 0.3s sleep       │
-    │       get_weather("London"),  ← 0.3s sleep       │
-    │       get_weather("Tokyo"),   ← 0.3s sleep       │
-    │     )                                            │
-    │  3. Emit ToolExecutionEndEvent × 3 (in order)    │
-    └──────────────────────────────────────────────────┘
-        │
-        ▼
-    All 3 tools complete in ~0.3s (not ~0.9s)
-        │
-        ▼
-    Fake LLM summarizes the results
+With 3 tools:
+  - Sequential: ~0.9s (0.3s + 0.3s + 0.3s)
+  - Parallel:   ~0.3s (all run simultaneously)
 
 Usage:
     python examples/example_parallel_tools.py
@@ -49,23 +27,26 @@ from tinyagent.agent_types import (
     AssistantMessage,
     AssistantMessageEvent,
     Context,
+    EventStream,
     JsonObject,
     Model,
     SimpleStreamOptions,
     StreamResponse,
     TextContent,
+    ToolExecutionStartEvent,
+    ToolExecutionEndEvent,
 )
+from tinyagent.agent_tool_execution import execute_tool_calls, ToolExecutionResult
 
 # ── Tools ──────────────────────────────────────────────────────────────
-#
-# Each tool sleeps for 0.3s to simulate an async I/O call (e.g. HTTP).
-# With sequential execution this would take 0.9s for 3 calls.
-# With parallel execution it takes ~0.3s.
 
 FAKE_WEATHER: dict[str, str] = {
     "paris": "22°C, partly cloudy",
     "london": "16°C, light rain",
     "tokyo": "28°C, sunny and humid",
+    "new_york": "18°C, clear sky",
+    "sydney": "25°C, warm breeze",
+    "berlin": "14°C, overcast",
 }
 
 
@@ -77,7 +58,7 @@ async def execute_get_weather(
 ) -> AgentToolResult:
     city = args.get("city", "unknown")
     await asyncio.sleep(0.3)  # simulate network latency
-    weather = FAKE_WEATHER.get(city.lower(), "no data")
+    weather = FAKE_WEATHER.get(city.lower().replace(" ", "_"), "no data")
     return AgentToolResult(content=[TextContent(type="text", text=f"{city}: {weather}")])
 
 
@@ -93,76 +74,61 @@ weather_tool = AgentTool(
 )
 
 
-# ── Fake LLM stream ──────────────────────────────────────────────────
-#
-# Turn 1: returns 3 tool calls (get_weather for each city)
-# Turn 2: returns a text summary of the results
+# ── Sequential execution helper ─────────────────────────────────────────
 
 
-def _usage() -> JsonObject:
-    return {
-        "input": 10,
-        "output": 5,
-        "cache_read": 0,
-        "cache_write": 0,
-        "total_tokens": 15,
-        "cost": {"input": 0.0, "output": 0.0, "cache_read": 0.0, "cache_write": 0.0, "total": 0.0},
-    }
+async def execute_sequential(
+    tools: list[AgentTool],
+    assistant_message: AssistantMessage,
+    stream: EventStream,
+    signal: asyncio.Event | None = None,
+) -> ToolExecutionResult:
+    """Execute tools one by one (sequential) for comparison."""
+    from tinyagent.agent_tool_execution import (
+        _extract_tool_calls,
+        _find_tool,
+        _execute_single_tool,
+        _create_tool_result_message,
+        ToolResultMessage,
+    )
+
+    tool_calls = _extract_tool_calls(assistant_message)
+    results: list[ToolResultMessage] = []
+
+    for tool_call in tool_calls:
+        tool_call_id = tool_call.get("id", "")
+        tool_call_name = tool_call.get("name", "")
+        tool_call_args = tool_call.get("arguments", {})
+        tool = _find_tool(tools, tool_call_name)
+
+        # Emit start
+        stream.push(
+            ToolExecutionStartEvent(
+                tool_call_id=tool_call_id,
+                tool_name=tool_call_name,
+                args=tool_call_args,
+            )
+        )
+
+        # Execute and wait
+        result, is_error = await _execute_single_tool(tool, tool_call, signal, stream)
+
+        # Emit end
+        stream.push(
+            ToolExecutionEndEvent(
+                tool_call_id=tool_call_id,
+                tool_name=tool_call_name,
+                result=result,
+                is_error=is_error,
+            )
+        )
+
+        results.append(_create_tool_result_message(tool_call, result, is_error))
+
+    return {"tool_results": results, "steering_messages": None}
 
 
-def _tool_call_message() -> AssistantMessage:
-    return {
-        "role": "assistant",
-        "content": [
-            {
-                "type": "tool_call",
-                "id": "call_paris",
-                "name": "get_weather",
-                "arguments": {"city": "Paris"},
-            },
-            {
-                "type": "tool_call",
-                "id": "call_london",
-                "name": "get_weather",
-                "arguments": {"city": "London"},
-            },
-            {
-                "type": "tool_call",
-                "id": "call_tokyo",
-                "name": "get_weather",
-                "arguments": {"city": "Tokyo"},
-            },
-        ],
-        "stop_reason": "tool_calls",
-        "api": "fake",
-        "provider": "fake",
-        "model": "fake-model",
-        "usage": _usage(),
-        "timestamp": 0,
-    }
-
-
-def _summary_message() -> AssistantMessage:
-    return {
-        "role": "assistant",
-        "content": [
-            {
-                "type": "text",
-                "text": (
-                    "Here's the weather:\n"
-                    "- Paris: 22°C, partly cloudy\n"
-                    "- London: 16°C, light rain\n"
-                    "- Tokyo: 28°C, sunny and humid"
-                ),
-            }
-        ],
-        "stop_reason": "complete",
-        "api": "fake",
-        "provider": "fake",
-        "model": "fake-model",
-        "usage": _usage(),
-        "timestamp": 0,
-    }
+# ── Fake LLM streams ───────────────────────────────────────────────────
 
 
 class FakeStream:
@@ -185,22 +151,75 @@ class FakeStream:
         return {"type": "done", "reason": "stop", "message": self._message}
 
 
-class FakeProvider:
-    """Fake LLM provider: turn 1 returns tool calls, turn 2 returns summary."""
+def _tool_call_message(cities: list[str]) -> AssistantMessage:
+    """Generate tool calls for given cities."""
+    return {
+        "role": "assistant",
+        "content": [
+            {
+                "type": "tool_call",
+                "id": f"call_{city.lower().replace(' ', '_')}",
+                "name": "get_weather",
+                "arguments": {"city": city},
+            }
+            for city in cities
+        ],
+        "stop_reason": "tool_calls",
+        "api": "fake",
+        "provider": "fake",
+        "model": "fake-model",
+        "usage": {
+            "input": 10,
+            "output": 5,
+            "cache_read": 0,
+            "cache_write": 0,
+            "total_tokens": 15,
+            "cost": {
+                "input": 0.0,
+                "output": 0.0,
+                "cache_read": 0.0,
+                "cache_write": 0.0,
+                "total": 0.0,
+            },
+        },
+        "timestamp": 0,
+    }
 
-    def __init__(self) -> None:
-        self.call_count = 0
 
-    async def stream(
-        self, model: Model, context: Context, options: SimpleStreamOptions
-    ) -> StreamResponse:
-        self.call_count += 1
-        if self.call_count == 1:
-            return FakeStream(_tool_call_message())
-        return FakeStream(_summary_message())
+def _summary_message(cities: list[str]) -> AssistantMessage:
+    """Generate summary of weather results."""
+    lines = [
+        f"- {city}: {FAKE_WEATHER.get(city.lower().replace(' ', '_'), 'no data')}"
+        for city in cities
+    ]
+    return {
+        "role": "assistant",
+        "content": [{"type": "text", "text": "Here's the weather:\n" + "\n".join(lines)}],
+        "stop_reason": "complete",
+        "api": "fake",
+        "provider": "fake",
+        "model": "fake-model",
+        "usage": {
+            "input": 10,
+            "output": 5,
+            "cache_read": 0,
+            "cache_write": 0,
+            "total_tokens": 15,
+            "cost": {
+                "input": 0.0,
+                "output": 0.0,
+                "cache_read": 0.0,
+                "cache_write": 0.0,
+                "total": 0.0,
+            },
+        },
+        "timestamp": 0,
+    }
 
 
 # ── Event logger ──────────────────────────────────────────────────────
+
+T0 = 0.0
 
 
 def event_logger(event: AgentEvent) -> None:
@@ -213,44 +232,112 @@ def event_logger(event: AgentEvent) -> None:
     elif etype == "tool_execution_end":
         name = getattr(event, "tool_name", "?")
         print(f"  [DONE]  {name} at t={time.perf_counter() - T0:.3f}s")
-    elif etype == "turn_end":
-        print("  ── turn end ──")
 
 
-T0 = 0.0
+class LoggingEventStream(EventStream):
+    """EventStream that also logs events for the demo."""
+
+    def push(self, event: AgentEvent) -> None:
+        event_logger(event)
+        super().push(event)
+
+
+# ── Benchmark functions ───────────────────────────────────────────────
+
+
+async def run_parallel(cities: list[str]) -> float:
+    """Run tools in parallel (default tinyAgent behavior)."""
+    global T0
+
+    print(f"\n{'─' * 60}")
+    print(f"PARALLEL EXECUTION: {', '.join(cities)}")
+    print(f"{'─' * 60}")
+
+    # Create event stream with dummy callbacks for the demo
+    stream = LoggingEventStream(
+        is_end_event=lambda e: False,
+        get_result=lambda e: [],
+    )
+
+    T0 = time.perf_counter()
+    message = _tool_call_message(cities)
+
+    result = await execute_tool_calls(
+        tools=[weather_tool],
+        assistant_message=message,
+        stream=stream,
+        signal=None,
+    )
+
+    elapsed = time.perf_counter() - T0
+    print(f"\n  Results: {len(result['tool_results'])} tools completed")
+    print(f"  Total time: {elapsed:.3f}s")
+    print(f"  Expected: ~{0.3:.1f}s (all 3 run simultaneously)")
+    return elapsed
+
+
+async def run_sequential(cities: list[str]) -> float:
+    """Run tools sequentially (one at a time)."""
+    global T0
+
+    print(f"\n{'─' * 60}")
+    print(f"SEQUENTIAL EXECUTION: {', '.join(cities)}")
+    print(f"{'─' * 60}")
+
+    # Create event stream with dummy callbacks for the demo
+    stream = LoggingEventStream(
+        is_end_event=lambda e: False,
+        get_result=lambda e: [],
+    )
+
+    T0 = time.perf_counter()
+    message = _tool_call_message(cities)
+
+    result = await execute_sequential(
+        tools=[weather_tool],
+        assistant_message=message,
+        stream=stream,
+        signal=None,
+    )
+
+    elapsed = time.perf_counter() - T0
+    print(f"\n  Results: {len(result['tool_results'])} tools completed")
+    print(f"  Total time: {elapsed:.3f}s")
+    print(f"  Expected: ~{0.3 * len(cities):.1f}s (0.3s × {len(cities)} sequential calls)")
+    return elapsed
 
 
 # ── Main ──────────────────────────────────────────────────────────────
 
 
 async def main() -> None:
-    global T0  # noqa: PLW0603
-
     print("=" * 60)
-    print("tinyAgent — Parallel Tool Execution Demo")
+    print("tinyAgent — Parallel vs Sequential Tool Execution")
     print("=" * 60)
     print()
-    print("3 weather lookups, each with 0.3s latency.")
-    print("Sequential would take ~0.9s. Parallel takes ~0.3s.")
-    print()
+    print("Each weather lookup has 0.3s simulated network latency.")
+    print("With 3 tools:")
+    print("  - Sequential: ~0.9s (0.3s + 0.3s + 0.3s)")
+    print("  - Parallel:   ~0.3s (all run simultaneously)")
 
-    provider = FakeProvider()
-    agent = Agent(AgentOptions(stream_fn=provider.stream))
-    agent.set_model(Model(provider="fake", id="fake-model"))
-    agent.set_tools([weather_tool])
-    agent.subscribe(event_logger)
+    # Set 1: European cities (parallel)
+    cities_parallel = ["Paris", "London", "Berlin"]
+    time_parallel = await run_parallel(cities_parallel)
 
-    question = "Get the weather in Paris, London, and Tokyo"
-    print(f"User: {question}\n")
+    # Set 2: Other cities (sequential)
+    cities_sequential = ["Tokyo", "Sydney", "New York"]
+    time_sequential = await run_sequential(cities_sequential)
 
-    T0 = time.perf_counter()
-    result = await agent.prompt(question)
-    elapsed = time.perf_counter() - T0
+    # Summary
+    speedup = time_sequential / time_parallel if time_parallel > 0 else 0
 
-    print()
-    print(f"Assistant: {extract_text(result)}")
-    print()
-    print(f"Total time: {elapsed:.3f}s (parallel: ~0.3s, sequential would be: ~0.9s)")
+    print(f"\n{'=' * 60}")
+    print("SUMMARY")
+    print(f"{'=' * 60}")
+    print(f"\nParallel execution:   {time_parallel:.3f}s")
+    print(f"Sequential execution: {time_sequential:.3f}s")
+    print(f"\nSpeedup: {speedup:.1f}x faster with parallel execution")
+    print(f"Time saved: {time_sequential - time_parallel:.3f}s")
 
 
 if __name__ == "__main__":
