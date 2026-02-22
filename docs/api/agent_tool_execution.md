@@ -57,7 +57,7 @@ Skip a tool call due to user interruption (steering).
 
 Creates a synthetic error result indicating the tool was skipped.
 
-**Use Case**: When steering interrupts a multi-tool execution, remaining tools are skipped.
+**Use Case**: Helper for interruption-aware execution paths that need synthetic skipped results. The current parallel `execute_tool_calls()` path does not call this helper.
 
 ### validate_tool_arguments
 ```python

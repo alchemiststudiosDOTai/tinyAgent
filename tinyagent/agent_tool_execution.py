@@ -101,6 +101,15 @@ async def _execute_single_tool(
 
         result = await tool.execute(tool_call_id, validated_args, signal, on_update)
         return (result, False)
+    except asyncio.CancelledError as exc:
+        message = str(exc) or "Tool execution cancelled"
+        return (
+            AgentToolResult(
+                content=[{"type": "text", "text": message}],
+                details={},
+            ),
+            True,
+        )
     except Exception as exc:  # noqa: BLE001
         return (
             AgentToolResult(

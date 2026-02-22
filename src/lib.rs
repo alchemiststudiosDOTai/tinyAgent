@@ -314,7 +314,10 @@ fn message_to_alchemy(
 /// a dict.
 fn normalize_arguments(v: &Value) -> Value {
     match v {
-        Value::String(s) => serde_json::from_str(s).unwrap_or(Value::Object(Default::default())),
+        Value::String(s) => match serde_json::from_str(s) {
+            Ok(Value::Object(map)) => Value::Object(map),
+            _ => Value::Object(Default::default()),
+        },
         Value::Object(_) => v.clone(),
         _ => Value::Object(Default::default()),
     }
@@ -382,7 +385,7 @@ fn tool_call_to_py_value(tc: &a::ToolCall) -> Value {
         "type": "tool_call",
         "id": tc.id,
         "name": tc.name,
-        "arguments": tc.arguments,
+        "arguments": normalize_arguments(&tc.arguments),
     })
 }
 
@@ -1014,5 +1017,34 @@ mod tests {
 
         assert_eq!(a::ApiType::api(&model.api), a::Api::MinimaxCompletions);
         assert_eq!(model.id, "MiniMax-M2.5");
+    }
+
+    #[test]
+    fn normalize_arguments_accepts_only_json_objects() {
+        assert_eq!(
+            normalize_arguments(&Value::String("{\"city\":\"Paris\"}".to_string())),
+            serde_json::json!({"city": "Paris"})
+        );
+        assert_eq!(
+            normalize_arguments(&Value::String("[]".to_string())),
+            Value::Object(Default::default())
+        );
+        assert_eq!(
+            normalize_arguments(&Value::String("null".to_string())),
+            Value::Object(Default::default())
+        );
+    }
+
+    #[test]
+    fn tool_call_to_py_value_normalizes_arguments() {
+        let tc = a::ToolCall {
+            id: "call_1".to_string().into(),
+            name: "get_weather".to_string(),
+            arguments: Value::String("[]".to_string()),
+            thought_signature: None,
+        };
+
+        let value = tool_call_to_py_value(&tc);
+        assert_eq!(value["arguments"], serde_json::json!({}));
     }
 }
