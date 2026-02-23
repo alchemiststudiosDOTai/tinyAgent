@@ -47,6 +47,8 @@ SKIP_DIR_NAMES = {
     ".pytest_cache",
     ".ruff_cache",
     ".grimp_cache",
+    ".tickets",  # local issue notes (ignored)
+    ".worktrees",  # local linked worktree mirrors (ignored)
 }
 
 
