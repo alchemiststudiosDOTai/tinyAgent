@@ -7,16 +7,29 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- Executed tool-call batches in parallel via `asyncio.gather()` in `execute_tool_calls()`.
+- Added `examples/example_parallel_tools.py` to compare parallel vs sequential tool execution behavior and timing.
+
+### Changed
+- In parallel mode, steering is now applied after the full tool batch completes; already-started tool calls are no longer skipped mid-batch.
+- Tool execution events now follow a batch lifecycle: emit all `tool_execution_start` events first, then emit ordered `tool_execution_end` and tool-result message events.
+
 ### Fixed
 - Propagated task-level cancellation during parallel tool execution instead of converting it into a synthetic tool error.
+- Prevented a self-cancelled tool from aborting the entire parallel tool batch.
 - Removed duplicate steering polling after tool batches in the agent loop.
+- Hardened Rust tool-call argument normalization to only accept JSON objects (non-object payloads now normalize to `{}`).
+- Switched tool-result timestamps to `asyncio.get_running_loop()` for async-loop-safe timing.
 
 ### Docs
 - Aligned steering/interruption docs to the post-batch parallel execution contract across architecture and API pages.
 
 ### Tests
+- Added comprehensive coverage for parallel tool execution order, concurrency, per-tool error isolation, and cancellation behavior.
 - Added regression coverage for task cancellation propagation in `execute_tool_calls()`.
 - Added loop-level coverage to ensure steering is not double-polled after a tool batch.
+- Added Rust unit coverage for strict tool-call argument normalization.
 
 ## [1.2.4] - 2026-02-21
 
@@ -132,7 +145,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Code quality gates (dead code, duplicates, debt)
 - Rust `alchemy_llm_py` binding documentation
 
-[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.3...HEAD
+[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.4...HEAD
+[1.2.4]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.3...v1.2.4
 [1.2.3]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.0...v1.2.1
