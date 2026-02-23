@@ -197,6 +197,31 @@ class TestParallelErrorHandling:
         assert result["tool_results"][0]["is_error"] is False
         assert result["tool_results"][1]["is_error"] is True
 
+    async def test_self_cancelled_tool_doesnt_abort_batch(self) -> None:
+        async def self_cancel_execute(
+            tool_call_id: str,
+            args: JsonObject,
+            signal: asyncio.Event | None,
+            on_update: Callable[[AgentToolResult], None],
+        ) -> AgentToolResult:
+            task = asyncio.current_task()
+            assert task is not None
+            task.cancel()
+            await asyncio.sleep(0)
+            return AgentToolResult(content=[{"type": "text", "text": "unreachable"}])
+
+        tools = [
+            AgentTool(name="bad", description="self-cancelled", execute=self_cancel_execute),
+            _make_tool("good", delay=0.01),
+        ]
+        message = _make_message("bad", "good")
+        stream = _make_stream()
+
+        result = await execute_tool_calls(tools, message, None, stream)
+        assert len(result["tool_results"]) == 2
+        assert result["tool_results"][0]["is_error"] is True
+        assert result["tool_results"][1]["is_error"] is False
+
     async def test_task_cancellation_propagates(self) -> None:
         started = asyncio.Event()
 

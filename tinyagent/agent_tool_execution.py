@@ -56,16 +56,15 @@ def _find_tool(tools: list[AgentTool] | None, name: str) -> AgentTool | None:
     return None
 
 
-def _is_task_cancellation() -> bool:
-    task = asyncio.current_task()
-    if task is None:
+def _is_parent_task_cancelling(parent_task: asyncio.Task[object] | None) -> bool:
+    if parent_task is None:
         return False
-    cancelling_attr = getattr(task, "cancelling", None)
+    cancelling_attr = getattr(parent_task, "cancelling", None)
     if callable(cancelling_attr):
         cancelling_count = cancelling_attr()
         if isinstance(cancelling_count, int):
             return cancelling_count > 0
-    return task.cancelled()
+    return parent_task.cancelled()
 
 
 async def _execute_single_tool(
@@ -73,6 +72,7 @@ async def _execute_single_tool(
     tool_call: ToolCallContent,
     signal: asyncio.Event | None,
     stream: EventStream,
+    parent_task: asyncio.Task[object] | None,
 ) -> tuple[AgentToolResult, bool]:
     """Execute a single tool and return (result, is_error)."""
 
@@ -114,7 +114,7 @@ async def _execute_single_tool(
         result = await tool.execute(tool_call_id, validated_args, signal, on_update)
         return (result, False)
     except asyncio.CancelledError as exc:
-        if _is_task_cancellation():
+        if _is_parent_task_cancelling(parent_task):
             raise
         message = str(exc) or "Tool execution cancelled"
         return (
@@ -173,9 +173,10 @@ async def execute_tool_calls(
 
     # Resolve tools and execute all in parallel
     resolved = [_find_tool(tools, tc.get("name", "")) for tc in tool_calls]
+    parent_task = asyncio.current_task()
     raw_results: list[tuple[AgentToolResult, bool]] = await asyncio.gather(
         *(
-            _execute_single_tool(tool, tc, signal, stream)
+            _execute_single_tool(tool, tc, signal, stream, parent_task)
             for tool, tc in zip(resolved, tool_calls, strict=True)
         )
     )
