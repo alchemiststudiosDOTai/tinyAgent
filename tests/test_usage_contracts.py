@@ -17,6 +17,9 @@ import pytest
 import tinyagent.alchemy_provider as alchemy_provider
 from tinyagent import Agent, AgentOptions
 from tinyagent.agent_types import (
+    AgentContext,
+    AgentLoopConfig,
+    AgentMessage,
     AgentTool,
     AssistantMessage,
     AssistantMessageEvent,
@@ -487,5 +490,104 @@ def test_agent_does_not_continue_turn_when_tool_execution_returns_no_results(
             isinstance(msg, dict) and msg.get("role") == "tool_result"
             for msg in agent.state["messages"]
         )
+
+    _run(_scenario())
+
+
+def test_process_turn_does_not_double_poll_steering_after_tool_batch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _scenario() -> None:
+        steering_poll_count = 0
+
+        async def get_steering_messages() -> list[AgentMessage]:
+            nonlocal steering_poll_count
+            steering_poll_count += 1
+            return []
+
+        assistant_message: AssistantMessage = {
+            "role": "assistant",
+            "content": [
+                {
+                    "type": "tool_call",
+                    "id": "call_1",
+                    "name": "echo",
+                    "arguments": {"text": "hello"},
+                }
+            ],
+            "stop_reason": "tool_calls",
+            "api": "openai-completions",
+            "provider": "openrouter",
+            "model": "moonshotai/kimi-k2.5",
+            "usage": _usage_payload(),
+            "timestamp": 123,
+        }
+        tool_result_message = {
+            "role": "tool_result",
+            "tool_call_id": "call_1",
+            "tool_name": "echo",
+            "content": [{"type": "text", "text": "ok"}],
+            "details": {},
+            "is_error": False,
+            "timestamp": 456,
+        }
+
+        agent_loop_module = importlib.import_module("tinyagent.agent_loop")
+
+        async def fake_stream_assistant_response(
+            context: AgentContext,
+            config: AgentLoopConfig,
+            signal: asyncio.Event | None,
+            stream: object,
+            stream_fn: object = None,
+        ) -> AssistantMessage:
+            return assistant_message
+
+        async def fake_execute_tool_calls(
+            tools: list[AgentTool] | None,
+            assistant_message: AssistantMessage,
+            signal: asyncio.Event | None,
+            stream: object,
+            get_steering_messages_cb: Any = None,
+        ) -> dict[str, object]:
+            assert get_steering_messages_cb is not None
+            await get_steering_messages_cb()
+            return {"tool_results": [tool_result_message], "steering_messages": None}
+
+        monkeypatch.setattr(
+            agent_loop_module,
+            "stream_assistant_response",
+            fake_stream_assistant_response,
+        )
+        monkeypatch.setattr(agent_loop_module, "execute_tool_calls", fake_execute_tool_calls)
+
+        config = AgentLoopConfig(
+            model=Model(
+                provider="openrouter",
+                id="moonshotai/kimi-k2.5",
+                api="openai-completions",
+            ),
+            convert_to_llm=lambda messages: cast(Any, []),
+            get_steering_messages=get_steering_messages,
+        )
+        current_context = AgentContext(system_prompt="", messages=[], tools=[])
+        stream = agent_loop_module.create_agent_stream()
+        new_messages: list[dict[str, object]] = []
+
+        turn_result = await agent_loop_module._process_turn(
+            current_context,
+            cast(Any, new_messages),
+            [],
+            config,
+            None,
+            stream,
+            True,
+            None,
+            get_steering_messages,
+        )
+
+        assert steering_poll_count == 1
+        assert turn_result.pending_messages == []
+        assert turn_result.has_more_tool_calls is True
 
     _run(_scenario())

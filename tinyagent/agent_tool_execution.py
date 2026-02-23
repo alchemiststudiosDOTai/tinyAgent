@@ -56,6 +56,18 @@ def _find_tool(tools: list[AgentTool] | None, name: str) -> AgentTool | None:
     return None
 
 
+def _is_task_cancellation() -> bool:
+    task = asyncio.current_task()
+    if task is None:
+        return False
+    cancelling_attr = getattr(task, "cancelling", None)
+    if callable(cancelling_attr):
+        cancelling_count = cancelling_attr()
+        if isinstance(cancelling_count, int):
+            return cancelling_count > 0
+    return task.cancelled()
+
+
 async def _execute_single_tool(
     tool: AgentTool | None,
     tool_call: ToolCallContent,
@@ -102,6 +114,8 @@ async def _execute_single_tool(
         result = await tool.execute(tool_call_id, validated_args, signal, on_update)
         return (result, False)
     except asyncio.CancelledError as exc:
+        if _is_task_cancellation():
+            raise
         message = str(exc) or "Tool execution cancelled"
         return (
             AgentToolResult(
@@ -132,7 +146,7 @@ def _create_tool_result_message(
         "content": result.content,
         "details": result.details,
         "is_error": is_error,
-        "timestamp": int(asyncio.get_event_loop().time() * 1000),
+        "timestamp": int(asyncio.get_running_loop().time() * 1000),
     }
 
 

@@ -22,7 +22,7 @@ Execute all tool calls found in an assistant message.
 - `assistant_message`: The assistant message containing tool calls
 - `signal`: Abort signal
 - `stream`: Event stream to push execution events
-- `get_steering_messages`: Callback to check for steering after all tools complete
+- `get_steering_messages`: Optional callback polled once after the parallel tool batch completes
 
 **Returns**: `ToolExecutionResult` with tool results and optional steering messages
 
@@ -39,6 +39,8 @@ Execute all tool calls found in an assistant message.
 4. Emit `ToolExecutionEndEvent` and `ToolResultMessage` events in original order
 5. Check for steering messages once after all tools complete
 6. Return results
+
+**Steering semantics**: In parallel mode, all tool calls in the batch start before steering is polled. Steering redirects subsequent turns; it does not retroactively skip already-started tool calls.
 
 **Event ordering**: All start events are emitted before any tool begins executing.
 After all tools complete, end events and result messages are emitted in the
@@ -113,7 +115,8 @@ Execute a single tool and return (result, is_error).
 **Error Handling**:
 - Tool not found: Returns error result
 - Tool has no execute function: Returns error result
-- Exception during execution: Returns error result with exception message
+- Tool raises `asyncio.CancelledError`: Returns an error result unless the current task itself is being cancelled (task cancellation propagates)
+- Other exceptions during execution: Return an error result with exception message
 
 **Progress Updates**:
 If the tool calls `on_update(partial_result)`, emits `ToolExecutionUpdateEvent`.
@@ -141,7 +144,7 @@ class ToolExecutionResult(TypedDict):
 Result from executing tool calls.
 
 - `tool_results`: Results for all executed tools
-- `steering_messages`: If steering was queued during execution, the messages to process next
+- `steering_messages`: Messages queued at the post-batch steering check (or `None` if none queued)
 
 ## Tool Execute Signature
 

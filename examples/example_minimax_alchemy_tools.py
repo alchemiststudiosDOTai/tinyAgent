@@ -63,12 +63,14 @@ def log_tool_events(event: AgentEvent) -> None:
         if isinstance(event, dict):
             print(f"[tool-start] {event.get('tool_name')} ({event.get('tool_call_id')})")
         else:
-            print(f"[tool-start] {event.tool_name} ({event.tool_call_id})")
+            tool_name = getattr(event, "tool_name", None)
+            tool_call_id = getattr(event, "tool_call_id", None)
+            print(f"[tool-start] {tool_name} ({tool_call_id})")
     elif etype == "tool_execution_end":
         if isinstance(event, dict):
             print(f"[tool-end] {event.get('tool_name')}")
         else:
-            print(f"[tool-end] {event.tool_name}")
+            print(f"[tool-end] {getattr(event, 'tool_name', None)}")
 
 
 async def main() -> None:

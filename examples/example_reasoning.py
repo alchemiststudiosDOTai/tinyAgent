@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
-from typing import TypeGuard
+from typing import TypeGuard, cast
 
 from dotenv import load_dotenv
 
@@ -40,14 +40,14 @@ def print_reasoning_response(message: AssistantMessage) -> None:
 
     if thinking_blocks:
         print("=== REASONING ===")
-        for block in thinking_blocks:
-            print(block.get("thinking", ""))
+        for thinking_block in thinking_blocks:
+            print(thinking_block.get("thinking", ""))
         print()
 
     if text_blocks:
         print("=== ANSWER ===")
-        for block in text_blocks:
-            print(block.get("text", ""))
+        for text_block in text_blocks:
+            print(text_block.get("text", ""))
         print()
 
 
@@ -70,7 +70,7 @@ async def main() -> None:
 
     prompt = "Question: If I have 3 apples and I buy 2 more, how many apples do I have?"
 
-    assistant_message = await agent.prompt(prompt)
+    assistant_message = cast(AssistantMessage, await agent.prompt(prompt))
 
     # Print separated reasoning vs answer
     print_reasoning_response(assistant_message)

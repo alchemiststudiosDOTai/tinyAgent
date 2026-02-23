@@ -3,6 +3,8 @@
 import asyncio
 from collections.abc import Callable
 
+import pytest
+
 from tinyagent.agent_tool_execution import execute_tool_calls
 from tinyagent.agent_types import (
     AgentEvent,
@@ -195,6 +197,30 @@ class TestParallelErrorHandling:
         assert result["tool_results"][0]["is_error"] is False
         assert result["tool_results"][1]["is_error"] is True
 
+    async def test_task_cancellation_propagates(self) -> None:
+        started = asyncio.Event()
+
+        async def slow_execute(
+            tool_call_id: str,
+            args: JsonObject,
+            signal: asyncio.Event | None,
+            on_update: Callable[[AgentToolResult], None],
+        ) -> AgentToolResult:
+            started.set()
+            await asyncio.sleep(10)
+            return AgentToolResult(content=[{"type": "text", "text": "done"}])
+
+        tool = AgentTool(name="slow", description="slow", execute=slow_execute)
+        message = _make_message("slow")
+        stream = _make_stream()
+
+        run_task = asyncio.create_task(execute_tool_calls([tool], message, None, stream))
+        await started.wait()
+        run_task.cancel()
+
+        with pytest.raises(asyncio.CancelledError):
+            await run_task
+
     async def test_unknown_tool_returns_error_result(self) -> None:
         message = _make_message("nonexistent")
         stream = _make_stream()
@@ -234,7 +260,11 @@ class TestParallelSteering:
         assert result["tool_results"][1]["is_error"] is False
 
     async def test_no_steering_returns_none(self) -> None:
+        steering_check_count = 0
+
         async def get_steering() -> list[AgentMessage]:
+            nonlocal steering_check_count
+            steering_check_count += 1
             return []
 
         tools = [_make_tool("a")]
@@ -242,6 +272,7 @@ class TestParallelSteering:
         stream = _make_stream()
 
         result = await execute_tool_calls(tools, message, None, stream, get_steering)
+        assert steering_check_count == 1
         assert result["steering_messages"] is None
 
     async def test_no_steering_callback_returns_none(self) -> None:

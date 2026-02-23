@@ -156,22 +156,22 @@ agent_loop()
                     │   │   └── Provider streaming
                     │   ├── _extract_tool_calls()
                     │   └── execute_tool_calls()
-                    │       └── For each tool: _execute_single_tool()
+                    │       └── Execute all tools in parallel
                     │
-                    └── Check steering messages
+                    └── Check steering at turn boundaries
 ```
 
 ## Steering and Follow-up
 
 ### Steering
 
-Steering messages interrupt the current run:
+Steering messages redirect the current run at turn boundaries:
 
 1. User calls `agent.steer(message)`
-2. Message added to steering queue
-3. After current tool execution, loop checks `get_steering_messages()`
-4. If steering messages exist, they become pending for next turn
-5. Remaining tool calls are skipped
+2. Message is added to the steering queue
+3. After a tool batch completes (or immediately on turns without tools), loop checks `get_steering_messages()`
+4. If steering messages exist, they become pending input for the next turn
+5. In parallel tool mode, already-started tools complete; steering affects subsequent turns
 
 ### Follow-up
 

@@ -284,7 +284,10 @@ async def _process_turn(
         new_messages.append(result)
     stream.push(TurnEndEvent(message=message, tool_results=tool_results))
 
-    pending_messages = steering_after_tools or (await get_steering_fn() if get_steering_fn else [])
+    if has_more_tool_calls:
+        pending_messages = steering_after_tools or []
+    else:
+        pending_messages = await get_steering_fn() if get_steering_fn else []
 
     return TurnProcessingResult(
         pending_messages=pending_messages,
@@ -380,6 +383,8 @@ def agent_loop(
     def _done(t: asyncio.Task[None]) -> None:
         try:
             t.result()
+        except asyncio.CancelledError as exc:
+            stream.set_exception(exc)
         except Exception as exc:  # noqa: BLE001
             stream.set_exception(exc)
 
@@ -430,6 +435,8 @@ def agent_loop_continue(
     def _done(t: asyncio.Task[None]) -> None:
         try:
             t.result()
+        except asyncio.CancelledError as exc:
+            stream.set_exception(exc)
         except Exception as exc:  # noqa: BLE001
             stream.set_exception(exc)
 
