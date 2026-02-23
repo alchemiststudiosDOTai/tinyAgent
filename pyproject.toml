@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "tiny-agent-os"
-version = "1.2.4"
+version = "1.2.5"
 description = "Python agent loop"
 readme = "README.md"
 requires-python = ">=3.10"
