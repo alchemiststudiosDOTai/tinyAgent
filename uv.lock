@@ -655,7 +655,7 @@ wheels = [
 
 [[package]]
 name = "tiny-agent-os"
-version = "1.2.3"
+version = "1.2.4"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },

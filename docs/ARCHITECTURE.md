@@ -67,7 +67,7 @@ This document describes the architecture of TinyAgent: where components live, wh
 3. Inner loop: Process turns (LLM call → tool execution → steering)
 4. Emit `AgentEndEvent`
 
-**Steering**: User can inject messages mid-run via `steer()`. The loop checks for steering messages after each tool execution.
+**Steering**: User can inject messages mid-run via `steer()`. During turns with tool calls, the loop polls steering after the parallel tool batch completes, then applies queued steering messages on the next turn.
 
 ### agent_tool_execution.py
 
@@ -75,18 +75,16 @@ This document describes the architecture of TinyAgent: where components live, wh
 
 **Key Functions**:
 - `execute_tool_calls()`: Execute all tool calls in a message
-- `skip_tool_call()`: Mark a tool call as skipped (due to steering interruption)
+- `skip_tool_call()`: Helper for synthetic skipped results in interruption-aware flows (not used in the default parallel path)
 - `validate_tool_arguments()`: Validate args against tool schema (placeholder)
 
 **Execution Flow**:
 1. Extract tool calls from assistant message content
-2. For each tool call:
-   - Find matching tool by name
-   - Emit `ToolExecutionStartEvent`
-   - Execute tool (async)
-   - Emit `ToolExecutionEndEvent`
-   - Check for steering messages (interrupt remaining tools)
-3. Return tool results as `ToolResultMessage` objects
+2. Emit `ToolExecutionStartEvent` for all calls
+3. Execute all tool calls concurrently
+4. Emit `ToolExecutionEndEvent` + result messages in original call order
+5. Poll steering once after the batch completes
+6. Return tool results as `ToolResultMessage` objects
 
 ### agent.py
 
@@ -103,7 +101,7 @@ This document describes the architecture of TinyAgent: where components live, wh
 - `prompt()`: Send message, wait for complete response
 - `stream()`: Stream all agent events
 - `stream_text()`: Stream just text deltas
-- `steer()`: Queue a steering message (interrupts current run)
+- `steer()`: Queue a steering message that redirects the next turn
 - `follow_up()`: Queue a message for after current run
 
 **Event Handling**: Internal handlers update state on events:

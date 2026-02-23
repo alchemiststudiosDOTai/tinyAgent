@@ -134,7 +134,7 @@ async for delta in agent.stream_text("Write a poem"):
 def steer(self, message: AgentMessage) -> None
 ```
 
-Queue a steering message to interrupt the current agent run. The message is injected at the next opportunity (after current tool execution or turn).
+Queue a steering message to redirect the current run. The message is injected at the next turn boundary (after a tool batch completes, or immediately on turns without tools).
 
 **Use Case**: User types a new message while the agent is still processing.
 

@@ -7,6 +7,17 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- Propagated task-level cancellation during parallel tool execution instead of converting it into a synthetic tool error.
+- Removed duplicate steering polling after tool batches in the agent loop.
+
+### Docs
+- Aligned steering/interruption docs to the post-batch parallel execution contract across architecture and API pages.
+
+### Tests
+- Added regression coverage for task cancellation propagation in `execute_tool_calls()`.
+- Added loop-level coverage to ensure steering is not double-polled after a tool batch.
+
 ## [1.2.4] - 2026-02-21
 
 ### Fixed
@@ -31,7 +42,6 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Docs
 - Added explicit cross-provider smoke-run output documentation for Rust-backed tool calls in `docs/api/providers.md`.
 - Added a quick pointer to the three-provider tool-call example in `docs/README.md`.
-
 
 ## [1.2.1] - 2026-02-18
 

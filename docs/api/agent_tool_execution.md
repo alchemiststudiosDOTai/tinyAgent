@@ -22,26 +22,30 @@ Execute all tool calls found in an assistant message.
 - `assistant_message`: The assistant message containing tool calls
 - `signal`: Abort signal
 - `stream`: Event stream to push execution events
-- `get_steering_messages`: Callback to check for steering (interrupts remaining tools)
+- `get_steering_messages`: Optional callback polled once after the parallel tool batch completes
 
 **Returns**: `ToolExecutionResult` with tool results and optional steering messages
 
 **Events Emitted**:
-- `ToolExecutionStartEvent` (before each tool)
-- `ToolExecutionUpdateEvent` (if tool calls on_update)
-- `ToolExecutionEndEvent` (after each tool)
-- `MessageStartEvent`, `MessageEndEvent` (for each tool result)
+- `ToolExecutionStartEvent` (for all tools before execution begins)
+- `ToolExecutionUpdateEvent` (if tool calls on_update during execution)
+- `ToolExecutionEndEvent` (for all tools after execution, in original order)
+- `MessageStartEvent`, `MessageEndEvent` (for each tool result, in order)
 
-**Execution Flow**:
+**Execution Flow** (parallel):
 1. Extract tool calls from message content
-2. For each tool call:
-   - Find matching tool by name
-   - Emit `ToolExecutionStartEvent`
-   - Call `_execute_single_tool()`
-   - Emit `ToolExecutionEndEvent`
-   - Create and emit `ToolResultMessage`
-   - Check for steering messages (if found, skip remaining tools)
-3. Return results
+2. Emit `ToolExecutionStartEvent` for all tools
+3. Execute all tools concurrently via `asyncio.gather()`
+4. Emit `ToolExecutionEndEvent` and `ToolResultMessage` events in original order
+5. Check for steering messages once after all tools complete
+6. Return results
+
+**Steering semantics**: In parallel mode, all tool calls in the batch start before steering is polled. Steering redirects subsequent turns; it does not retroactively skip already-started tool calls.
+
+**Event ordering**: All start events are emitted before any tool begins executing.
+After all tools complete, end events and result messages are emitted in the
+original tool call order. This ensures consumers see a clear parallel lifecycle:
+all tools start → all tools finish → results delivered in order.
 
 ### skip_tool_call
 ```python
@@ -55,7 +59,7 @@ Skip a tool call due to user interruption (steering).
 
 Creates a synthetic error result indicating the tool was skipped.
 
-**Use Case**: When steering interrupts a multi-tool execution, remaining tools are skipped.
+**Use Case**: Helper for interruption-aware execution paths that need synthetic skipped results. The current parallel `execute_tool_calls()` path does not call this helper.
 
 ### validate_tool_arguments
 ```python
@@ -111,7 +115,8 @@ Execute a single tool and return (result, is_error).
 **Error Handling**:
 - Tool not found: Returns error result
 - Tool has no execute function: Returns error result
-- Exception during execution: Returns error result with exception message
+- Tool raises `asyncio.CancelledError`: Returns an error result unless the current task itself is being cancelled (task cancellation propagates)
+- Other exceptions during execution: Return an error result with exception message
 
 **Progress Updates**:
 If the tool calls `on_update(partial_result)`, emits `ToolExecutionUpdateEvent`.
@@ -138,8 +143,8 @@ class ToolExecutionResult(TypedDict):
 
 Result from executing tool calls.
 
-- `tool_results`: Results for all executed/skipped tools
-- `steering_messages`: If steering interrupted execution, the messages to process next
+- `tool_results`: Results for all executed tools
+- `steering_messages`: Messages queued at the post-batch steering check (or `None` if none queued)
 
 ## Tool Execute Signature
 
