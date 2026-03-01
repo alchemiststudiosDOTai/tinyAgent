@@ -74,7 +74,7 @@ Higher layers import lower. Siblings within a layer cannot import each other. `a
 - **`StreamResponse`** (`agent_types.py`): Protocol (structural typing, not ABC) requiring `result()` and async iteration of `AssistantMessageEvent`.
 - **`AgentTool`** (`agent_types.py`): Tool definition with `execute` callable signature `(tool_call_id, args, signal, on_update) -> AgentToolResult`.
 - **`EventStream`** (`agent_types.py`): Internal async queue with exception propagation from background tasks.
-- **Messages**: TypedDicts (`UserMessage`, `AssistantMessage`, `ToolResultMessage`), not dataclasses -- enables natural dict access and JSON serialization.
+- **Messages**: Pydantic models (`UserMessage`, `AssistantMessage`, `ToolResultMessage`, etc.), not TypedDicts -- use model constructors and attribute access in runtime code.
 
 ### Data Flow: `agent.prompt()` end-to-end
 
@@ -101,6 +101,16 @@ The Rust binding and the `alchemy-llm` crate are maintained by the alchemy team.
 ### Provider-Specific API Key Env Vars
 
 Alchemy provider resolves API keys from provider-specific env vars (e.g., `OPENROUTER_API_KEY`). See `alchemy_provider.py:_PROVIDER_API_KEY_ENV`.
+
+### Hard Cutover Policy: TypedDict -> Pydantic
+
+The migration away from TypedDict-based runtime models is a **full hard cutover**.
+
+- Do **not** introduce new TypedDicts for message/content/event/state models in `tinyagent`.
+- Do **not** add compatibility shims that keep both dict-style and model-style paths in migrated modules.
+- For migrated models, use constructors + attribute access (no `obj["key"]`, no `.get()`).
+- `.get()` is allowed only on raw wire payload dicts at provider/protocol boundaries (SSE chunks, raw JSON).
+- If you touch dict-style usage of migrated models, convert it in the same change.
 
 ## Design Patterns
 
