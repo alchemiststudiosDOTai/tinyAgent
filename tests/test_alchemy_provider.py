@@ -15,7 +15,7 @@ from tinyagent.alchemy_provider import (
 
 
 def test_resolve_base_url_defaults_for_generic_model() -> None:
-    model = Model(provider="openrouter", id="openai/gpt-4o-mini", api="openrouter")
+    model = Model(provider="openai", id="gpt-4o-mini", api="openai")
     assert _resolve_base_url(model) == DEFAULT_OPENAI_COMPAT_CHAT_COMPLETIONS_URL
 
 
@@ -35,9 +35,9 @@ def test_resolve_base_url_rejects_blank() -> None:
         _resolve_base_url(model)
 
 
-def test_resolve_model_api_maps_openrouter_alias_to_openai_completions() -> None:
-    model = Model(provider="openrouter", id="x", api="openrouter")
-    assert _resolve_model_api(model, "openrouter") == "openai-completions"
+def test_resolve_model_api_maps_openai_alias_to_openai_completions() -> None:
+    model = Model(provider="openai", id="x", api="openai")
+    assert _resolve_model_api(model, "openai") == "openai-completions"
 
 
 def test_resolve_model_api_infers_minimax_completions_from_provider() -> None:
@@ -51,15 +51,9 @@ def test_resolve_model_api_explicit_api_overrides_provider_inference() -> None:
 
 
 def test_resolve_api_key_prefers_explicit_option(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OPENROUTER_API_KEY", "env-openrouter")
-    model = Model(provider="openrouter", id="x", api="openrouter")
+    monkeypatch.setenv("OPENAI_API_KEY", "env-openai")
+    model = Model(provider="openai", id="x", api="openai")
     assert _resolve_api_key(model, SimpleStreamOptions(api_key="explicit")) == "explicit"
-
-
-def test_resolve_api_key_openrouter_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OPENROUTER_API_KEY", "env-openrouter")
-    model = Model(provider="openrouter", id="x", api="openrouter")
-    assert _resolve_api_key(model, SimpleStreamOptions()) == "env-openrouter"
 
 
 def test_resolve_api_key_openai_env(monkeypatch: pytest.MonkeyPatch) -> None:

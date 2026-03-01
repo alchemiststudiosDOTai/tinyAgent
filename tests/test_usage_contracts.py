@@ -327,38 +327,6 @@ def test_alchemy_provider_explicit_api_override_is_forwarded(
     _run(_scenario())
 
 
-def test_alchemy_provider_legacy_openrouter_api_alias_maps_to_openai_completions(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    async def _scenario() -> None:
-        final_message = _assistant_message("hello")
-        done_event = AssistantMessageEvent(
-            type="done",
-            reason="stop",
-            message=final_message,
-        )
-        fake_module = FakeAlchemyModule(FakeHandle([done_event], final_message))
-        monkeypatch.setattr(alchemy_provider, "_ALCHEMY_MODULE", fake_module)
-
-        model = Model(provider="openrouter", id="moonshotai/kimi-k2.5", api="openrouter")
-        context = Context(
-            system_prompt="Be concise.",
-            messages=[UserMessage(content=[TextContent(text="hello")])],
-        )
-
-        _ = await alchemy_provider.stream_alchemy_openai_completions(
-            model,
-            context,
-            SimpleStreamOptions(),
-        )
-
-        assert fake_module.captured_model is not None
-        assert fake_module.captured_model["provider"] == "openrouter"
-        assert fake_module.captured_model["api"] == "openai-completions"
-
-    _run(_scenario())
-
-
 def test_alchemy_provider_rejects_missing_usage_in_final_message() -> None:
     async def _scenario() -> None:
         bad_final: dict[str, object] = {

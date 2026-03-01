@@ -54,14 +54,10 @@ from .agent_types import (
     TurnStartEvent,
     UserMessage,
 )
-from .openrouter_provider import OpenRouterModel, stream_openrouter
 from .proxy import ProxyStreamOptions, ProxyStreamResponse, create_proxy_stream, stream_proxy
 from .proxy_event_handlers import parse_streaming_json
 
 __all__ = [
-    # OpenRouter
-    "OpenRouterModel",
-    "stream_openrouter",
     # Agent
     "Agent",
     "AgentOptions",

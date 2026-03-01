@@ -8,7 +8,7 @@ Layer map (top to bottom -- higher may import lower, never reverse):
 
     Layer 3: agent                                      (orchestration)
     Layer 2: agent_loop, proxy                          (coordination)
-    Layer 1: agent_tool_execution, openrouter_provider,
+    Layer 1: agent_tool_execution,
              alchemy_provider, proxy_event_handlers     (leaf services)
     Layer 0: agent_types                                (foundation)
 
@@ -32,7 +32,6 @@ LAYERS = [
     grimp.Layer("agent_loop", "proxy", independent=True),
     grimp.Layer(
         "agent_tool_execution",
-        "openrouter_provider",
         "alchemy_provider",
         "proxy_event_handlers",
         "caching",
@@ -48,7 +47,6 @@ GOVERNED_MODULES = {
     f"{PKG}.agent_tool_execution",
     f"{PKG}.agent_types",
     f"{PKG}.alchemy_provider",
-    f"{PKG}.openrouter_provider",
     f"{PKG}.proxy",
     f"{PKG}.proxy_event_handlers",
     f"{PKG}.caching",

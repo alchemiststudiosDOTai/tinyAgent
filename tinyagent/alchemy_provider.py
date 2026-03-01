@@ -50,11 +50,10 @@ class _AlchemyModule(Protocol):
 
 _ALCHEMY_MODULE: _AlchemyModule | None = None
 
-DEFAULT_OPENAI_COMPAT_CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions"
+DEFAULT_OPENAI_COMPAT_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions"
 
 _PROVIDER_API_KEY_ENV = {
     "openai": "OPENAI_API_KEY",
-    "openrouter": "OPENROUTER_API_KEY",
     "minimax": "MINIMAX_API_KEY",
     "minimax-cn": "MINIMAX_CN_API_KEY",
 }
@@ -209,13 +208,13 @@ def _resolve_base_url(model: Model) -> str:
 def _resolve_provider(model: Model) -> str:
     raw_provider = getattr(model, "provider", "")
     if not isinstance(raw_provider, str):
-        return "openrouter"
+        return "openai"
 
     provider = raw_provider.strip()
     if provider:
         return provider
 
-    return "openrouter"
+    return "openai"
 
 
 def _canonicalize_api(raw_api: str) -> str:
@@ -224,7 +223,7 @@ def _canonicalize_api(raw_api: str) -> str:
         return ""
 
     # Legacy aliases used in tinyagent Model.api values.
-    if api in {"openai", "openrouter", "openai-compatible", "chat-completions"}:
+    if api in {"openai", "openai-compatible", "chat-completions"}:
         return "openai-completions"
     if api == "minimax":
         return "minimax-completions"
@@ -316,12 +315,3 @@ async def stream_alchemy_openai_completions(
     )
 
     return AlchemyStreamResponse(_handle=handle)
-
-
-async def stream_alchemy_openrouter(
-    model: Model,
-    context: Context,
-    options: SimpleStreamOptions,
-) -> AlchemyStreamResponse:
-    """Rust-backed stream compatible with OpenRouterModel and base_url overrides."""
-    return await stream_alchemy_openai_completions(model, context, options)

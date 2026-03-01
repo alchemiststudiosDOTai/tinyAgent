@@ -121,17 +121,3 @@ class TestToolArgumentValidation:
 
 
 # -- Duplicate type guard drift detection --
-
-
-class TestNoDuplicateGuardDrift:
-    """Duplicate _is_text_content in openrouter_provider must match proxy_event_handlers."""
-
-    def test_openrouter_text_guard_matches(self) -> None:
-        from tinyagent.openrouter_provider import _is_text_content as or_guard
-
-        text: AssistantContent = TextContent(text="hi")
-        thinking: AssistantContent = ThinkingContent(thinking="hmm")
-
-        assert or_guard(text) == _is_text_content(text)
-        assert or_guard(thinking) == _is_text_content(thinking)
-        assert or_guard(None) == _is_text_content(None)

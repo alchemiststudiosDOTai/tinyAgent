@@ -15,12 +15,12 @@ from tinyagent.agent_types import (
     TextContent,
     UserMessage,
 )
-from tinyagent.caching import add_cache_breakpoints
-from tinyagent.openrouter_provider import (
+from tinyagent.caching import (
     _any_block_has_cache_control,
     _build_usage_dict,
     _context_has_cache_control,
     _convert_user_message,
+    add_cache_breakpoints,
 )
 
 # -- add_cache_breakpoints tests --
