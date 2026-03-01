@@ -6,7 +6,15 @@ from typing import cast
 
 import pytest
 
-from tinyagent.agent_types import AgentMessage, Context, TextContent, UserMessage
+from tinyagent.agent_types import (
+    AgentMessage,
+    AssistantMessage,
+    CacheControl,
+    Context,
+    ImageContent,
+    TextContent,
+    UserMessage,
+)
 from tinyagent.caching import add_cache_breakpoints
 from tinyagent.openrouter_provider import (
     _any_block_has_cache_control,
@@ -26,45 +34,43 @@ async def test_cache_breakpoints_annotates_all_user_messages() -> None:
     keep matching the cached prefix written in prior turns).
     """
 
-    messages: list[AgentMessage] = cast(
-        list[AgentMessage],
-        [
-            {"role": "user", "content": [{"type": "text", "text": "first user msg"}]},
-            {"role": "assistant", "content": [{"type": "text", "text": "reply"}]},
-            {"role": "user", "content": [{"type": "text", "text": "second user msg"}]},
-            {"role": "assistant", "content": [{"type": "text", "text": "reply 2"}]},
-            {"role": "user", "content": [{"type": "text", "text": "third user msg"}]},
-        ],
-    )
+    messages: list[AgentMessage] = [
+        UserMessage(content=[TextContent(text="first user msg")]),
+        AssistantMessage(content=[TextContent(text="reply")]),
+        UserMessage(content=[TextContent(text="second user msg")]),
+        AssistantMessage(content=[TextContent(text="reply 2")]),
+        UserMessage(content=[TextContent(text="third user msg")]),
+    ]
 
     result = await add_cache_breakpoints(messages)
 
     # All user messages should have cache_control on the last block
     for idx in (0, 2, 4):
         user_msg = cast(UserMessage, result[idx])
-        assert user_msg["role"] == "user"
-        content = user_msg["content"]
-        assert content[-1].get("cache_control") == {"type": "ephemeral"}
+        assert user_msg.role == "user"
+        content = user_msg.content
+        assert isinstance(content[-1], TextContent)
+        assert content[-1].cache_control is not None
+        assert content[-1].cache_control.type == "ephemeral"
 
 
 @pytest.mark.asyncio
 async def test_cache_breakpoints_does_not_mutate_original() -> None:
     """add_cache_breakpoints should not mutate the original messages."""
-    original_content: list[TextContent] = [{"type": "text", "text": "hello"}]
-    messages: list[AgentMessage] = cast(
-        list[AgentMessage],
-        [
-            {"role": "user", "content": original_content},
-        ],
-    )
+    original_content: list[TextContent | ImageContent] = [TextContent(text="hello")]
+    messages: list[AgentMessage] = [UserMessage(content=original_content)]
 
     result = await add_cache_breakpoints(messages)
 
     # Original should be untouched
-    assert "cache_control" not in original_content[0]
+    assert isinstance(original_content[0], TextContent)
+    assert original_content[0].cache_control is None
     # Result should have it
     user_msg = cast(UserMessage, result[0])
-    assert user_msg["content"][-1].get("cache_control") == {"type": "ephemeral"}
+    result_last_block = user_msg.content[-1]
+    assert isinstance(result_last_block, TextContent)
+    assert result_last_block.cache_control is not None
+    assert result_last_block.cache_control.type == "ephemeral"
 
 
 @pytest.mark.asyncio
@@ -77,26 +83,23 @@ async def test_cache_breakpoints_empty_messages() -> None:
 @pytest.mark.asyncio
 async def test_cache_breakpoints_no_user_messages() -> None:
     """If no user messages, return unchanged."""
-    messages: list[AgentMessage] = cast(
-        list[AgentMessage],
-        [
-            {"role": "assistant", "content": [{"type": "text", "text": "hi"}]},
-        ],
-    )
+    messages: list[AgentMessage] = [
+        AssistantMessage(content=[TextContent(text="hi")]),
+    ]
     result = await add_cache_breakpoints(messages)
     assert len(result) == 1
-    assert result[0].get("role") == "assistant"
+    assert result[0].role == "assistant"
 
 
 # -- OpenRouter helpers tests --
 
 
 def test_any_block_has_cache_control() -> None:
-    blocks_with: list[TextContent | dict[str, object]] = [
-        {"type": "text", "text": "hi", "cache_control": {"type": "ephemeral"}},
+    blocks_with = [
+        TextContent(text="hi", cache_control=CacheControl(type="ephemeral")),
     ]
-    blocks_without: list[TextContent | dict[str, object]] = [
-        {"type": "text", "text": "hi"},
+    blocks_without = [
+        TextContent(text="hi"),
     ]
     assert _any_block_has_cache_control(blocks_with) is True
     assert _any_block_has_cache_control(blocks_without) is False
@@ -104,10 +107,9 @@ def test_any_block_has_cache_control() -> None:
 
 def test_convert_user_message_plain() -> None:
     """Without cache_control, content is a joined string."""
-    msg: UserMessage = {
-        "role": "user",
-        "content": [{"type": "text", "text": "hello"}],
-    }
+    msg = UserMessage(
+        content=[TextContent(text="hello")],
+    )
     result = _convert_user_message(msg)
     assert result["content"] == "hello"
     assert isinstance(result["content"], str)
@@ -115,12 +117,11 @@ def test_convert_user_message_plain() -> None:
 
 def test_convert_user_message_with_cache_control() -> None:
     """With cache_control, content is a list of structured dicts."""
-    msg: UserMessage = {
-        "role": "user",
-        "content": [
-            {"type": "text", "text": "hello", "cache_control": {"type": "ephemeral"}},
+    msg = UserMessage(
+        content=[
+            TextContent(text="hello", cache_control=CacheControl(type="ephemeral")),
         ],
-    }
+    )
     result = _convert_user_message(msg)
     assert isinstance(result["content"], list)
     block = result["content"][0]
@@ -133,12 +134,11 @@ def test_context_has_cache_control_true() -> None:
     ctx = Context(
         system_prompt="test",
         messages=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": "hi", "cache_control": {"type": "ephemeral"}},
+            UserMessage(
+                content=[
+                    TextContent(text="hi", cache_control=CacheControl(type="ephemeral")),
                 ],
-            }
+            )
         ],
     )
     assert _context_has_cache_control(ctx) is True
@@ -148,7 +148,7 @@ def test_context_has_cache_control_false() -> None:
     ctx = Context(
         system_prompt="test",
         messages=[
-            {"role": "user", "content": [{"type": "text", "text": "hi"}]},
+            UserMessage(content=[TextContent(text="hi")]),
         ],
     )
     assert _context_has_cache_control(ctx) is False

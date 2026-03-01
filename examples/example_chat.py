@@ -26,7 +26,7 @@ from tinyagent import (
     extract_text,
     stream_openrouter,
 )
-from tinyagent.agent_types import JsonObject
+from tinyagent.agent_types import JsonObject, TextContent
 
 
 # Example tool: get current time
@@ -39,7 +39,10 @@ async def get_current_time(
     from datetime import datetime
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    return AgentToolResult(content=[{"type": "text", "text": f"Current time: {now}"}], details={})
+    return AgentToolResult(
+        content=[TextContent(type="text", text=f"Current time: {now}")],
+        details={},
+    )
 
 
 # Example tool: simple calculator
@@ -56,9 +59,15 @@ async def calculate(
         if not all(c in allowed for c in expression):
             raise ValueError("Invalid characters in expression")
         result = eval(expression)
-        return AgentToolResult(content=[{"type": "text", "text": f"Result: {result}"}], details={})
+        return AgentToolResult(
+            content=[TextContent(type="text", text=f"Result: {result}")],
+            details={},
+        )
     except Exception as e:
-        return AgentToolResult(content=[{"type": "text", "text": f"Error: {e}"}], details={})
+        return AgentToolResult(
+            content=[TextContent(type="text", text=f"Error: {e}")],
+            details={},
+        )
 
 
 def create_tools() -> list[AgentTool]:
@@ -111,16 +120,12 @@ async def chat_once(agent: Agent, user_input: str) -> None:
 
         if event.type == "message_update":
             ame = event.assistant_message_event
-            if isinstance(ame, dict) and ame.get("type") == "text_delta" and ame.get("delta"):
-                print(str(ame["delta"]), end="", flush=True)
+            if ame and ame.type == "text_delta" and ame.delta:
+                print(str(ame.delta), end="", flush=True)
                 printed_any = True
             continue
 
-        if (
-            event.type == "message_end"
-            and event.message
-            and event.message.get("role") == "assistant"
-        ):
+        if event.type == "message_end" and event.message and event.message.role == "assistant":
             if not printed_any:
                 print(extract_text(event.message), end="", flush=True)
             print()  # newline after assistant message

@@ -94,15 +94,17 @@ def _validate_assistant_message_contract(
     where: str,
     require_usage: bool,
 ) -> AssistantMessage:
-    if not isinstance(raw_message, dict):
+    if isinstance(raw_message, AssistantMessage):
+        message = raw_message
+    elif isinstance(raw_message, dict):
+        message = AssistantMessage.model_validate(raw_message)
+    else:
         raise RuntimeError(f"{where}: assistant message must be a dict")
 
-    message = cast(dict[str, object], raw_message)
-
     if require_usage:
-        _validate_usage_contract(message.get("usage"), where=where)
+        _validate_usage_contract(message.usage, where=where)
 
-    return cast(AssistantMessage, message)
+    return message
 
 
 def _get_alchemy_module() -> _AlchemyModule:
@@ -164,9 +166,11 @@ class AlchemyStreamResponse:
         ev = await asyncio.to_thread(self._handle.next_event)
         if ev is None:
             raise StopAsyncIteration
+        if isinstance(ev, AssistantMessageEvent):
+            return ev
         if not isinstance(ev, dict):
             raise RuntimeError("tinyagent._alchemy returned an invalid event")
-        return cast(AssistantMessageEvent, ev)
+        return AssistantMessageEvent.model_validate(ev)
 
 
 def _convert_tools(tools: list[AgentTool] | None) -> list[dict[str, Any]] | None:
@@ -182,6 +186,17 @@ def _convert_tools(tools: list[AgentTool] | None) -> list[dict[str, Any]] | None
             }
         )
     return out
+
+
+def _dump_model_payload(value: object, *, where: str) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return cast(dict[str, Any], value)
+    model_dump = getattr(value, "model_dump", None)
+    if callable(model_dump):
+        dumped = model_dump(exclude_none=True)
+        if isinstance(dumped, dict):
+            return cast(dict[str, Any], dumped)
+    raise RuntimeError(f"{where}: unsupported payload type {type(value)!r}")
 
 
 def _resolve_base_url(model: Model) -> str:
@@ -243,7 +258,7 @@ def _resolve_model_api(model: Model, provider: str) -> str:
 
 
 def _resolve_api_key(model: Model, options: SimpleStreamOptions) -> str | None:
-    explicit = options.get("api_key")
+    explicit = options.api_key
     if explicit:
         return explicit
 
@@ -282,14 +297,16 @@ async def stream_alchemy_openai_completions(
 
     context_dict: dict[str, Any] = {
         "system_prompt": context.system_prompt or "",
-        "messages": context.messages,
+        "messages": [
+            _dump_model_payload(message, where="context.messages") for message in context.messages
+        ],
         "tools": _convert_tools(context.tools),
     }
 
     options_dict: dict[str, Any] = {
         "api_key": _resolve_api_key(model, options),
-        "temperature": options.get("temperature"),
-        "max_tokens": options.get("max_tokens"),
+        "temperature": options.temperature,
+        "max_tokens": options.max_tokens,
     }
 
     handle = alchemy_llm_py.openai_completions_stream(

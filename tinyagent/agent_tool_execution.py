@@ -5,7 +5,8 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import Awaitable, Callable
-from typing import TypedDict, cast
+
+from pydantic import BaseModel, Field
 
 from .agent_types import (
     AgentMessage,
@@ -16,6 +17,7 @@ from .agent_types import (
     JsonObject,
     MessageEndEvent,
     MessageStartEvent,
+    TextContent,
     ToolCallContent,
     ToolExecutionEndEvent,
     ToolExecutionStartEvent,
@@ -24,35 +26,36 @@ from .agent_types import (
 )
 
 
-class ToolExecutionResult(TypedDict):
-    tool_results: list[ToolResultMessage]
-    steering_messages: list[AgentMessage] | None
+class ToolExecutionResult(BaseModel):
+    tool_results: list[ToolResultMessage] = Field(default_factory=list)
+    steering_messages: list[AgentMessage] | None = None
 
 
 def validate_tool_arguments(tool: AgentTool, tool_call: ToolCallContent) -> JsonObject:
     """Validate and normalize tool arguments.
 
     Some providers (e.g. MiniMax via alchemy) may return arguments as a JSON
-    string rather than a parsed dict.  Normalize to dict before execution.
+    string rather than a parsed dict. Normalize to dict before execution.
     """
 
-    raw = tool_call.get("arguments", {})
+    del tool  # Arguments schema validation is deferred; normalize shape here.
+    raw: object = tool_call.arguments
+
     if isinstance(raw, str):
         try:
             parsed = json.loads(raw) if raw else {}
-            return cast(JsonObject, parsed) if isinstance(parsed, dict) else {}
+            return parsed if isinstance(parsed, dict) else {}
         except (json.JSONDecodeError, ValueError):
             return {}
-    return raw
+
+    return raw if isinstance(raw, dict) else {}
 
 
 def _extract_tool_calls(assistant_message: AssistantMessage) -> list[ToolCallContent]:
     tool_calls: list[ToolCallContent] = []
-    for content in assistant_message.get("content", []):
-        if not content:
-            continue
-        if content.get("type") == "tool_call":
-            tool_calls.append(cast(ToolCallContent, content))
+    for content in assistant_message.content:
+        if isinstance(content, ToolCallContent):
+            tool_calls.append(content)
     return tool_calls
 
 
@@ -85,14 +88,14 @@ async def _execute_single_tool(
 ) -> tuple[AgentToolResult, bool]:
     """Execute a single tool and return (result, is_error)."""
 
-    tool_call_name = tool_call.get("name", "")
-    tool_call_id = tool_call.get("id", "")
-    tool_call_args = tool_call.get("arguments", {})
+    tool_call_name = tool_call.name or ""
+    tool_call_id = tool_call.id or ""
+    tool_call_args = tool_call.arguments
 
     if not tool:
         return (
             AgentToolResult(
-                content=[{"type": "text", "text": f"Tool {tool_call_name} not found"}],
+                content=[TextContent(text=f"Tool {tool_call_name} not found")],
                 details={},
             ),
             True,
@@ -101,7 +104,7 @@ async def _execute_single_tool(
         error_text = f"Tool {tool_call_name} has no execute function"
         return (
             AgentToolResult(
-                content=[{"type": "text", "text": error_text}],
+                content=[TextContent(text=error_text)],
                 details={},
             ),
             True,
@@ -128,7 +131,7 @@ async def _execute_single_tool(
         message = str(exc) or "Tool execution cancelled"
         return (
             AgentToolResult(
-                content=[{"type": "text", "text": message}],
+                content=[TextContent(text=message)],
                 details={},
             ),
             True,
@@ -136,7 +139,7 @@ async def _execute_single_tool(
     except Exception as exc:  # noqa: BLE001
         return (
             AgentToolResult(
-                content=[{"type": "text", "text": str(exc)}],
+                content=[TextContent(text=str(exc))],
                 details={},
             ),
             True,
@@ -148,15 +151,14 @@ def _create_tool_result_message(
     result: AgentToolResult,
     is_error: bool,
 ) -> ToolResultMessage:
-    return {
-        "role": "tool_result",
-        "tool_call_id": tool_call.get("id", ""),
-        "tool_name": tool_call.get("name", ""),
-        "content": result.content,
-        "details": result.details,
-        "is_error": is_error,
-        "timestamp": int(asyncio.get_running_loop().time() * 1000),
-    }
+    return ToolResultMessage(
+        tool_call_id=tool_call.id or "",
+        tool_name=tool_call.name or "",
+        content=result.content,
+        details=result.details,
+        is_error=is_error,
+        timestamp=int(asyncio.get_running_loop().time() * 1000),
+    )
 
 
 async def execute_tool_calls(
@@ -168,20 +170,20 @@ async def execute_tool_calls(
 ) -> ToolExecutionResult:
     tool_calls = _extract_tool_calls(assistant_message)
     if not tool_calls:
-        return {"tool_results": [], "steering_messages": None}
+        return ToolExecutionResult()
 
     # Emit start events for all tools upfront
     for tool_call in tool_calls:
         stream.push(
             ToolExecutionStartEvent(
-                tool_call_id=tool_call.get("id", ""),
-                tool_name=tool_call.get("name", ""),
-                args=tool_call.get("arguments", {}),
+                tool_call_id=tool_call.id or "",
+                tool_name=tool_call.name or "",
+                args=tool_call.arguments,
             )
         )
 
     # Resolve tools and execute all in parallel
-    resolved = [_find_tool(tools, tc.get("name", "")) for tc in tool_calls]
+    resolved = [_find_tool(tools, tc.name or "") for tc in tool_calls]
     parent_task = asyncio.current_task()
     raw_results: list[tuple[AgentToolResult, bool]] = await asyncio.gather(
         *(
@@ -195,8 +197,8 @@ async def execute_tool_calls(
     for tool_call, (result, is_error) in zip(tool_calls, raw_results, strict=True):
         stream.push(
             ToolExecutionEndEvent(
-                tool_call_id=tool_call.get("id", ""),
-                tool_name=tool_call.get("name", ""),
+                tool_call_id=tool_call.id or "",
+                tool_name=tool_call.name or "",
                 result=result,
                 is_error=is_error,
             )
@@ -213,21 +215,20 @@ async def execute_tool_calls(
         if steering:
             steering_messages = steering
 
-    return {"tool_results": results, "steering_messages": steering_messages}
+    return ToolExecutionResult(tool_results=results, steering_messages=steering_messages)
 
 
 def skip_tool_call(tool_call: ToolCallContent, stream: EventStream) -> ToolResultMessage:
     """Skip a tool call due to user interruption."""
 
-    tool_call_name = tool_call.get("name", "")
-    tool_call_id = tool_call.get("id", "")
-    tool_call_args = tool_call.get("arguments", {})
+    tool_call_name = tool_call.name or ""
+    tool_call_id = tool_call.id or ""
+    tool_call_args = tool_call.arguments
 
     result = AgentToolResult(
-        content=[{"type": "text", "text": "Skipped due to queued user message."}],
+        content=[TextContent(text="Skipped due to queued user message.")],
         details={},
     )
-
     stream.push(
         ToolExecutionStartEvent(
             tool_call_id=tool_call_id,

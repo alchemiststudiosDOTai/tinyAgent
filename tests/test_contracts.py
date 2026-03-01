@@ -8,6 +8,8 @@ from tinyagent.agent_types import (
     AgentTool,
     AssistantContent,
     AssistantMessage,
+    TextContent,
+    ThinkingContent,
     ToolCallContent,
     ToolResultMessage,
     UserMessage,
@@ -25,24 +27,23 @@ class TestTypeGuards:
     """Type guards correctly narrow AssistantContent."""
 
     def test_text_content_identified(self) -> None:
-        content: AssistantContent = {"type": "text", "text": "hello"}
+        content: AssistantContent = TextContent(text="hello")
         assert _is_text_content(content) is True
 
     def test_thinking_content_identified(self) -> None:
-        content: AssistantContent = {"type": "thinking", "thinking": "hmm"}
+        content: AssistantContent = ThinkingContent(thinking="hmm")
         assert _is_thinking_content(content) is True
 
     def test_tool_call_identified(self) -> None:
-        content: AssistantContent = {
-            "type": "tool_call",
-            "id": "tc_1",
-            "name": "search",
-            "arguments": {},
-        }
+        content: AssistantContent = ToolCallContent(
+            id="tc_1",
+            name="search",
+            arguments={},
+        )
         assert _is_tool_call(content) is True
 
     def test_text_guard_rejects_thinking(self) -> None:
-        content: AssistantContent = {"type": "thinking", "thinking": "hmm"}
+        content: AssistantContent = ThinkingContent(thinking="hmm")
         assert _is_text_content(content) is False
 
     def test_guards_handle_none(self) -> None:
@@ -58,20 +59,19 @@ class TestMessageRoles:
     """Messages use correct role literals."""
 
     def test_user_message_role(self) -> None:
-        msg: UserMessage = {"role": "user", "content": []}
-        assert msg["role"] == "user"
+        msg = UserMessage(content=[])
+        assert msg.role == "user"
 
     def test_assistant_message_role(self) -> None:
-        msg: AssistantMessage = {"role": "assistant", "content": []}
-        assert msg["role"] == "assistant"
+        msg = AssistantMessage(content=[])
+        assert msg.role == "assistant"
 
     def test_tool_result_message_role(self) -> None:
-        msg: ToolResultMessage = {
-            "role": "tool_result",
-            "tool_call_id": "x",
-            "content": [],
-        }
-        assert msg["role"] == "tool_result"
+        msg = ToolResultMessage(
+            tool_call_id="x",
+            content=[],
+        )
+        assert msg.role == "tool_result"
 
 
 # -- StopReason contracts --
@@ -105,18 +105,17 @@ class TestToolArgumentValidation:
             description="Search",
             parameters={"type": "object", "properties": {"query": {"type": "string"}}},
         )
-        tool_call: ToolCallContent = {
-            "type": "tool_call",
-            "id": "tc_1",
-            "name": "search",
-            "arguments": {"query": "hello"},
-        }
+        tool_call = ToolCallContent(
+            id="tc_1",
+            name="search",
+            arguments={"query": "hello"},
+        )
         result = validate_tool_arguments(tool, tool_call)
         assert result == {"query": "hello"}
 
     def test_missing_arguments_returns_empty(self) -> None:
         tool = AgentTool(name="noop", description="No-op", parameters={})
-        tool_call: ToolCallContent = {"type": "tool_call", "id": "tc_2", "name": "noop"}
+        tool_call = ToolCallContent(id="tc_2", name="noop")
         result = validate_tool_arguments(tool, tool_call)
         assert result == {}
 
@@ -130,8 +129,8 @@ class TestNoDuplicateGuardDrift:
     def test_openrouter_text_guard_matches(self) -> None:
         from tinyagent.openrouter_provider import _is_text_content as or_guard
 
-        text: AssistantContent = {"type": "text", "text": "hi"}
-        thinking: AssistantContent = {"type": "thinking", "thinking": "hmm"}
+        text: AssistantContent = TextContent(text="hi")
+        thinking: AssistantContent = ThinkingContent(thinking="hmm")
 
         assert or_guard(text) == _is_text_content(text)
         assert or_guard(thinking) == _is_text_content(thinking)

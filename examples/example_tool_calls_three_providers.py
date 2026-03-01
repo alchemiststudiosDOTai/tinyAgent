@@ -20,7 +20,15 @@ from typing import Any
 from dotenv import load_dotenv
 
 from tinyagent import Agent, AgentOptions, extract_text
-from tinyagent.agent_types import AgentEvent, AgentTool, AgentToolResult, Model, TextContent
+from tinyagent.agent_types import (
+    AgentEvent,
+    AgentTool,
+    AgentToolResult,
+    AssistantMessage,
+    Model,
+    TextContent,
+    ToolResultMessage,
+)
 from tinyagent.alchemy_provider import OpenAICompatModel, stream_alchemy_openai_completions
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/chat/completions"
@@ -154,19 +162,18 @@ async def run_provider(agent: Agent, run: ProviderRun) -> ProviderRunCapture:
     finally:
         unsubscribe()
 
-    capture.stop_reason = str(message.get("stop_reason") or "")
+    if isinstance(message, AssistantMessage):
+        capture.stop_reason = str(message.stop_reason or "")
+        capture.error_message = str(message.error_message or "")
     capture.final_text = extract_text(message)
-    capture.error_message = str(message.get("error_message") or "")
 
-    for msg in agent.state.get("messages", []):
-        if not isinstance(msg, dict):
-            continue
-        if msg.get("role") != "tool_result":
+    for msg in agent.state.messages:
+        if not isinstance(msg, ToolResultMessage):
             continue
         capture.tool_results.append(
             {
-                "tool_name": str(msg.get("tool_name") or ""),
-                "tool_call_id": str(msg.get("tool_call_id") or ""),
+                "tool_name": str(msg.tool_name or ""),
+                "tool_call_id": str(msg.tool_call_id or ""),
             }
         )
 

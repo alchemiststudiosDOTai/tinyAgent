@@ -15,6 +15,9 @@ from tinyagent.agent_types import (
     AssistantMessage,
     EventStream,
     JsonObject,
+    TextContent,
+    ToolCallContent,
+    UserMessage,
 )
 
 
@@ -32,10 +35,11 @@ def _make_tool(name: str, delay: float = 0.0, result_text: str = "") -> AgentToo
         signal: asyncio.Event | None,
         on_update: Callable[[AgentToolResult], None],
     ) -> AgentToolResult:
+        del tool_call_id, args, signal, on_update
         if delay > 0:
             await asyncio.sleep(delay)
         return AgentToolResult(
-            content=[{"type": "text", "text": result_text or f"{name} result"}],
+            content=[TextContent(text=result_text or f"{name} result")],
         )
 
     return AgentTool(name=name, description=f"Test {name}", execute=execute)
@@ -43,10 +47,9 @@ def _make_tool(name: str, delay: float = 0.0, result_text: str = "") -> AgentToo
 
 def _make_message(*tool_names: str) -> AssistantMessage:
     content: list[AssistantContent | None] = [
-        {"type": "tool_call", "id": f"tc_{i}", "name": name, "arguments": {}}
-        for i, name in enumerate(tool_names)
+        ToolCallContent(id=f"tc_{i}", name=name, arguments={}) for i, name in enumerate(tool_names)
     ]
-    return {"role": "assistant", "content": content}
+    return AssistantMessage(content=content)
 
 
 def _capturing_stream() -> tuple[EventStream, list[AgentEvent]]:
@@ -71,15 +74,15 @@ class TestParallelToolExecution:
         message = _make_message("search")
         stream = _make_stream()
         result = await execute_tool_calls([tool], message, None, stream)
-        assert len(result["tool_results"]) == 1
-        assert result["tool_results"][0]["tool_name"] == "search"
+        assert len(result.tool_results) == 1
+        assert result.tool_results[0].tool_name == "search"
 
     async def test_multiple_tools_return_in_order(self) -> None:
         tools = [_make_tool("a"), _make_tool("b"), _make_tool("c")]
         message = _make_message("a", "b", "c")
         stream = _make_stream()
         result = await execute_tool_calls(tools, message, None, stream)
-        names = [r["tool_name"] for r in result["tool_results"]]
+        names = [r.tool_name for r in result.tool_results]
         assert names == ["a", "b", "c"]
 
     async def test_tools_execute_concurrently(self) -> None:
@@ -97,14 +100,11 @@ class TestParallelToolExecution:
         assert elapsed < 0.25, f"Expected parallel execution, took {elapsed:.2f}s"
 
     async def test_no_tool_calls_returns_empty(self) -> None:
-        message: AssistantMessage = {
-            "role": "assistant",
-            "content": [{"type": "text", "text": "no tools"}],
-        }
+        message = AssistantMessage(content=[TextContent(text="no tools")])
         stream = _make_stream()
         result = await execute_tool_calls([], message, None, stream)
-        assert result["tool_results"] == []
-        assert result["steering_messages"] is None
+        assert result.tool_results == []
+        assert result.steering_messages is None
 
 
 class TestParallelEventOrdering:
@@ -162,6 +162,7 @@ class TestParallelErrorHandling:
             signal: asyncio.Event | None,
             on_update: Callable[[AgentToolResult], None],
         ) -> AgentToolResult:
+            del tool_call_id, args, signal, on_update
             raise ValueError("tool failed")
 
         tools = [
@@ -172,9 +173,9 @@ class TestParallelErrorHandling:
         stream = _make_stream()
 
         result = await execute_tool_calls(tools, message, None, stream)
-        assert len(result["tool_results"]) == 2
-        assert result["tool_results"][0]["is_error"] is False
-        assert result["tool_results"][1]["is_error"] is True
+        assert len(result.tool_results) == 2
+        assert result.tool_results[0].is_error is False
+        assert result.tool_results[1].is_error is True
 
     async def test_cancelled_error_in_one_tool_doesnt_abort_batch(self) -> None:
         async def cancelled_execute(
@@ -183,6 +184,7 @@ class TestParallelErrorHandling:
             signal: asyncio.Event | None,
             on_update: Callable[[AgentToolResult], None],
         ) -> AgentToolResult:
+            del tool_call_id, args, signal, on_update
             raise asyncio.CancelledError("cancelled")
 
         tools = [
@@ -193,9 +195,9 @@ class TestParallelErrorHandling:
         stream = _make_stream()
 
         result = await execute_tool_calls(tools, message, None, stream)
-        assert len(result["tool_results"]) == 2
-        assert result["tool_results"][0]["is_error"] is False
-        assert result["tool_results"][1]["is_error"] is True
+        assert len(result.tool_results) == 2
+        assert result.tool_results[0].is_error is False
+        assert result.tool_results[1].is_error is True
 
     async def test_self_cancelled_tool_doesnt_abort_batch(self) -> None:
         async def self_cancel_execute(
@@ -204,11 +206,12 @@ class TestParallelErrorHandling:
             signal: asyncio.Event | None,
             on_update: Callable[[AgentToolResult], None],
         ) -> AgentToolResult:
+            del tool_call_id, args, signal, on_update
             task = asyncio.current_task()
             assert task is not None
             task.cancel()
             await asyncio.sleep(0)
-            return AgentToolResult(content=[{"type": "text", "text": "unreachable"}])
+            return AgentToolResult(content=[TextContent(text="unreachable")])
 
         tools = [
             AgentTool(name="bad", description="self-cancelled", execute=self_cancel_execute),
@@ -218,9 +221,9 @@ class TestParallelErrorHandling:
         stream = _make_stream()
 
         result = await execute_tool_calls(tools, message, None, stream)
-        assert len(result["tool_results"]) == 2
-        assert result["tool_results"][0]["is_error"] is True
-        assert result["tool_results"][1]["is_error"] is False
+        assert len(result.tool_results) == 2
+        assert result.tool_results[0].is_error is True
+        assert result.tool_results[1].is_error is False
 
     async def test_task_cancellation_propagates(self) -> None:
         started = asyncio.Event()
@@ -231,9 +234,10 @@ class TestParallelErrorHandling:
             signal: asyncio.Event | None,
             on_update: Callable[[AgentToolResult], None],
         ) -> AgentToolResult:
+            del tool_call_id, args, signal, on_update
             started.set()
             await asyncio.sleep(10)
-            return AgentToolResult(content=[{"type": "text", "text": "done"}])
+            return AgentToolResult(content=[TextContent(text="done")])
 
         tool = AgentTool(name="slow", description="slow", execute=slow_execute)
         message = _make_message("slow")
@@ -250,15 +254,15 @@ class TestParallelErrorHandling:
         message = _make_message("nonexistent")
         stream = _make_stream()
         result = await execute_tool_calls([], message, None, stream)
-        assert len(result["tool_results"]) == 1
-        assert result["tool_results"][0]["is_error"] is True
+        assert len(result.tool_results) == 1
+        assert result.tool_results[0].is_error is True
 
     async def test_tool_without_execute_returns_error(self) -> None:
         tool = AgentTool(name="no_exec", description="no execute fn")
         message = _make_message("no_exec")
         stream = _make_stream()
         result = await execute_tool_calls([tool], message, None, stream)
-        assert result["tool_results"][0]["is_error"] is True
+        assert result.tool_results[0].is_error is True
 
 
 class TestParallelSteering:
@@ -270,7 +274,7 @@ class TestParallelSteering:
         async def get_steering() -> list[AgentMessage]:
             nonlocal steering_check_count
             steering_check_count += 1
-            return [{"role": "user", "content": [{"type": "text", "text": "stop"}]}]
+            return [UserMessage(content=[TextContent(text="stop")])]
 
         tools = [_make_tool("a"), _make_tool("b")]
         message = _make_message("a", "b")
@@ -278,11 +282,11 @@ class TestParallelSteering:
 
         result = await execute_tool_calls(tools, message, None, stream, get_steering)
         assert steering_check_count == 1
-        assert result["steering_messages"] is not None
+        assert result.steering_messages is not None
         # Both tools completed with real results (not skipped)
-        assert len(result["tool_results"]) == 2
-        assert result["tool_results"][0]["is_error"] is False
-        assert result["tool_results"][1]["is_error"] is False
+        assert len(result.tool_results) == 2
+        assert result.tool_results[0].is_error is False
+        assert result.tool_results[1].is_error is False
 
     async def test_no_steering_returns_none(self) -> None:
         steering_check_count = 0
@@ -298,7 +302,7 @@ class TestParallelSteering:
 
         result = await execute_tool_calls(tools, message, None, stream, get_steering)
         assert steering_check_count == 1
-        assert result["steering_messages"] is None
+        assert result.steering_messages is None
 
     async def test_no_steering_callback_returns_none(self) -> None:
         tools = [_make_tool("a")]
@@ -306,4 +310,4 @@ class TestParallelSteering:
         stream = _make_stream()
 
         result = await execute_tool_calls(tools, message, None, stream, None)
-        assert result["steering_messages"] is None
+        assert result.steering_messages is None

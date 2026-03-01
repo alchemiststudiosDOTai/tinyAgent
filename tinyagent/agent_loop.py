@@ -113,6 +113,22 @@ async def _resolve_api_key(config: AgentLoopConfig) -> str | None:
     return config.api_key
 
 
+def _coerce_assistant_message(raw_message: object) -> AssistantMessage:
+    if isinstance(raw_message, AssistantMessage):
+        return raw_message
+    if isinstance(raw_message, dict):
+        return AssistantMessage.model_validate(raw_message)
+    raise TypeError(f"Unsupported assistant message payload: {type(raw_message).__name__}")
+
+
+def _coerce_assistant_event(raw_event: object) -> AssistantMessageEvent:
+    if isinstance(raw_event, AssistantMessageEvent):
+        return raw_event
+    if isinstance(raw_event, dict):
+        return AssistantMessageEvent.model_validate(raw_event)
+    raise TypeError(f"Unsupported assistant event payload: {type(raw_event).__name__}")
+
+
 def _create_stream_handlers(
     context: AgentContext,
     stream: EventStream,
@@ -122,7 +138,7 @@ def _create_stream_handlers(
     """Create handlers for stream events."""
 
     async def handle_start(event: AssistantMessageEvent) -> AssistantMessage | None:
-        partial_message = event.get("partial")
+        partial_message = event.partial
         if not partial_message:
             return None
         context.messages.append(partial_message)
@@ -132,7 +148,7 @@ def _create_stream_handlers(
         return None
 
     async def handle_update(event: AssistantMessageEvent) -> AssistantMessage | None:
-        partial_message = event.get("partial")
+        partial_message = event.partial
         if not state.partial_message or partial_message is None:
             return None
         state.partial_message = partial_message
@@ -146,7 +162,7 @@ def _create_stream_handlers(
         return None
 
     async def handle_finish(event: AssistantMessageEvent) -> AssistantMessage | None:
-        final_message = await response.result()
+        final_message = _coerce_assistant_message(await response.result())
         if state.added_partial:
             context.messages[-1] = final_message
         else:
@@ -179,12 +195,12 @@ async def stream_assistant_response(
     llm_context = await _build_llm_context(context, config, signal)
     resolved_api_key = await _resolve_api_key(config)
 
-    options: SimpleStreamOptions = {
-        "api_key": resolved_api_key,
-        "signal": signal,
-        "temperature": config.temperature,
-        "max_tokens": config.max_tokens,
-    }
+    options = SimpleStreamOptions(
+        api_key=resolved_api_key,
+        signal=signal,
+        temperature=config.temperature,
+        max_tokens=config.max_tokens,
+    )
 
     stream_function: StreamFn = stream_fn or stream_simple
     response: StreamResponse = await stream_function(config.model, llm_context, options)
@@ -192,8 +208,9 @@ async def stream_assistant_response(
     state = ResponseStreamState()
     handlers = _create_stream_handlers(context, stream, state, response)
 
-    async for event in response:
-        event_type = event.get("type")
+    async for raw_event in response:
+        event = _coerce_assistant_event(raw_event)
+        event_type = event.type
         if not event_type:
             continue
         handler = handlers.get(event_type)
@@ -203,7 +220,7 @@ async def stream_assistant_response(
         if update_message:
             return update_message
 
-    return await response.result()
+    return _coerce_assistant_message(await response.result())
 
 
 @dataclass
@@ -257,7 +274,7 @@ async def _process_turn(
     )
     new_messages.append(message)
 
-    stop_reason = message.get("stop_reason")
+    stop_reason = message.stop_reason
     if stop_reason in ("error", "aborted"):
         stream.push(TurnEndEvent(message=message, tool_results=[]))
         stream.push(AgentEndEvent(messages=new_messages))
@@ -276,9 +293,9 @@ async def _process_turn(
         stream,
         config.get_steering_messages,
     )
-    tool_results = tool_execution["tool_results"]
+    tool_results = tool_execution.tool_results
     has_more_tool_calls = len(tool_results) > 0
-    steering_after_tools = tool_execution.get("steering_messages")
+    steering_after_tools = tool_execution.steering_messages
     for result in tool_results:
         current_context.messages.append(result)
         new_messages.append(result)
@@ -411,7 +428,7 @@ def agent_loop_continue(
         raise ValueError("Cannot continue: no messages in context")
 
     last_message = context.messages[-1]
-    last_role = last_message.get("role")
+    last_role = last_message.role
     if last_role == "assistant":
         raise ValueError("Cannot continue from message role: assistant")
 

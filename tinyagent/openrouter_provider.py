@@ -9,6 +9,7 @@ import asyncio
 import json
 import os
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import TypeGuard, cast
 
@@ -90,13 +91,17 @@ def _build_usage_dict(usage: dict[str, object]) -> JsonObject:
 
 
 def _context_has_cache_control(context: Context) -> bool:
-    """Check if any message in the context has cache_control on a content block."""
+    """Check if any message in the context has cache_control on a text block."""
     for msg in context.messages:
-        content = msg.get("content")
-        if not isinstance(content, list):
-            continue
+        content = (
+            cast(list[object], msg.get("content", []))
+            if isinstance(msg, dict)
+            else cast(list[object], msg.content)
+        )
         for block in content:
-            if isinstance(block, dict) and block.get("cache_control"):
+            if isinstance(block, TextContent) and block.cache_control is not None:
+                return True
+            if isinstance(block, dict) and block.get("cache_control") is not None:
                 return True
     return False
 
@@ -142,43 +147,59 @@ def _convert_tools_to_openai_format(
 
 
 def _is_text_content(content: AssistantContent | None) -> TypeGuard[TextContent]:
-    return content is not None and content.get("type") == "text"
+    if isinstance(content, TextContent):
+        return content.type == "text"
+    return isinstance(content, dict) and content.get("type") == "text"
 
 
-def _extract_text_parts(blocks: list[TextContent | dict[str, object]]) -> list[str]:
+def _extract_text_parts(blocks: Sequence[object]) -> list[str]:
     text_parts: list[str] = []
     for part in blocks:
+        if isinstance(part, TextContent) and isinstance(part.text, str):
+            text_parts.append(part.text)
+            continue
         if isinstance(part, dict) and part.get("type") == "text":
-            value = part.get("text")
-            if isinstance(value, str):
-                text_parts.append(value)
+            text_val = part.get("text")
+            if isinstance(text_val, str):
+                text_parts.append(text_val)
     return text_parts
 
 
-def _any_block_has_cache_control(blocks: list[TextContent | dict[str, object]]) -> bool:
+def _any_block_has_cache_control(blocks: Sequence[object]) -> bool:
     """Check if any content block carries a cache_control directive."""
-    return any(isinstance(block, dict) and block.get("cache_control") for block in blocks)
+    return any(
+        (isinstance(block, TextContent) and block.cache_control is not None)
+        or (isinstance(block, dict) and block.get("cache_control") is not None)
+        for block in blocks
+    )
 
 
-def _convert_content_blocks_structured(
-    blocks: list[TextContent | dict[str, object]],
-) -> list[dict[str, object]]:
+def _convert_content_blocks_structured(blocks: Sequence[object]) -> list[dict[str, object]]:
     """Convert content blocks to structured format preserving cache_control."""
     result: list[dict[str, object]] = []
     for block in blocks:
+        if isinstance(block, TextContent):
+            entry: dict[str, object] = {"type": "text", "text": block.text or ""}
+            if block.cache_control is not None:
+                entry["cache_control"] = block.cache_control.model_dump(exclude_none=True)
+            result.append(entry)
+            continue
         if not isinstance(block, dict) or block.get("type") != "text":
             continue
-        entry: dict[str, object] = {"type": "text", "text": block.get("text", "")}
-        cc = block.get("cache_control")
-        if cc:
-            entry["cache_control"] = cc
+        entry = {"type": "text", "text": block.get("text", "")}
+        cache_control = block.get("cache_control")
+        if cache_control is not None:
+            entry["cache_control"] = cache_control
         result.append(entry)
     return result
 
 
 def _convert_user_message(msg: UserMessage) -> dict[str, object]:
-    content = msg.get("content", [])
-    blocks = cast(list[TextContent | dict[str, object]], content)
+    blocks = (
+        cast(list[object], msg.content)
+        if isinstance(msg, UserMessage)
+        else cast(list[object], msg.get("content", []))
+    )
     if _any_block_has_cache_control(blocks):
         return {"role": "user", "content": _convert_content_blocks_structured(blocks)}
     text_parts = _extract_text_parts(blocks)
@@ -186,28 +207,26 @@ def _convert_user_message(msg: UserMessage) -> dict[str, object]:
 
 
 def _convert_assistant_message(msg: AssistantMessage) -> dict[str, object]:
-    content = msg.get("content", [])
     text_parts: list[str] = []
     tool_calls: list[dict[str, object]] = []
 
-    for part in content:
+    for part in msg.content:
         if not part:
             continue
 
-        ptype = part.get("type")
-        if ptype == "text":
-            text_val = part.get("text")
-            if isinstance(text_val, str):
-                text_parts.append(text_val)
-        elif ptype == "tool_call":
-            tc_args: JsonObject = cast(JsonObject, part.get("arguments", {}))
+        if isinstance(part, TextContent):
+            if isinstance(part.text, str):
+                text_parts.append(part.text)
+            continue
+
+        if isinstance(part, ToolCallContent):
             tool_calls.append(
                 {
-                    "id": part.get("id"),
+                    "id": part.id,
                     "type": "function",
                     "function": {
-                        "name": part.get("name"),
-                        "arguments": json.dumps(tc_args),
+                        "name": part.name,
+                        "arguments": json.dumps(part.arguments),
                     },
                 }
             )
@@ -221,12 +240,10 @@ def _convert_assistant_message(msg: AssistantMessage) -> dict[str, object]:
 
 
 def _convert_tool_result_message(msg: ToolResultMessage) -> dict[str, object]:
-    tool_call_id = msg.get("tool_call_id")
-    content = msg.get("content", [])
-    text_parts = _extract_text_parts(cast(list[TextContent | dict[str, object]], content))
+    text_parts = _extract_text_parts(msg.content)
     return {
         "role": "tool",
-        "tool_call_id": tool_call_id,
+        "tool_call_id": msg.tool_call_id,
         "content": "\n".join(text_parts),
     }
 
@@ -235,13 +252,12 @@ def _convert_messages_to_openai_format(messages: list[Message]) -> list[dict[str
     result: list[dict[str, object]] = []
 
     for msg in messages:
-        role = msg.get("role")
-        if role == "user":
-            result.append(_convert_user_message(cast(UserMessage, msg)))
-        elif role == "assistant":
-            result.append(_convert_assistant_message(cast(AssistantMessage, msg)))
-        elif role == "tool_result":
-            result.append(_convert_tool_result_message(cast(ToolResultMessage, msg)))
+        if isinstance(msg, UserMessage):
+            result.append(_convert_user_message(msg))
+        elif isinstance(msg, AssistantMessage):
+            result.append(_convert_assistant_message(msg))
+        elif isinstance(msg, ToolResultMessage):
+            result.append(_convert_tool_result_message(msg))
 
     return result
 
@@ -286,11 +302,11 @@ def _build_request_body(
     if tools:
         request_body["tools"] = tools
 
-    temperature = options.get("temperature")
+    temperature = options.temperature
     if temperature is not None:
         request_body["temperature"] = temperature
 
-    max_tokens = options.get("max_tokens")
+    max_tokens = options.max_tokens
     if max_tokens:
         request_body["max_tokens"] = max_tokens
 
@@ -309,18 +325,17 @@ def _handle_text_delta(
 
     current_text += content
 
-    content_list = partial.get("content")
-    if content_list is None:
-        content_list = []
-        partial["content"] = content_list
+    content_list = partial.content
 
     last_content = content_list[-1] if content_list else None
     if not _is_text_content(last_content):
-        content_list.append({"type": "text", "text": current_text})
+        content_list.append(TextContent(text=current_text))
     else:
-        last_content["text"] = current_text
+        last_content.text = current_text
 
-    response._events.append({"type": "text_delta", "partial": partial, "delta": content})
+    response._events.append(
+        AssistantMessageEvent(type="text_delta", partial=partial, delta=content)
+    )
     return current_text
 
 
@@ -357,16 +372,13 @@ def _handle_tool_call_delta(
             if isinstance(args, str) and args:
                 tool_calls_map[idx_int]["arguments"] += args
 
-        response._events.append({"type": "tool_call_delta", "partial": partial})
+        response._events.append(AssistantMessageEvent(type="tool_call_delta", partial=partial))
 
 
 def _finalize_tool_calls(
     tool_calls_map: dict[int, dict[str, str]], partial: AssistantMessage
 ) -> None:
-    content_list = partial.get("content")
-    if content_list is None:
-        content_list = []
-        partial["content"] = content_list
+    content_list = partial.content
 
     for idx in sorted(tool_calls_map.keys()):
         tc = tool_calls_map[idx]
@@ -379,14 +391,10 @@ def _finalize_tool_calls(
             args = {}
 
         content_list.append(
-            cast(
-                ToolCallContent,
-                {
-                    "type": "tool_call",
-                    "id": tc["id"],
-                    "name": tc["name"],
-                    "arguments": args,
-                },
+            ToolCallContent(
+                id=tc["id"],
+                name=tc["name"],
+                arguments=args,
             )
         )
 
@@ -568,13 +576,13 @@ async def _consume_openrouter_sse(
                 _openrouter_debug(f"raw SSE line (usage chunk)={clip}")
                 _openrouter_debug(f"parsed usage dict={json.dumps(parsed.usage, indent=2)}")
 
-            partial["usage"] = _build_usage_dict(parsed.usage)
+            partial.usage = _build_usage_dict(parsed.usage)
 
             if debug:
-                _openrouter_debug(f"normalized usage={json.dumps(partial['usage'], indent=2)}")
+                _openrouter_debug(f"normalized usage={json.dumps(partial.usage, indent=2)}")
 
         if parsed.finish_reason:
-            partial["stop_reason"] = (
+            partial.stop_reason = (
                 "tool_calls" if parsed.finish_reason == "tool_calls" else "complete"
             )
 
@@ -586,7 +594,7 @@ async def stream_openrouter(
 ) -> OpenRouterStreamResponse:
     """Stream a response from OpenRouter."""
 
-    api_key = options.get("api_key") or os.environ.get("OPENROUTER_API_KEY")
+    api_key = options.api_key or os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
         raise ValueError("OpenRouter API key required")
 
@@ -607,13 +615,13 @@ async def stream_openrouter(
     _debug_openrouter_request(model.id, api_url, caching_active, headers, request_body)
 
     response = OpenRouterStreamResponse()
-    partial: AssistantMessage = {
-        "role": "assistant",
-        "content": [],
-        "stop_reason": None,
-        "usage": ZERO_USAGE,
-        "timestamp": int(asyncio.get_event_loop().time() * 1000),
-    }
+    partial = AssistantMessage(
+        role="assistant",
+        content=[],
+        stop_reason=None,
+        usage=_copy_zero_usage(),
+        timestamp=int(asyncio.get_event_loop().time() * 1000),
+    )
     tool_calls_map: dict[int, dict[str, str]] = {}
 
     async with httpx.AsyncClient() as client:
@@ -627,11 +635,11 @@ async def stream_openrouter(
             await _raise_for_openrouter_error(http_response)
             _debug_openrouter_response_headers(http_response)
 
-            response._events.append({"type": "start", "partial": partial})
+            response._events.append(AssistantMessageEvent(type="start", partial=partial))
             await _consume_openrouter_sse(http_response, response, partial, tool_calls_map)
 
     _finalize_tool_calls(tool_calls_map, partial)
     response._final_message = partial
-    response._events.append({"type": "done", "partial": partial})
+    response._events.append(AssistantMessageEvent(type="done", partial=partial))
 
     return response

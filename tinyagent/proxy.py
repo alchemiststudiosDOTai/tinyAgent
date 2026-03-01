@@ -44,16 +44,15 @@ class ProxyStreamOptions:
 def _create_initial_partial(model: Model) -> AssistantMessage:
     """Create the initial partial message for streaming."""
 
-    return {
-        "role": "assistant",
-        "stop_reason": "stop",
-        "content": [],
-        "api": model.api,
-        "provider": model.provider,
-        "model": model.id,
-        "usage": None,
-        "timestamp": int(time.time() * 1000),
-    }
+    return AssistantMessage(
+        stop_reason="stop",
+        content=[],
+        api=model.api,
+        provider=model.provider,
+        model=model.id,
+        usage=None,
+        timestamp=int(time.time() * 1000),
+    )
 
 
 def _tool_to_json(tool: AgentTool) -> JsonObject:
@@ -80,10 +79,23 @@ def _model_to_json(model: Model) -> JsonObject:
     }
 
 
+def _message_to_json(message: object) -> JsonObject:
+    if isinstance(message, dict):
+        return cast(JsonObject, message)
+
+    model_dump = getattr(message, "model_dump", None)
+    if callable(model_dump):
+        dumped = model_dump(exclude_none=True)
+        if isinstance(dumped, dict):
+            return cast(JsonObject, dumped)
+
+    raise TypeError(f"Unsupported message payload type for proxy serialization: {type(message)!r}")
+
+
 def _context_to_json(context: Context) -> JsonObject:
     result: JsonObject = {
         "system_prompt": context.system_prompt,
-        "messages": cast(JsonValue, context.messages),
+        "messages": cast(JsonValue, [_message_to_json(message) for message in context.messages]),
     }
 
     tools_json = _tools_to_json(context.tools)
@@ -192,14 +204,18 @@ class ProxyStreamResponse(StreamResponse):
         return self._options.signal() if self._options.signal else False
 
     def _set_final_from_event(self, event: AssistantMessageEvent) -> None:
-        message = event.get("message")
-        if isinstance(message, dict) and message.get("role") == "assistant":
-            self._final = message
-        else:
-            self._final = self._partial
+        if isinstance(event.message, AssistantMessage):
+            self._final = event.message
+            return
+
+        if isinstance(event.error, AssistantMessage):
+            self._final = event.error
+            return
+
+        self._final = self._partial
 
     async def _queue_event(self, event: AssistantMessageEvent) -> None:
-        if event.get("type") in {"done", "error"}:
+        if event.type in {"done", "error"}:
             self._set_final_from_event(event)
         await self._queue.put(event)
 
@@ -237,14 +253,20 @@ class ProxyStreamResponse(StreamResponse):
 
         if self._final is None:
             self._final = self._partial
-            await self._queue_event({"type": "done", "partial": self._partial})
+            await self._queue_event(AssistantMessageEvent(type="done", partial=self._partial))
 
     async def _run_error(self, exc: Exception) -> None:
         reason: Literal["aborted", "error"] = "aborted" if self._is_aborted() else "error"
-        self._partial["stop_reason"] = reason
-        self._partial["error_message"] = str(exc)
+        self._partial.stop_reason = reason
+        self._partial.error_message = str(exc)
         self._final = self._partial
-        await self._queue_event({"type": "error", "reason": reason, "error": self._partial})
+        await self._queue_event(
+            AssistantMessageEvent(
+                type="error",
+                reason=reason,
+                error=self._partial,
+            )
+        )
 
     async def _run(self) -> None:
         try:

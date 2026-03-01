@@ -16,6 +16,7 @@ import pytest
 
 import tinyagent.alchemy_provider as alchemy_provider
 from tinyagent import Agent, AgentOptions
+from tinyagent.agent_tool_execution import ToolExecutionResult
 from tinyagent.agent_types import (
     AgentContext,
     AgentLoopConfig,
@@ -27,6 +28,10 @@ from tinyagent.agent_types import (
     JsonObject,
     Model,
     SimpleStreamOptions,
+    TextContent,
+    ToolCallContent,
+    ToolResultMessage,
+    UserMessage,
 )
 
 T = TypeVar("T")
@@ -120,16 +125,15 @@ def _usage_payload() -> JsonObject:
 
 
 def _assistant_message(text: str) -> AssistantMessage:
-    return {
-        "role": "assistant",
-        "content": [{"type": "text", "text": text}],
-        "stop_reason": "complete",
-        "api": "openai-completions",
-        "provider": "openrouter",
-        "model": "moonshotai/kimi-k2.5",
-        "timestamp": 123,
-        "usage": _usage_payload(),
-    }
+    return AssistantMessage(
+        content=[TextContent(text=text)],
+        stop_reason="complete",
+        api="openai-completions",
+        provider="openrouter",
+        model="moonshotai/kimi-k2.5",
+        timestamp=123,
+        usage=_usage_payload(),
+    )
 
 
 def test_alchemy_provider_forwards_full_payload_and_enforces_contract(
@@ -137,12 +141,12 @@ def test_alchemy_provider_forwards_full_payload_and_enforces_contract(
 ) -> None:
     async def _scenario() -> None:
         final_message = _assistant_message("hello")
-        start_event: AssistantMessageEvent = {"type": "start", "partial": final_message}
-        done_event: AssistantMessageEvent = {
-            "type": "done",
-            "reason": "stop",
-            "message": final_message,
-        }
+        start_event = AssistantMessageEvent(type="start", partial=final_message)
+        done_event = AssistantMessageEvent(
+            type="done",
+            reason="stop",
+            message=final_message,
+        )
 
         fake_module = FakeAlchemyModule(FakeHandle([start_event, done_event], final_message))
         monkeypatch.setattr(alchemy_provider, "_ALCHEMY_MODULE", fake_module)
@@ -159,12 +163,7 @@ def test_alchemy_provider_forwards_full_payload_and_enforces_contract(
         )
         context = Context(
             system_prompt="Be concise.",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [{"type": "text", "text": "hello"}],
-                }
-            ],
+            messages=[UserMessage(content=[TextContent(text="hello")])],
             tools=[
                 AgentTool(
                     name="echo",
@@ -173,11 +172,11 @@ def test_alchemy_provider_forwards_full_payload_and_enforces_contract(
                 )
             ],
         )
-        options: SimpleStreamOptions = {
-            "api_key": "k-test",
-            "temperature": 0.2,
-            "max_tokens": 77,
-        }
+        options = SimpleStreamOptions(
+            api_key="k-test",
+            temperature=0.2,
+            max_tokens=77,
+        )
 
         response = await alchemy_provider.stream_alchemy_openai_completions(model, context, options)
 
@@ -200,7 +199,9 @@ def test_alchemy_provider_forwards_full_payload_and_enforces_contract(
         }
         assert fake_module.captured_context is not None
         assert fake_module.captured_context["system_prompt"] == "Be concise."
-        assert fake_module.captured_context["messages"] == context.messages
+        assert fake_module.captured_context["messages"] == [
+            message.model_dump(exclude_none=True) for message in context.messages
+        ]
         assert fake_module.captured_context["tools"] == [
             {
                 "name": "echo",
@@ -215,8 +216,8 @@ def test_alchemy_provider_forwards_full_payload_and_enforces_contract(
         }
 
         assert len(seen_events) == 2
-        assert seen_events[-1].get("type") == "done"
-        assert result["usage"] == _usage_payload()
+        assert seen_events[-1].type == "done"
+        assert result.usage == _usage_payload()
 
     _run(_scenario())
 
@@ -226,11 +227,11 @@ def test_alchemy_provider_forwards_reasoning_effort_string(
 ) -> None:
     async def _scenario() -> None:
         final_message = _assistant_message("hello")
-        done_event: AssistantMessageEvent = {
-            "type": "done",
-            "reason": "stop",
-            "message": final_message,
-        }
+        done_event = AssistantMessageEvent(
+            type="done",
+            reason="stop",
+            message=final_message,
+        )
         fake_module = FakeAlchemyModule(FakeHandle([done_event], final_message))
         monkeypatch.setattr(alchemy_provider, "_ALCHEMY_MODULE", fake_module)
 
@@ -246,9 +247,9 @@ def test_alchemy_provider_forwards_reasoning_effort_string(
         )
         context = Context(
             system_prompt="Be concise.",
-            messages=[{"role": "user", "content": [{"type": "text", "text": "hello"}]}],
+            messages=[UserMessage(content=[TextContent(text="hello")])],
         )
-        options: SimpleStreamOptions = {"max_tokens": 77}
+        options = SimpleStreamOptions(max_tokens=77)
 
         _ = await alchemy_provider.stream_alchemy_openai_completions(model, context, options)
 
@@ -263,21 +264,25 @@ def test_alchemy_provider_infers_minimax_api_from_provider(
 ) -> None:
     async def _scenario() -> None:
         final_message = _assistant_message("hello")
-        done_event: AssistantMessageEvent = {
-            "type": "done",
-            "reason": "stop",
-            "message": final_message,
-        }
+        done_event = AssistantMessageEvent(
+            type="done",
+            reason="stop",
+            message=final_message,
+        )
         fake_module = FakeAlchemyModule(FakeHandle([done_event], final_message))
         monkeypatch.setattr(alchemy_provider, "_ALCHEMY_MODULE", fake_module)
 
         model = Model(provider="minimax", id="MiniMax-M2.5", api="")
         context = Context(
             system_prompt="Be concise.",
-            messages=[{"role": "user", "content": [{"type": "text", "text": "hello"}]}],
+            messages=[UserMessage(content=[TextContent(text="hello")])],
         )
 
-        _ = await alchemy_provider.stream_alchemy_openai_completions(model, context, {})
+        _ = await alchemy_provider.stream_alchemy_openai_completions(
+            model,
+            context,
+            SimpleStreamOptions(),
+        )
 
         assert fake_module.captured_model is not None
         assert fake_module.captured_model["provider"] == "minimax"
@@ -291,11 +296,11 @@ def test_alchemy_provider_explicit_api_override_is_forwarded(
 ) -> None:
     async def _scenario() -> None:
         final_message = _assistant_message("hello")
-        done_event: AssistantMessageEvent = {
-            "type": "done",
-            "reason": "stop",
-            "message": final_message,
-        }
+        done_event = AssistantMessageEvent(
+            type="done",
+            reason="stop",
+            message=final_message,
+        )
         fake_module = FakeAlchemyModule(FakeHandle([done_event], final_message))
         monkeypatch.setattr(alchemy_provider, "_ALCHEMY_MODULE", fake_module)
 
@@ -306,10 +311,14 @@ def test_alchemy_provider_explicit_api_override_is_forwarded(
         )
         context = Context(
             system_prompt="Be concise.",
-            messages=[{"role": "user", "content": [{"type": "text", "text": "hello"}]}],
+            messages=[UserMessage(content=[TextContent(text="hello")])],
         )
 
-        _ = await alchemy_provider.stream_alchemy_openai_completions(model, context, {})
+        _ = await alchemy_provider.stream_alchemy_openai_completions(
+            model,
+            context,
+            SimpleStreamOptions(),
+        )
 
         assert fake_module.captured_model is not None
         assert fake_module.captured_model["provider"] == "minimax"
@@ -323,21 +332,25 @@ def test_alchemy_provider_legacy_openrouter_api_alias_maps_to_openai_completions
 ) -> None:
     async def _scenario() -> None:
         final_message = _assistant_message("hello")
-        done_event: AssistantMessageEvent = {
-            "type": "done",
-            "reason": "stop",
-            "message": final_message,
-        }
+        done_event = AssistantMessageEvent(
+            type="done",
+            reason="stop",
+            message=final_message,
+        )
         fake_module = FakeAlchemyModule(FakeHandle([done_event], final_message))
         monkeypatch.setattr(alchemy_provider, "_ALCHEMY_MODULE", fake_module)
 
         model = Model(provider="openrouter", id="moonshotai/kimi-k2.5", api="openrouter")
         context = Context(
             system_prompt="Be concise.",
-            messages=[{"role": "user", "content": [{"type": "text", "text": "hello"}]}],
+            messages=[UserMessage(content=[TextContent(text="hello")])],
         )
 
-        _ = await alchemy_provider.stream_alchemy_openai_completions(model, context, {})
+        _ = await alchemy_provider.stream_alchemy_openai_completions(
+            model,
+            context,
+            SimpleStreamOptions(),
+        )
 
         assert fake_module.captured_model is not None
         assert fake_module.captured_model["provider"] == "openrouter"
@@ -373,25 +386,24 @@ def test_agent_preserves_usage_and_metadata_from_stream_function() -> None:
         ) -> FakeStreamResponse:
             captured["model"] = model
             captured["context"] = context
-            captured["options"] = dict(options)
+            captured["options"] = options.model_dump(exclude_none=True)
 
-            partial: AssistantMessage = {
-                "role": "assistant",
-                "content": [{"type": "text", "text": ""}],
-                "stop_reason": "complete",
-                "api": final_message["api"],
-                "provider": final_message["provider"],
-                "model": final_message["model"],
-                "usage": final_message["usage"],
-            }
+            partial = AssistantMessage(
+                content=[TextContent(text="")],
+                stop_reason="complete",
+                api=final_message.api,
+                provider=final_message.provider,
+                model=final_message.model,
+                usage=final_message.usage,
+            )
             events: list[AssistantMessageEvent] = [
-                {"type": "start", "partial": partial},
-                {
-                    "type": "done",
-                    "reason": "stop",
-                    "message": final_message,
-                    "partial": final_message,
-                },
+                AssistantMessageEvent(type="start", partial=partial),
+                AssistantMessageEvent(
+                    type="done",
+                    reason="stop",
+                    message=final_message,
+                    partial=final_message,
+                ),
             ]
             return FakeStreamResponse(events, final_message)
 
@@ -407,13 +419,13 @@ def test_agent_preserves_usage_and_metadata_from_stream_function() -> None:
         message = await agent.prompt("hello")
         assistant_message = cast(AssistantMessage, message)
 
-        assert assistant_message["role"] == "assistant"
-        assert assistant_message["usage"] == _usage_payload()
-        assert assistant_message["provider"] == "openrouter"
-        assert assistant_message["api"] == "openai-completions"
+        assert assistant_message.role == "assistant"
+        assert assistant_message.usage == _usage_payload()
+        assert assistant_message.provider == "openrouter"
+        assert assistant_message.api == "openai-completions"
 
         context = cast(Context, captured["context"])
-        assert context.messages[-1]["role"] == "user"
+        assert context.messages[-1].role == "user"
 
     _run(_scenario())
 
@@ -430,29 +442,27 @@ def test_agent_does_not_continue_turn_when_tool_execution_returns_no_results(
             signal: asyncio.Event | None,
             stream: object,
             get_steering_messages: Any = None,
-        ) -> dict[str, object]:
-            return {"tool_results": [], "steering_messages": None}
+        ) -> ToolExecutionResult:
+            return ToolExecutionResult()
 
         agent_loop_module = importlib.import_module("tinyagent.agent_loop")
         monkeypatch.setattr(agent_loop_module, "execute_tool_calls", fake_execute_tool_calls)
 
-        tool_call_message: AssistantMessage = {
-            "role": "assistant",
-            "content": [
-                {
-                    "type": "tool_call",
-                    "id": "call_1",
-                    "name": "echo",
-                    "arguments": {"text": "hello"},
-                }
+        tool_call_message = AssistantMessage(
+            content=[
+                ToolCallContent(
+                    id="call_1",
+                    name="echo",
+                    arguments={"text": "hello"},
+                )
             ],
-            "stop_reason": "tool_calls",
-            "api": "openai-completions",
-            "provider": "openrouter",
-            "model": "moonshotai/kimi-k2.5",
-            "usage": _usage_payload(),
-            "timestamp": 123,
-        }
+            stop_reason="tool_calls",
+            api="openai-completions",
+            provider="openrouter",
+            model="moonshotai/kimi-k2.5",
+            usage=_usage_payload(),
+            timestamp=123,
+        )
 
         async def fake_stream_fn(
             model: Model,
@@ -464,11 +474,11 @@ def test_agent_does_not_continue_turn_when_tool_execution_returns_no_results(
             if call_count > 1:
                 raise AssertionError("stream_fn should be called exactly once")
             events: list[AssistantMessageEvent] = [
-                {
-                    "type": "done",
-                    "reason": "tool_calls",
-                    "message": tool_call_message,
-                }
+                AssistantMessageEvent(
+                    type="done",
+                    reason="tool_calls",
+                    message=tool_call_message,
+                )
             ]
             return FakeStreamResponse(events, tool_call_message)
 
@@ -485,11 +495,8 @@ def test_agent_does_not_continue_turn_when_tool_execution_returns_no_results(
         assistant_message = cast(AssistantMessage, message)
 
         assert call_count == 1
-        assert assistant_message["stop_reason"] == "tool_calls"
-        assert not any(
-            isinstance(msg, dict) and msg.get("role") == "tool_result"
-            for msg in agent.state["messages"]
-        )
+        assert assistant_message.stop_reason == "tool_calls"
+        assert not any(msg.role == "tool_result" for msg in agent.state.messages)
 
     _run(_scenario())
 
@@ -505,32 +512,29 @@ def test_process_turn_does_not_double_poll_steering_after_tool_batch(
             steering_poll_count += 1
             return []
 
-        assistant_message: AssistantMessage = {
-            "role": "assistant",
-            "content": [
-                {
-                    "type": "tool_call",
-                    "id": "call_1",
-                    "name": "echo",
-                    "arguments": {"text": "hello"},
-                }
+        assistant_message = AssistantMessage(
+            content=[
+                ToolCallContent(
+                    id="call_1",
+                    name="echo",
+                    arguments={"text": "hello"},
+                )
             ],
-            "stop_reason": "tool_calls",
-            "api": "openai-completions",
-            "provider": "openrouter",
-            "model": "moonshotai/kimi-k2.5",
-            "usage": _usage_payload(),
-            "timestamp": 123,
-        }
-        tool_result_message = {
-            "role": "tool_result",
-            "tool_call_id": "call_1",
-            "tool_name": "echo",
-            "content": [{"type": "text", "text": "ok"}],
-            "details": {},
-            "is_error": False,
-            "timestamp": 456,
-        }
+            stop_reason="tool_calls",
+            api="openai-completions",
+            provider="openrouter",
+            model="moonshotai/kimi-k2.5",
+            usage=_usage_payload(),
+            timestamp=123,
+        )
+        tool_result_message = ToolResultMessage(
+            tool_call_id="call_1",
+            tool_name="echo",
+            content=[TextContent(text="ok")],
+            details={},
+            is_error=False,
+            timestamp=456,
+        )
 
         agent_loop_module = importlib.import_module("tinyagent.agent_loop")
 
@@ -549,10 +553,13 @@ def test_process_turn_does_not_double_poll_steering_after_tool_batch(
             signal: asyncio.Event | None,
             stream: object,
             get_steering_messages_cb: Any = None,
-        ) -> dict[str, object]:
+        ) -> ToolExecutionResult:
             assert get_steering_messages_cb is not None
             await get_steering_messages_cb()
-            return {"tool_results": [tool_result_message], "steering_messages": None}
+            return ToolExecutionResult(
+                tool_results=[tool_result_message],
+                steering_messages=None,
+            )
 
         monkeypatch.setattr(
             agent_loop_module,
@@ -572,11 +579,11 @@ def test_process_turn_does_not_double_poll_steering_after_tool_batch(
         )
         current_context = AgentContext(system_prompt="", messages=[], tools=[])
         stream = agent_loop_module.create_agent_stream()
-        new_messages: list[dict[str, object]] = []
+        new_messages: list[AgentMessage] = []
 
         turn_result = await agent_loop_module._process_turn(
             current_context,
-            cast(Any, new_messages),
+            new_messages,
             [],
             config,
             None,

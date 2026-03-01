@@ -36,15 +36,15 @@ async def chat_once(agent: Agent, user_input: str) -> None:
     async for event in agent.stream(user_input):
         if event.type == "message_update":
             ame = event.assistant_message_event
-            if isinstance(ame, dict) and ame.get("type") == "text_delta":
-                delta = ame.get("delta")
+            if ame and ame.type == "text_delta":
+                delta = ame.delta
                 if isinstance(delta, str) and delta:
                     print(delta, end="", flush=True)
                     printed_any = True
 
         if event.type == "message_end":
             msg = event.message
-            if msg and msg.get("role") == "assistant":
+            if msg and msg.role == "assistant":
                 if not printed_any:
                     print(extract_text(msg), end="", flush=True)
                 print()

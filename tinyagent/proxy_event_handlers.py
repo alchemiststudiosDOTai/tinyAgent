@@ -52,32 +52,28 @@ def _get_content_index(proxy_event: JsonObject) -> int:
 
 
 def _ensure_content_slot(partial: AssistantMessage, index: int) -> list[AssistantContent | None]:
-    content_list = partial.get("content")
-    if content_list is None:
-        content_list = []
-        partial["content"] = content_list
+    content_list = partial.content
     while len(content_list) <= index:
         content_list.append(None)
     return content_list
 
 
 def _get_content(partial: AssistantMessage, index: int) -> AssistantContent | None:
-    content_list = partial.get("content", [])
-    if index < len(content_list):
-        return content_list[index]
+    if index < len(partial.content):
+        return partial.content[index]
     return None
 
 
 def _is_text_content(content: AssistantContent | None) -> TypeGuard[TextContent]:
-    return content is not None and content.get("type") == "text"
+    return isinstance(content, TextContent) and content.type == "text"
 
 
 def _is_thinking_content(content: AssistantContent | None) -> TypeGuard[ThinkingContent]:
-    return content is not None and content.get("type") == "thinking"
+    return isinstance(content, ThinkingContent) and content.type == "thinking"
 
 
 def _is_tool_call(content: AssistantContent | None) -> TypeGuard[ToolCallContent]:
-    return content is not None and content.get("type") == "tool_call"
+    return isinstance(content, ToolCallContent) and content.type == "tool_call"
 
 
 def _normalize_stop_reason(value: object, default: StopReason) -> StopReason:
@@ -89,7 +85,7 @@ def _normalize_stop_reason(value: object, default: StopReason) -> StopReason:
 def _handle_start_event(
     proxy_event: JsonObject, partial: AssistantMessage
 ) -> AssistantMessageEvent:
-    return {"type": "start", "partial": partial}
+    return AssistantMessageEvent(type="start", partial=partial)
 
 
 def _handle_content_start(
@@ -102,11 +98,11 @@ def _handle_content_start(
     content_list = _ensure_content_slot(partial, content_index)
 
     if content_type == "text":
-        content_list[content_index] = {"type": "text", "text": ""}
+        content_list[content_index] = TextContent(text="")
     else:
-        content_list[content_index] = {"type": "thinking", "thinking": ""}
+        content_list[content_index] = ThinkingContent(thinking="")
 
-    return {"type": event_type, "content_index": content_index, "partial": partial}
+    return AssistantMessageEvent(type=event_type, content_index=content_index, partial=partial)
 
 
 def _handle_content_delta(
@@ -125,18 +121,18 @@ def _handle_content_delta(
     if content_type == "text":
         if not _is_text_content(content):
             raise RuntimeError(f"Received {event_type} for non-text content")
-        content["text"] = content.get("text", "") + delta
+        content.text = (content.text or "") + delta
     else:
         if not _is_thinking_content(content):
             raise RuntimeError(f"Received {event_type} for non-thinking content")
-        content["thinking"] = content.get("thinking", "") + delta
+        content.thinking = (content.thinking or "") + delta
 
-    return {
-        "type": event_type,
-        "content_index": content_index,
-        "delta": delta,
-        "partial": partial,
-    }
+    return AssistantMessageEvent(
+        type=event_type,
+        content_index=content_index,
+        delta=delta,
+        partial=partial,
+    )
 
 
 def _handle_content_end(
@@ -154,20 +150,20 @@ def _handle_content_end(
     if content_type == "text":
         if not _is_text_content(content):
             raise RuntimeError(f"Received {event_type} for non-text content")
-        content["text_signature"] = signature_str
-        content_value = content.get("text")
+        content.text_signature = signature_str
+        content_value = content.text
     else:
         if not _is_thinking_content(content):
             raise RuntimeError(f"Received {event_type} for non-thinking content")
-        content["thinking_signature"] = signature_str
-        content_value = content.get("thinking")
+        content.thinking_signature = signature_str
+        content_value = content.thinking
 
-    return {
-        "type": event_type,
-        "content_index": content_index,
-        "content": content_value,
-        "partial": partial,
-    }
+    return AssistantMessageEvent(
+        type=event_type,
+        content_index=content_index,
+        content=content_value,
+        partial=partial,
+    )
 
 
 def _handle_text_start(proxy_event: JsonObject, partial: AssistantMessage) -> AssistantMessageEvent:
@@ -212,15 +208,18 @@ def _handle_toolcall_start(
     tool_name = proxy_event.get("toolName")
     tool_name_str = tool_name if isinstance(tool_name, str) else ""
 
-    content_list[content_index] = {
-        "type": "tool_call",
-        "id": tc_id_str,
-        "name": tool_name_str,
-        "arguments": {},
-        "partial_json": "",
-    }
+    content_list[content_index] = ToolCallContent(
+        id=tc_id_str,
+        name=tool_name_str,
+        arguments={},
+        partial_json="",
+    )
 
-    return {"type": "tool_call_start", "content_index": content_index, "partial": partial}
+    return AssistantMessageEvent(
+        type="tool_call_start",
+        content_index=content_index,
+        partial=partial,
+    )
 
 
 def _handle_toolcall_delta(
@@ -235,22 +234,19 @@ def _handle_toolcall_delta(
     if not _is_tool_call(content):
         raise RuntimeError("Received tool_call_delta for non-tool_call content")
 
-    content["partial_json"] = content.get("partial_json", "") + delta
-    parsed_args = parse_streaming_json(content["partial_json"])
-    content["arguments"] = parsed_args if parsed_args else {}
+    content.partial_json = (content.partial_json or "") + delta
+    parsed_args = parse_streaming_json(content.partial_json)
+    content.arguments = parsed_args if parsed_args else {}
 
-    content_list = partial.get("content")
-    if content_list is None:
-        content_list = []
-        partial["content"] = content_list
+    content_list = _ensure_content_slot(partial, content_index)
     content_list[content_index] = content
 
-    return {
-        "type": "tool_call_delta",
-        "content_index": content_index,
-        "delta": delta,
-        "partial": partial,
-    }
+    return AssistantMessageEvent(
+        type="tool_call_delta",
+        content_index=content_index,
+        delta=delta,
+        partial=partial,
+    )
 
 
 def _handle_toolcall_end(
@@ -261,22 +257,24 @@ def _handle_toolcall_end(
     if not _is_tool_call(content):
         return None
 
-    content.pop("partial_json", None)
-    return {
-        "type": "tool_call_end",
-        "content_index": content_index,
-        "tool_call": content,
-        "partial": partial,
-    }
+    content.partial_json = None
+    return AssistantMessageEvent(
+        type="tool_call_end",
+        content_index=content_index,
+        tool_call=content,
+        partial=partial,
+    )
 
 
 def _handle_done_event(proxy_event: JsonObject, partial: AssistantMessage) -> AssistantMessageEvent:
     reason = _normalize_stop_reason(proxy_event.get("reason"), "stop")
 
-    partial["stop_reason"] = reason
+    partial.stop_reason = reason
     usage = proxy_event.get("usage")
-    partial["usage"] = usage if isinstance(usage, dict) else partial.get("usage")
-    return {"type": "done", "reason": reason, "message": partial}
+    if isinstance(usage, dict):
+        partial.usage = usage
+
+    return AssistantMessageEvent(type="done", reason=reason, message=partial)
 
 
 def _handle_error_event(
@@ -284,15 +282,16 @@ def _handle_error_event(
 ) -> AssistantMessageEvent:
     reason = _normalize_stop_reason(proxy_event.get("reason"), "error")
 
-    partial["stop_reason"] = reason
+    partial.stop_reason = reason
 
     error_message = proxy_event.get("errorMessage")
-    partial["error_message"] = error_message if isinstance(error_message, str) else None
+    partial.error_message = error_message if isinstance(error_message, str) else None
 
     usage = proxy_event.get("usage")
-    partial["usage"] = usage if isinstance(usage, dict) else partial.get("usage")
+    if isinstance(usage, dict):
+        partial.usage = usage
 
-    return {"type": "error", "reason": reason, "error": partial}
+    return AssistantMessageEvent(type="error", reason=reason, error=partial)
 
 
 def _handle_unrecognized_event(

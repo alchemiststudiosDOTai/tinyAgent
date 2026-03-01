@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import asyncio
-import copy
-from typing import cast
 
-from .agent_types import AgentMessage, CacheControl, UserMessage
+from .agent_types import AgentMessage, CacheControl, TextContent, UserMessage
 
-EPHEMERAL_CACHE: CacheControl = {"type": "ephemeral"}
+EPHEMERAL_CACHE = CacheControl(type="ephemeral")
 
 
 def _annotate_user_messages(messages: list[AgentMessage]) -> list[AgentMessage]:
@@ -26,25 +24,26 @@ def _annotate_user_messages(messages: list[AgentMessage]) -> list[AgentMessage]:
     new_messages = list(messages)
 
     for i, msg in enumerate(messages):
-        if msg.get("role") != "user":
+        if not isinstance(msg, UserMessage):
+            continue
+        if not msg.content:
             continue
 
-        content = msg.get("content")
-        if not isinstance(content, list) or not content:
-            continue
-
-        last_block = content[-1]
-        if not isinstance(last_block, dict):
+        last_block = msg.content[-1]
+        if not isinstance(last_block, TextContent):
             continue
 
         # Avoid mutating the original structures.
-        annotated_block = copy.copy(last_block)
-        annotated_block["cache_control"] = EPHEMERAL_CACHE
+        annotated_block = last_block.model_copy(deep=True)
+        annotated_block.cache_control = EPHEMERAL_CACHE.model_copy(deep=True)
 
-        new_content = list(content)
+        new_content = list(msg.content)
         new_content[-1] = annotated_block
 
-        new_messages[i] = cast(UserMessage, {**msg, "content": new_content})
+        updated_message = msg.model_copy(deep=True)
+        updated_message.content = new_content
+
+        new_messages[i] = updated_message
         changed = True
 
     return new_messages if changed else messages

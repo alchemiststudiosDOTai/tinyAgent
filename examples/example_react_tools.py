@@ -69,6 +69,8 @@ from tinyagent.agent_types import (
     AgentTool,
     AgentToolResult,
     AgentToolUpdateCallback,
+    AssistantMessage,
+    AssistantMessageEvent,
     Context,
     Model,
     SimpleStreamOptions,
@@ -173,9 +175,9 @@ model = OpenAICompatModel(
 
 async def stream_fn(m: Model, ctx: Context, opts: SimpleStreamOptions) -> StreamResponse:
     """Wire the Rust alchemy provider as the stream function."""
-    opts["api_key"] = API_KEY
-    opts["temperature"] = 0.3
-    opts["max_tokens"] = 1024
+    opts.api_key = API_KEY
+    opts.temperature = 0.3
+    opts.max_tokens = 1024
     return await stream_alchemy_openai_completions(m, ctx, opts)
 
 
@@ -192,24 +194,59 @@ def _ev(event: AgentEvent, key: str) -> object:
     return event.get(key) if isinstance(event, dict) else getattr(event, key, None)
 
 
+def _log_model_assistant_event(ame: AssistantMessageEvent) -> None:
+    """Print updates from model-typed assistant message events."""
+    if ame.type == "text_delta" and ame.delta:
+        print(ame.delta, end="", flush=True)
+        return
+
+    if ame.type == "tool_call_start":
+        tool_name = ame.tool_call.name if ame.tool_call and ame.tool_call.name else "?"
+        print(f"\n  [CALLING] {tool_name}", end="", flush=True)
+        return
+
+    if ame.type == "tool_call_delta" and ame.tool_call and ame.tool_call.arguments:
+        print(str(ame.tool_call.arguments), end="", flush=True)
+        return
+
+    if ame.type == "tool_call_end":
+        print()
+
+
+def _log_dict_assistant_event(ame: dict[object, object]) -> None:
+    """Print updates from raw dict assistant message events."""
+    event_type = ame.get("type")
+    if event_type == "text_delta":
+        delta = ame.get("delta")
+        if delta:
+            print(str(delta), end="", flush=True)
+        return
+
+    if event_type == "tool_call_start":
+        print(f"\n  [CALLING] {ame.get('name', '?')}", end="", flush=True)
+        return
+
+    if event_type == "tool_call_delta":
+        arguments = ame.get("arguments")
+        if arguments:
+            print(str(arguments), end="", flush=True)
+        return
+
+    if event_type == "tool_call_end":
+        print()
+
+
 def _log_message_update(event: AgentEvent) -> None:
     """Handle streamed message_update events."""
     msg = _ev(event, "message")
     if not msg:
         return
     ame = _ev(event, "assistant_message_event")
-    if not isinstance(ame, dict):
+    if isinstance(ame, AssistantMessageEvent):
+        _log_model_assistant_event(ame)
         return
-    # Streamed text tokens arrive as text_delta events
-    if ame.get("type") == "text_delta" and ame.get("delta"):
-        print(ame["delta"], end="", flush=True)
-    # Tool call events: the LLM wants to invoke a tool
-    elif ame.get("type") == "tool_call_start":
-        print(f"\n  [CALLING] {ame.get('name', '?')}", end="", flush=True)
-    elif ame.get("type") == "tool_call_delta" and ame.get("arguments"):
-        print(ame["arguments"], end="", flush=True)
-    elif ame.get("type") == "tool_call_end":
-        print()
+    if isinstance(ame, dict):
+        _log_dict_assistant_event(ame)
 
 
 def _log_turn_end(event: AgentEvent) -> None:
@@ -219,7 +256,12 @@ def _log_turn_end(event: AgentEvent) -> None:
     msg = _ev(event, "message")
     if not msg:
         return
-    stop = msg.get("stop_reason") if isinstance(msg, dict) else None
+    if isinstance(msg, AssistantMessage):
+        stop = msg.stop_reason
+    elif isinstance(msg, dict):
+        stop = msg.get("stop_reason")
+    else:
+        stop = None
     print(f"\n── turn end (stop_reason={stop}) ────────────────")
 
 
