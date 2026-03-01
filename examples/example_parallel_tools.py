@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any, cast
+from typing import Any
 
 from tinyagent import (
     AgentEvent,
@@ -78,7 +78,8 @@ async def execute_get_weather(
 ) -> AgentToolResult:
     city = args.get("city", "unknown")
     await asyncio.sleep(0.3)  # simulate network latency
-    weather = FAKE_WEATHER.get(str(city).lower().replace(" ", "_"), "no data")
+    city_key = str(city).lower().replace(" ", "_")
+    weather = FAKE_WEATHER.get(city_key, "no data")
     return AgentToolResult(content=[TextContent(type="text", text=f"{city}: {weather}")])
 
 
@@ -163,16 +164,13 @@ T0 = 0.0
 
 
 def event_logger(event: AgentEvent) -> None:
-    etype = getattr(event, "type", None)
-    if etype == "tool_execution_start":
-        event_start = cast(ToolExecutionStartEvent, event)
+    if isinstance(event, ToolExecutionStartEvent):
         city = "?"
-        if isinstance(event_start.args, dict):
-            city = str(event_start.args.get("city", "?"))
-        print(f"  [START] {event_start.tool_name}({city}) at t={time.perf_counter() - T0:.3f}s")
-    elif etype == "tool_execution_end":
-        event_end = cast(ToolExecutionEndEvent, event)
-        print(f"  [DONE]  {event_end.tool_name} at t={time.perf_counter() - T0:.3f}s")
+        if isinstance(event.args, dict) and "city" in event.args:
+            city = str(event.args["city"])
+        print(f"  [START] {event.tool_name}({city}) at t={time.perf_counter() - T0:.3f}s")
+    elif isinstance(event, ToolExecutionEndEvent):
+        print(f"  [DONE]  {event.tool_name} at t={time.perf_counter() - T0:.3f}s")
 
 
 class LoggingEventStream(EventStream):

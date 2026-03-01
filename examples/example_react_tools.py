@@ -65,6 +65,7 @@ from typing import Any
 
 from tinyagent import Agent, AgentOptions, extract_text
 from tinyagent.agent_types import (
+    AgentEndEvent,
     AgentEvent,
     AgentTool,
     AgentToolResult,
@@ -72,10 +73,15 @@ from tinyagent.agent_types import (
     AssistantMessage,
     AssistantMessageEvent,
     Context,
+    MessageStartEvent,
+    MessageUpdateEvent,
     Model,
     SimpleStreamOptions,
     StreamResponse,
     TextContent,
+    ToolExecutionEndEvent,
+    ToolExecutionStartEvent,
+    TurnEndEvent,
 )
 from tinyagent.alchemy_provider import OpenAICompatModel, stream_alchemy_openai_completions
 
@@ -189,11 +195,6 @@ async def stream_fn(m: Model, ctx: Context, opts: SimpleStreamOptions) -> Stream
 #              turn_end → (next turn or agent_end)
 
 
-def _ev(event: AgentEvent, key: str) -> object:
-    """Extract a field from an event dict."""
-    return event.get(key) if isinstance(event, dict) else getattr(event, key, None)
-
-
 def _log_model_assistant_event(ame: AssistantMessageEvent) -> None:
     """Print updates from model-typed assistant message events."""
     if ame.type == "text_delta" and ame.delta:
@@ -213,76 +214,40 @@ def _log_model_assistant_event(ame: AssistantMessageEvent) -> None:
         print()
 
 
-def _log_dict_assistant_event(ame: dict[object, object]) -> None:
-    """Print updates from raw dict assistant message events."""
-    event_type = ame.get("type")
-    if event_type == "text_delta":
-        delta = ame.get("delta")
-        if delta:
-            print(str(delta), end="", flush=True)
-        return
-
-    if event_type == "tool_call_start":
-        print(f"\n  [CALLING] {ame.get('name', '?')}", end="", flush=True)
-        return
-
-    if event_type == "tool_call_delta":
-        arguments = ame.get("arguments")
-        if arguments:
-            print(str(arguments), end="", flush=True)
-        return
-
-    if event_type == "tool_call_end":
-        print()
-
-
-def _log_message_update(event: AgentEvent) -> None:
+def _log_message_update(event: MessageUpdateEvent) -> None:
     """Handle streamed message_update events."""
-    msg = _ev(event, "message")
-    if not msg:
+    if event.message is None:
         return
-    ame = _ev(event, "assistant_message_event")
-    if isinstance(ame, AssistantMessageEvent):
-        _log_model_assistant_event(ame)
+    ame = event.assistant_message_event
+    if ame is None:
         return
-    if isinstance(ame, dict):
-        _log_dict_assistant_event(ame)
+    _log_model_assistant_event(ame)
 
 
-def _log_turn_end(event: AgentEvent) -> None:
+def _log_turn_end(event: TurnEndEvent) -> None:
     """Log turn boundaries with stop reason."""
     # stop_reason="tool_calls" → loop will execute tools then call LLM again.
     # stop_reason="complete"   → agent is done.
-    msg = _ev(event, "message")
-    if not msg:
-        return
-    if isinstance(msg, AssistantMessage):
-        stop = msg.stop_reason
-    elif isinstance(msg, dict):
-        stop = msg.get("stop_reason")
-    else:
-        stop = None
+    msg = event.message
+    stop = msg.stop_reason if isinstance(msg, AssistantMessage) else None
     print(f"\n── turn end (stop_reason={stop}) ────────────────")
 
 
 def event_logger(event: AgentEvent) -> None:
     """Print agent events as they happen."""
-    etype = _ev(event, "type")
 
-    if etype == "message_start":
+    if isinstance(event, MessageStartEvent):
         print("\n── LLM response ─────────────────────────────────")
-    elif etype == "message_update":
+    elif isinstance(event, MessageUpdateEvent):
         _log_message_update(event)
-    elif etype == "tool_execution_start":
+    elif isinstance(event, ToolExecutionStartEvent):
         # Agent loop is about to call tool.execute() on the Python side
-        name = _ev(event, "tool_name")
-        tc_id = _ev(event, "tool_call_id")
-        print(f"  [EXEC] {name or '?'} (id={tc_id})")
-    elif etype == "tool_execution_end":
-        print(f"  [RESULT] {_ev(event, 'result')}")
-    elif etype == "turn_end":
+        print(f"  [EXEC] {event.tool_name or '?'} (id={event.tool_call_id})")
+    elif isinstance(event, ToolExecutionEndEvent):
+        print(f"  [RESULT] {event.result}")
+    elif isinstance(event, TurnEndEvent):
         _log_turn_end(event)
-    elif etype == "agent_end":
+    elif isinstance(event, AgentEndEvent):
         print("\n══ AGENT DONE ══════════════════════════════════")
 
 
