@@ -195,12 +195,17 @@ Observed (2026-03-01):
 
 ## Phase 6: Docs + Release Hygiene
 
-Status: **Remaining**
+Status: **In Progress (docs complete, optional changelog pending)**
 
-1. Update docs that still describe TypedDict runtime behavior:
+1. Update docs that describe outdated runtime behavior:
    - `docs/api/agent_types.md`
    - `docs/ARCHITECTURE.md`
-2. Add changelog entry for hard cutover and migration notes.
+   - `docs/api/providers.md`
+   - `docs/api/openai-compatible-endpoints.md`
+   - `docs/api/caching.md`
+   - `docs/README.md`
+   - `docs/api/README.md`
+2. (Optional) Add changelog entry for hard cutover and migration notes.
 3. Document intentional breaking changes in model/event typing expectations.
 
 ## Definition of Done

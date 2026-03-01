@@ -27,6 +27,8 @@ from tinyagent.agent_types import (
     AssistantMessage,
     Model,
     TextContent,
+    ToolExecutionEndEvent,
+    ToolExecutionStartEvent,
     ToolResultMessage,
 )
 from tinyagent.alchemy_provider import OpenAICompatModel, stream_alchemy_openai_completions
@@ -71,17 +73,12 @@ async def execute_add_numbers(
     return AgentToolResult(content=[TextContent(type="text", text=str(int(result)))])
 
 
-def _event_type(event: AgentEvent) -> str | None:
-    if isinstance(event, dict):
-        value = event.get("type")
-        return value if isinstance(value, str) else None
-    value = getattr(event, "type", None)
-    return value if isinstance(value, str) else None
-
-
-def _event_attr(event: AgentEvent, key: str) -> str:
-    value = event.get(key) if isinstance(event, dict) else getattr(event, key, "")
-    return value if isinstance(value, str) else ""
+def _event_tool_attrs(event: AgentEvent) -> tuple[str, str] | None:
+    if isinstance(event, ToolExecutionStartEvent):
+        return event.tool_name, event.tool_call_id
+    if isinstance(event, ToolExecutionEndEvent):
+        return event.tool_name, event.tool_call_id
+    return None
 
 
 def _resolve_api_key(provider: str) -> str | None:
@@ -138,19 +135,23 @@ async def run_provider(agent: Agent, run: ProviderRun) -> ProviderRunCapture:
     capture = ProviderRunCapture(provider=run.name)
 
     def on_event(event: AgentEvent) -> None:
-        etype = _event_type(event)
-        if etype == "tool_execution_start":
+        attrs = _event_tool_attrs(event)
+        if attrs is None:
+            return
+        tool_name, tool_call_id = attrs
+
+        if isinstance(event, ToolExecutionStartEvent):
             capture.tool_starts.append(
                 {
-                    "tool_name": _event_attr(event, "tool_name"),
-                    "tool_call_id": _event_attr(event, "tool_call_id"),
+                    "tool_name": tool_name,
+                    "tool_call_id": tool_call_id,
                 }
             )
-        elif etype == "tool_execution_end":
+        elif isinstance(event, ToolExecutionEndEvent):
             capture.tool_ends.append(
                 {
-                    "tool_name": _event_attr(event, "tool_name"),
-                    "tool_call_id": _event_attr(event, "tool_call_id"),
+                    "tool_name": tool_name,
+                    "tool_call_id": tool_call_id,
                 }
             )
 

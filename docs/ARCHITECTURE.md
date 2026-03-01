@@ -6,7 +6,7 @@ This document describes the architecture of TinyAgent: where components live, wh
 
 1. **Streaming-first**: All LLM interactions support streaming; non-streaming is a special case
 2. **Event-driven**: Components communicate through events for loose coupling
-3. **Type safety**: Full type hints; runtime uses TypedDict for flexibility
+3. **Type safety**: Full type hints with Pydantic runtime models for message/event/state types
 4. **Boundary preservation**: AgentMessage (internal) vs Message (LLM-boundary) separation
 
 ## Component Overview
@@ -39,7 +39,7 @@ This document describes the architecture of TinyAgent: where components live, wh
 
 ### agent_types.py
 
-**What**: Type definitions using TypedDict and dataclasses.
+**What**: Type definitions based on Pydantic models (for runtime message/event/state types) and type aliases/types.
 
 **Key Types**:
 - `AgentMessage`: Internal message format (union of Message + custom types)
@@ -49,7 +49,7 @@ This document describes the architecture of TinyAgent: where components live, wh
 - `AgentTool`: Tool definition with execute function
 - `StreamFn`: Protocol for LLM streaming implementations
 
-**Design Decision**: TypedDict allows optional fields with runtime flexibility while maintaining type safety.
+**Design Decision**: Runtime model objects are normalized through typed models and event contracts at boundaries, avoiding parallel dict/model codepaths.
 
 ### agent_loop.py
 
@@ -111,22 +111,22 @@ This document describes the architecture of TinyAgent: where components live, wh
 - `turn_end`: Capture errors from assistant messages
 - `agent_end`: Mark streaming as complete
 
-### Providers (openrouter_provider.py, alchemy_provider.py)
+### Providers (`alchemy_provider.py`, `proxy.py`)
 
 **What**: Implement `StreamFn` protocol for specific LLM backends.
 
-**OpenRouter Provider**:
-- HTTP streaming via httpx
-- OpenAI-compatible message format
-- SSE parsing for streaming responses
-- Tool call extraction from deltas
+**Rust Alchemy Provider**:
+- PyO3-backed provider using `tinyagent._alchemy`
+- OpenAI-compatible request/response model with OpenRouter-style endpoints
+- Structured model/event pipeline and usage contract normalization
+- Streaming via Rust-backed `Async` bridge
 
-**Alchemy Provider**:
-- Rust-based implementation via PyO3
-- Blocking calls in thread pool
-- Lower overhead for high-throughput scenarios
+**Proxy Provider**:
+- Uses `httpx` to call a relay service
+- Parses proxy SSE into standard `AssistantMessageEvent` objects
+- Keeps core event/message handling unchanged from the local provider flow
 
-### Proxy (proxy.py, proxy_event_handlers.py)
+### Proxy provider details (`proxy.py`, `proxy_event_handlers.py`)
 
 **What**: Client for apps that route LLM calls through a proxy server.
 
@@ -160,7 +160,7 @@ Events flow upward through the system:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  Provider (OpenRouter/Alchemy/Proxy)                    │
+│  Provider (Alchemy/Proxy/custom StreamFn)               │
 │  Emits: AssistantMessageEvent (text_delta, tool_call_*) │
 └─────────────────────────────────────────────────────────┘
                            │
@@ -189,21 +189,25 @@ Events flow upward through the system:
 
 ## State Management
 
-`AgentState` is a single source of truth:
+`AgentState` is a single source of truth represented as a Pydantic model:
 
 ```python
-AgentState = {
-    "system_prompt": str,
-    "model": Model | None,
-    "thinking_level": ThinkingLevel,
-    "tools": list[AgentTool],
-    "messages": list[AgentMessage],
-    "is_streaming": bool,
-    "stream_message": AgentMessage | None,  # Currently streaming
-    "pending_tool_calls": set[str],
-    "error": str | None,
-}
+from tinyagent.agent_types import AgentState
+
+state: AgentState
 ```
+
+The model includes:
+
+- `system_prompt`: active system prompt
+- `model`: configured `Model` (or `None`)
+- `thinking_level`: active reasoning level
+- `tools`: configured tool definitions
+- `messages`: conversation history (`AgentMessage` objects)
+- `is_streaming`: whether a prompt loop is currently running
+- `stream_message`: message currently streaming (if any)
+- `pending_tool_calls`: active tool call IDs
+- `error`: latest error text (if any)
 
 State is mutated only by internal event handlers in the Agent class, keeping side effects centralized.
 

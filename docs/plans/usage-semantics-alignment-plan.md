@@ -7,7 +7,8 @@ depth: 2
 seams: [D]
 ontological_relations:
   - relates_to: [[usage-contract]]
-  - affects: [[tinyagent/openrouter_provider.py]]
+  - affects: [[tinyagent/alchemy_provider.py]]
+  - historical_note: `openrouter_provider.py` path was removed during hard cutover
   - affects: [[tinyagent/alchemy_provider.py]]
   - affects: [[src/lib.rs]]
   - affects: [[alchemy-rs/src/providers/openai_completions.rs]]
@@ -23,7 +24,7 @@ uuid: 595275be-4cd1-43b6-98a3-6d8489104472
 
 # Summary
 
-Adopt **Option A (provider-raw semantics)** for usage fields so Python and Rust paths report the same meaning and the same contract shape.
+(Historical) Adopt **Option A (provider-raw semantics)** for usage fields so all active paths report the same meaning and same contract shape.
 
 Primary objective: if provider reports `usage`, we preserve that meaning without reinterpretation.
 
@@ -42,7 +43,7 @@ Do **not** fold `reasoning_tokens` into `output`.
 
 # Current Mismatch Map
 
-## Python path (`tinyagent/openrouter_provider.py`)
+## Legacy Python path (historical; removed in hard cutover)
 
 Current behavior is already close to provider-raw:
 
@@ -105,9 +106,10 @@ In `alchemy-rs/src/providers/openai_completions.rs`:
 2. Confirm `src/lib.rs` needs no semantic change beyond pass-through (it already serializes `Usage` fields directly).
 3. Rebuild binding and run contract tests.
 
-## Phase 3 — Harden Python provider parity
+## Phase 3 — Harden migration path parity
 
-In `tinyagent/openrouter_provider.py`:
+In the historical Python-openrouter path (removed), then validate parity against:
+`stream_alchemy_openai_completions` and provider-aligned payload parsing.
 
 1. Keep current cache-field parsing strategy.
 2. Update `total_tokens` mapping to prefer provider `usage.total_tokens` when numeric, otherwise fallback `input + output`.

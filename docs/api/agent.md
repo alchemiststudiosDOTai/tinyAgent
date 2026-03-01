@@ -62,7 +62,7 @@ Send a prompt and return the complete assistant message.
 **Example**:
 ```python
 response = await agent.prompt("Explain quantum computing")
-print(response["content"][0]["text"])
+print(response.content[0].text)
 ```
 
 #### prompt_text
@@ -253,7 +253,7 @@ class AgentOptions:
 
 **Options**:
 
-- `stream_fn`: Required. The streaming function (e.g., `stream_openrouter`)
+- `stream_fn`: Required. The streaming function (e.g., `stream_alchemy_openai_completions`)
 - `convert_to_llm`: Callback to filter messages before LLM calls
 - `transform_context`: Async callback to modify context before LLM calls
 - `steering_mode`: "one-at-a-time" (default) or "all" - how to process steering queue
