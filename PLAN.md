@@ -28,19 +28,19 @@ Completed:
 1. **Phase 1** completed (`agent_types.py` hard cutover foundation).
 2. **Phase 2** completed (`alchemy_provider.py` + `proxy.py` serializer/model contract cleanup).
 3. **Phase 3** completed (`caching.py` + `agent.py` + `agent_loop.py` message/event hard cutover).
-4. Live cutover harness added at `harness/tool_call_types_harness.py` and validated with a real `.env` API key + real tool call.
+4. Live cutover harness added at `docs/harness/tool_call_types_harness.py` and validated with a real `.env` API key + real tool call.
 5. **Phase 4** completed (test refactor + coverage additions for event type guards, EventStream behavior, provider serializer strictness, caching model-only flow, and agent pending/error regressions).
 6. **Phase 5** completed (live harness gate + Rust smoke validation on configured providers).
 
 Validation run during implementation:
 
 ```bash
-uv run ruff check tinyagent/agent_types.py tinyagent/alchemy_provider.py tinyagent/proxy.py tinyagent/caching.py tinyagent/agent.py tinyagent/agent_loop.py harness/tool_call_types_harness.py
+uv run ruff check tinyagent/agent_types.py tinyagent/alchemy_provider.py tinyagent/proxy.py tinyagent/caching.py tinyagent/agent.py tinyagent/agent_loop.py docs/harness/tool_call_types_harness.py
 uv run pytest -q tests/test_alchemy_provider.py tests/test_usage_contracts.py tests/test_caching.py tests/test_contracts.py tests/test_parallel_tool_execution.py tests/architecture/
-uv run python harness/tool_call_types_harness.py
+uv run python docs/harness/tool_call_types_harness.py
 uv run pytest -q tests/test_agent.py tests/test_agent_types.py tests/test_proxy.py tests/test_caching.py tests/test_alchemy_provider.py tests/test_usage_contracts.py tests/test_parallel_tool_execution.py
-HARNESS_DEBUG=1 HARNESS_TIMEOUT_SECONDS=90 uv run python -u harness/tool_call_types_harness.py
-uv run python harness/tool_call_types_harness.py
+HARNESS_DEBUG=1 HARNESS_TIMEOUT_SECONDS=90 uv run python -u docs/harness/tool_call_types_harness.py
+uv run python docs/harness/tool_call_types_harness.py
 uv run python -u scripts/smoke_rust_tool_calls_three_providers.py
 ```
 
@@ -157,7 +157,7 @@ Run live tests after unit/architecture suite is green.
 Hard cutover harness (mandatory gate):
 
 ```bash
-uv run python harness/tool_call_types_harness.py
+uv run python docs/harness/tool_call_types_harness.py
 ```
 
 Harness pass criteria:
@@ -212,7 +212,7 @@ Status: **In Progress (docs complete, optional changelog pending)**
 
 1. All five issues in `RESEARCH.md` are removed in code, not masked.
 2. No compatibility shims remain for dict/model dual runtime paths.
-3. Hard cutover harness passes: `uv run python harness/tool_call_types_harness.py`.
+3. Hard cutover harness passes: `uv run python docs/harness/tool_call_types_harness.py`.
 4. `uv run pytest -q` passes.
 5. `uv run pytest tests/architecture/ -x -q` passes.
 6. Live smoke with `.env` provider keys passes.

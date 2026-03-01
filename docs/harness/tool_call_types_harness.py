@@ -2,7 +2,7 @@
 """Run one real tool-calling turn and print only type names.
 
 Usage:
-  uv run python harness/tool_call_types_harness.py
+  uv run python docs/harness/tool_call_types_harness.py
 """
 
 from __future__ import annotations

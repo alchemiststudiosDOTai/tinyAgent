@@ -1,0 +1,10 @@
+id: harness-no-thin-protocols
+language: python
+severity: warning
+message: >-
+  Avoid thin duck-typing Protocols in harness code. Prefer concrete models
+  or stronger explicit contracts.
+rule:
+  pattern: |
+    class $NAME(Protocol):
+        $$$BODY

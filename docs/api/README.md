@@ -116,7 +116,7 @@ After the hard-cutover migration, validate the typed event/model contract with t
 live harness:
 
 ```bash
-uv run python harness/tool_call_types_harness.py
+uv run python docs/harness/tool_call_types_harness.py
 ```
 
 The harness prints only model type names and performs one real tool-call validation.

@@ -114,13 +114,14 @@ The migration away from TypedDict-based runtime models is a **full hard cutover*
 
 ### Hard Cutover Harness
 
-Use `harness/tool_call_types_harness.py` as the live cutover proof harness.
+Use `docs/harness/tool_call_types_harness.py` as the live cutover proof harness.
 
 - It must run a real API call using keys from `.env` (via Rust/alchemy provider path).
 - It must execute exactly one real tool call.
 - Output must stay minimal: type names only.
 - The harness path is strict: direct model/event types end-to-end, zero dict/model shim branches.
-- Run with: `uv run python harness/tool_call_types_harness.py`
+- Run with: `uv run python docs/harness/tool_call_types_harness.py`
+- Harness guardrail policy and AST-grep enforcement live in `HARNESS.md` and `rules/README.md`.
 
 ## Design Patterns
 
