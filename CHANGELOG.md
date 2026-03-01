@@ -7,6 +7,22 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- Added a mandatory live type-contract harness at `docs/harness/tool_call_types_harness.py` to verify one real tool-call turn and print model/event type names.
+- Added regression tests for strict model serialization boundaries and malformed proxy event handling.
+
+### Changed
+- Completed the hard cutover to strict model/event contracts in core runtime paths (agent loop, tool execution, caching, proxy handling, and provider serialization).
+- Removed the legacy `openrouter_provider` path in favor of the Rust-backed OpenAI-compatible provider flow.
+
+### Fixed
+- Restored provider env-key fallback for `openrouter` (`OPENROUTER_API_KEY`) in `tinyagent/alchemy_provider.py`.
+- Hardened proxy streaming event handling by clamping malformed/negative `contentIndex` values.
+- Improved cross-provider tool-call smoke examples to preserve tool execution error signals.
+
+### Docs
+- Updated architecture/API/hard-cutover documentation to reflect strict model-only contracts and the new harness location.
+
 ## [1.2.5] - 2026-02-23
 
 ### Added
