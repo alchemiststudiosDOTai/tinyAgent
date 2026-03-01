@@ -19,28 +19,35 @@ TinyAgent provides a lightweight foundation for creating conversational AI agent
 - **Event-driven**: Subscribe to agent events for real-time UI updates
 - **Provider agnostic**: Works with any OpenAI-compatible `/chat/completions` endpoint (OpenRouter, OpenAI, Chutes, local servers)
 - **Prompt caching**: Reduce token costs and latency with Anthropic-style cache breakpoints
-- **Dual provider paths**: Pure-Python or optional Rust binding via PyO3 for native-speed streaming
+- **Provider path**: Default built-in Rust (`alchemy_provider`) with optional proxy integration
 - **Type-safe**: Full type hints throughout
 
 ## Quick Start
 
 ```python
 import asyncio
-from tinyagent import Agent, AgentOptions, OpenRouterModel, stream_openrouter
+from tinyagent import Agent, AgentOptions
+from tinyagent.alchemy_provider import OpenAICompatModel, stream_alchemy_openai_completions
 
 # Create an agent
 agent = Agent(
     AgentOptions(
-        stream_fn=stream_openrouter,
+        stream_fn=stream_alchemy_openai_completions,
         session_id="my-session"
     )
 )
 
 # Configure
 agent.set_system_prompt("You are a helpful assistant.")
-agent.set_model(OpenRouterModel(id="anthropic/claude-3.5-sonnet"))
-# Optional: use any OpenAI-compatible /chat/completions endpoint
-# agent.set_model(OpenRouterModel(id="gpt-4o-mini", base_url="https://api.openai.com/v1/chat/completions"))
+agent.set_model(
+    OpenAICompatModel(
+        provider="openrouter",
+        id="anthropic/claude-3.5-sonnet",
+        base_url="https://openrouter.ai/api/v1/chat/completions",
+    )
+)
+# Optional: any OpenAI-compatible /chat/completions endpoint
+# agent.set_model(OpenAICompatModel(provider="openai", id="gpt-4o-mini", base_url="https://api.openai.com/v1/chat/completions"))
 
 # Simple prompt
 async def main():
@@ -69,7 +76,7 @@ The [`Agent`](api/agent.md) class is the main entry point. It manages:
 
 ### Messages
 
-Messages follow a typed dictionary structure:
+Messages are Pydantic models (use attribute access):
 
 - `UserMessage`: Input from the user
 - `AssistantMessage`: Response from the LLM
@@ -80,12 +87,12 @@ Messages follow a typed dictionary structure:
 Tools are functions the LLM can call:
 
 ```python
-from tinyagent import AgentTool, AgentToolResult
+from tinyagent import AgentTool, AgentToolResult, TextContent
 
 async def calculate_sum(tool_call_id: str, args: dict, signal, on_update) -> AgentToolResult:
     result = args["a"] + args["b"]
     return AgentToolResult(
-        content=[{"type": "text", "text": str(result)}]
+        content=[TextContent(text=str(result))]
     )
 
 tool = AgentTool(
@@ -130,7 +137,7 @@ TinyAgent supports [Anthropic-style prompt caching](api/caching.md) to reduce co
 ```python
 agent = Agent(
     AgentOptions(
-        stream_fn=stream_openrouter,
+        stream_fn=stream_alchemy_openai_completions,
         session_id="my-session",
         enable_prompt_caching=True,
     )
@@ -149,15 +156,15 @@ leaving the Python process.
 
 ### Why
 
-The pure-Python providers (`openrouter_provider.py`, `proxy.py`) work fine, but the Rust
-binding gives you:
+The pure-Python proxy path (`proxy.py`) remains available, while the Rust path
+provides:
 
 - **Lower per-token overhead** -- SSE parsing, JSON deserialization, and event dispatch all
   happen in compiled Rust with a multi-threaded Tokio runtime.
 - **Unified provider abstraction** -- `alchemy-llm` normalizes differences across providers
   (OpenRouter, Anthropic, custom endpoints) behind a single streaming interface.
 - **Full event fidelity** -- text deltas, thinking deltas, tool call deltas, and terminal
-  events are all surfaced as typed Python dicts.
+  events are surfaced as TinyAgent event/message models.
 
 ### How it works
 
@@ -315,8 +322,8 @@ Cross-provider tool-call smoke examples:
 - [Architecture](ARCHITECTURE.md): System design and component interactions
 - [API Reference](api/): Detailed module documentation
 - [Prompt Caching](api/caching.md): Cache breakpoints, cost savings, and provider requirements
-- [OpenAI-Compatible Endpoints](api/openai-compatible-endpoints.md): Using `OpenRouterModel.base_url` with OpenRouter, OpenAI, Chutes, and local compatible backends
-- [Usage Semantics](api/usage-semantics.md): Unified `message["usage"]` schema across Python and Rust provider paths
+- [OpenAI-Compatible Endpoints](api/openai-compatible-endpoints.md): Using `OpenAICompatModel.base_url` with OpenRouter/OpenAI/Chutes-compatible backends
+- [Usage Semantics](api/usage-semantics.md): Canonical `usage` schema across provider flows
 - [Changelog](../CHANGELOG.md): Release history
 
 ## Project Structure
@@ -328,7 +335,6 @@ tinyagent/
 ├── agent_tool_execution.py  # Tool execution helpers
 ├── agent_types.py        # Type definitions
 ├── caching.py            # Prompt caching utilities
-├── openrouter_provider.py   # OpenRouter integration
 ├── alchemy_provider.py   # Rust-based provider (PyO3)
 ├── proxy.py              # Proxy server integration
 └── proxy_event_handlers.py  # Proxy event parsing

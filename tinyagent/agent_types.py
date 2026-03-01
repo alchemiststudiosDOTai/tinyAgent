@@ -6,14 +6,20 @@ import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Literal, Protocol, TypeAlias, TypedDict, TypeVar, Union
+from typing import Literal, Protocol, TypeAlias, TypeGuard, TypeVar, Union, runtime_checkable
+
+from pydantic import BaseModel, ConfigDict, Field
+from typing_extensions import TypeAliasType
 
 # ------------------------------
 # JSON-ish helper types
 # ------------------------------
 
 JsonPrimitive: TypeAlias = str | int | float | bool | None
-JsonValue: TypeAlias = JsonPrimitive | list["JsonValue"] | dict[str, "JsonValue"]
+JsonValue = TypeAliasType(
+    "JsonValue",
+    "JsonPrimitive | list[JsonValue] | dict[str, JsonValue]",
+)
 JsonObject: TypeAlias = dict[str, JsonValue]
 
 ZERO_USAGE: JsonObject = {
@@ -37,11 +43,37 @@ ZERO_USAGE: JsonObject = {
 # ------------------------------
 
 
-class ThinkingBudgets(TypedDict, total=False):
+class _AgentBaseModel(BaseModel):
+    """Shared model configuration for migrated message/state models."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
+
+
+@runtime_checkable
+class ModelDumpable(Protocol):
+    """Protocol for values that support Pydantic-style model serialization."""
+
+    def model_dump(self, *, exclude_none: bool = True) -> dict[str, object]:
+        del exclude_none
+        raise NotImplementedError
+
+
+def dump_model_dumpable(value: object, *, where: str) -> dict[str, object]:
+    """Serialize a model payload via the shared model_dump contract."""
+
+    if not isinstance(value, ModelDumpable):
+        raise TypeError(f"{where}: expected model payload with model_dump(exclude_none=True)")
+    dumped = value.model_dump(exclude_none=True)
+    if not isinstance(dumped, dict):
+        raise TypeError(f"{where}: model_dump(exclude_none=True) must return a dict")
+    return dumped
+
+
+class ThinkingBudgets(_AgentBaseModel):
     """Token budgets for thinking/reasoning."""
 
-    thinking_budget: int
-    max_tokens: int
+    thinking_budget: int | None = None
+    max_tokens: int | None = None
 
 
 TResult = TypeVar("TResult")
@@ -60,46 +92,46 @@ class ThinkingLevel(str, Enum):
     XHIGH = "xhigh"
 
 
-class CacheControl(TypedDict, total=False):
+class CacheControl(_AgentBaseModel):
     """Cache control directive for Anthropic prompt caching."""
 
-    type: str
+    type: str | None = None
 
 
-class TextContent(TypedDict, total=False):
+class TextContent(_AgentBaseModel):
     """Text content block."""
 
-    type: Literal["text"]
-    text: str
-    text_signature: str | None
-    cache_control: CacheControl
+    type: Literal["text"] = "text"
+    text: str | None = None
+    text_signature: str | None = None
+    cache_control: CacheControl | None = None
 
 
-class ImageContent(TypedDict, total=False):
+class ImageContent(_AgentBaseModel):
     """Image content block."""
 
-    type: Literal["image"]
-    url: str
-    mime_type: str | None
+    type: Literal["image"] = "image"
+    url: str | None = None
+    mime_type: str | None = None
 
 
-class ThinkingContent(TypedDict, total=False):
+class ThinkingContent(_AgentBaseModel):
     """Thinking content block."""
 
-    type: Literal["thinking"]
-    thinking: str
-    thinking_signature: str | None
-    cache_control: CacheControl
+    type: Literal["thinking"] = "thinking"
+    thinking: str | None = None
+    thinking_signature: str | None = None
+    cache_control: CacheControl | None = None
 
 
-class ToolCallContent(TypedDict, total=False):
+class ToolCallContent(_AgentBaseModel):
     """Tool call content block."""
 
-    type: Literal["tool_call"]
-    id: str
-    name: str
-    arguments: JsonObject
-    partial_json: str
+    type: Literal["tool_call"] = "tool_call"
+    id: str | None = None
+    name: str | None = None
+    arguments: JsonObject = Field(default_factory=dict)
+    partial_json: str | None = None
 
 
 ToolCall: TypeAlias = ToolCallContent
@@ -107,12 +139,12 @@ ToolCall: TypeAlias = ToolCallContent
 AssistantContent: TypeAlias = TextContent | ThinkingContent | ToolCallContent
 
 
-class UserMessage(TypedDict, total=False):
+class UserMessage(_AgentBaseModel):
     """User message for LLM."""
 
-    role: Literal["user"]
-    content: list[TextContent | ImageContent]
-    timestamp: int | None
+    role: Literal["user"] = "user"
+    content: list[TextContent | ImageContent] = Field(default_factory=list)
+    timestamp: int | None = None
 
 
 StopReason: TypeAlias = Literal[
@@ -138,40 +170,40 @@ STOP_REASONS: frozenset[StopReason] = frozenset(
 )
 
 
-class AssistantMessage(TypedDict, total=False):
+class AssistantMessage(_AgentBaseModel):
     """Assistant message from LLM."""
 
-    role: Literal["assistant"]
-    content: list[AssistantContent | None]
-    stop_reason: StopReason | None
-    timestamp: int | None
-    api: str | None
-    provider: str | None
-    model: str | None
-    usage: JsonObject | None
-    error_message: str | None
+    role: Literal["assistant"] = "assistant"
+    content: list[AssistantContent | None] = Field(default_factory=list)
+    stop_reason: StopReason | None = None
+    timestamp: int | None = None
+    api: str | None = None
+    provider: str | None = None
+    model: str | None = None
+    usage: JsonObject | None = None
+    error_message: str | None = None
 
 
-class ToolResultMessage(TypedDict, total=False):
+class ToolResultMessage(_AgentBaseModel):
     """Tool result message."""
 
-    role: Literal["tool_result"]
-    tool_call_id: str
-    tool_name: str
-    content: list[TextContent | ImageContent]
-    details: JsonObject
-    is_error: bool
-    timestamp: int | None
+    role: Literal["tool_result"] = "tool_result"
+    tool_call_id: str | None = None
+    tool_name: str | None = None
+    content: list[TextContent | ImageContent] = Field(default_factory=list)
+    details: JsonObject = Field(default_factory=dict)
+    is_error: bool = False
+    timestamp: int | None = None
 
 
 Message = Union[UserMessage, AssistantMessage, ToolResultMessage]
 
 
-class CustomAgentMessage(TypedDict, total=False):
+class CustomAgentMessage(_AgentBaseModel):
     """Base class for custom agent messages."""
 
-    role: str
-    timestamp: int | None
+    role: str = ""
+    timestamp: int | None = None
 
 
 AgentMessage = Union[Message, CustomAgentMessage]
@@ -242,8 +274,7 @@ class AgentContext:
     tools: list[AgentTool] | None = None
 
 
-@dataclass
-class Model:
+class Model(_AgentBaseModel):
     """Model configuration."""
 
     provider: str = ""
@@ -252,43 +283,46 @@ class Model:
     thinking_level: ThinkingLevel = ThinkingLevel.OFF
 
 
-class SimpleStreamOptions(TypedDict, total=False):
+class SimpleStreamOptions(_AgentBaseModel):
     """Standard stream options passed to providers."""
 
-    api_key: str | None
-    temperature: float | None
-    max_tokens: int | None
-    signal: asyncio.Event | None
+    api_key: str | None = None
+    temperature: float | None = None
+    max_tokens: int | None = None
+    signal: asyncio.Event | None = None
 
 
 StreamFn: TypeAlias = Callable[[Model, Context, SimpleStreamOptions], Awaitable["StreamResponse"]]
 
 
-class AssistantMessageEvent(TypedDict, total=False):
+class AssistantMessageEvent(_AgentBaseModel):
     """Event during assistant message streaming."""
 
-    type: Literal[
-        "start",
-        "text_start",
-        "text_delta",
-        "text_end",
-        "thinking_start",
-        "thinking_delta",
-        "thinking_end",
-        "tool_call_start",
-        "tool_call_delta",
-        "tool_call_end",
-        "done",
-        "error",
-    ]
-    partial: AssistantMessage | None
-    content_index: int
-    delta: str
-    content: str | TextContent | ThinkingContent | ToolCallContent | None
-    tool_call: ToolCallContent | None
-    reason: str
-    message: AssistantMessage | None
-    error: AssistantMessage | str | None
+    type: (
+        Literal[
+            "start",
+            "text_start",
+            "text_delta",
+            "text_end",
+            "thinking_start",
+            "thinking_delta",
+            "thinking_end",
+            "tool_call_start",
+            "tool_call_delta",
+            "tool_call_end",
+            "done",
+            "error",
+        ]
+        | None
+    ) = None
+    partial: AssistantMessage | None = None
+    content_index: int | None = None
+    delta: str | None = None
+    content: str | TextContent | ThinkingContent | ToolCallContent | None = None
+    tool_call: ToolCallContent | None = None
+    reason: str | None = None
+    message: AssistantMessage | None = None
+    error: AssistantMessage | str | None = None
 
 
 STREAM_UPDATE_EVENTS: frozenset[str] = frozenset(
@@ -403,6 +437,47 @@ AgentEvent = Union[
 ]
 
 
+MessageEvent = MessageStartEvent | MessageUpdateEvent | MessageEndEvent
+ToolExecutionEvent = ToolExecutionStartEvent | ToolExecutionUpdateEvent | ToolExecutionEndEvent
+
+
+def is_agent_end_event(event: AgentEvent) -> TypeGuard[AgentEndEvent]:
+    return isinstance(event, AgentEndEvent)
+
+
+def is_turn_end_event(event: AgentEvent) -> TypeGuard[TurnEndEvent]:
+    return isinstance(event, TurnEndEvent)
+
+
+def is_message_start_or_update_event(
+    event: AgentEvent,
+) -> TypeGuard[MessageStartEvent | MessageUpdateEvent]:
+    return isinstance(event, MessageStartEvent | MessageUpdateEvent)
+
+
+def is_message_end_event(event: AgentEvent) -> TypeGuard[MessageEndEvent]:
+    return isinstance(event, MessageEndEvent)
+
+
+def is_message_event(event: AgentEvent) -> TypeGuard[MessageEvent]:
+    return isinstance(event, MessageStartEvent | MessageUpdateEvent | MessageEndEvent)
+
+
+def is_tool_execution_start_event(event: AgentEvent) -> TypeGuard[ToolExecutionStartEvent]:
+    return isinstance(event, ToolExecutionStartEvent)
+
+
+def is_tool_execution_end_event(event: AgentEvent) -> TypeGuard[ToolExecutionEndEvent]:
+    return isinstance(event, ToolExecutionEndEvent)
+
+
+def is_tool_execution_event(event: AgentEvent) -> TypeGuard[ToolExecutionEvent]:
+    return isinstance(
+        event,
+        ToolExecutionStartEvent | ToolExecutionUpdateEvent | ToolExecutionEndEvent,
+    )
+
+
 @dataclass
 class AgentLoopConfig:
     """Configuration for the agent loop."""
@@ -418,18 +493,26 @@ class AgentLoopConfig:
     max_tokens: int | None = None
 
 
-class AgentState(TypedDict, total=False):
+class AgentState(_AgentBaseModel):
     """Agent state containing all configuration and conversation data."""
 
-    system_prompt: str
-    model: Model | None
-    thinking_level: ThinkingLevel
-    tools: list[AgentTool]
-    messages: list[AgentMessage]
-    is_streaming: bool
-    stream_message: AgentMessage | None
-    pending_tool_calls: set[str]
-    error: str | None
+    system_prompt: str = ""
+    model: Model | None = None
+    thinking_level: ThinkingLevel = ThinkingLevel.OFF
+    tools: list[AgentTool] = Field(default_factory=list)
+    messages: list[AgentMessage] = Field(default_factory=list)
+    is_streaming: bool = False
+    stream_message: AgentMessage | None = None
+    pending_tool_calls: set[str] = Field(default_factory=set)
+    error: str | None = None
+
+
+@dataclass(frozen=True)
+class _WakeupSignal:
+    """Internal queue marker used to wake blocked stream consumers."""
+
+
+EventStreamQueueItem: TypeAlias = AgentEvent | _WakeupSignal
 
 
 class EventStream:
@@ -440,12 +523,14 @@ class EventStream:
     of the stream. Otherwise callers awaiting `agent.prompt()` can hang forever.
     """
 
+    _WAKEUP_SENTINEL = _WakeupSignal()
+
     def __init__(
         self,
         is_end_event: Callable[[AgentEvent], bool],
         get_result: Callable[[AgentEvent], list[AgentMessage]],
     ):
-        self._queue: asyncio.Queue[AgentEvent] = asyncio.Queue()
+        self._queue: asyncio.Queue[EventStreamQueueItem] = asyncio.Queue()
         self._is_end_event = is_end_event
         self._get_result = get_result
         self._result: list[AgentMessage] | None = None
@@ -460,6 +545,7 @@ class EventStream:
     def end(self, result: list[AgentMessage]) -> None:
         self._result = result
         self._ended = True
+        self._queue.put_nowait(self._WAKEUP_SENTINEL)
 
     def set_exception(self, exc: BaseException) -> None:
         """Terminate the stream with an exception.
@@ -472,24 +558,36 @@ class EventStream:
             return
         self._exception = exc
         self._ended = True
+        self._queue.put_nowait(self._WAKEUP_SENTINEL)
 
     def __aiter__(self) -> AsyncIterator[AgentEvent]:
         return self
 
     async def __anext__(self) -> AgentEvent:
-        if self._queue.empty():
-            if self._exception is not None:
-                exc = self._exception
-                self._exception = None
-                raise exc
-            if self._ended:
-                raise StopAsyncIteration
+        while True:
+            if self._queue.empty():
+                if self._exception is not None:
+                    exc = self._exception
+                    self._exception = None
+                    raise exc
+                if self._ended:
+                    raise StopAsyncIteration
 
-        event = await self._queue.get()
-        if self._is_end_event(event):
-            self._result = self._get_result(event)
-            self._ended = True
-        return event
+            queued_item = await self._queue.get()
+            if isinstance(queued_item, _WakeupSignal):
+                if self._exception is not None:
+                    exc = self._exception
+                    self._exception = None
+                    raise exc
+                if self._ended:
+                    raise StopAsyncIteration
+                continue
+
+            event = queued_item
+            if self._is_end_event(event):
+                self._result = self._get_result(event)
+                self._ended = True
+            return event
 
     async def result(self) -> list[AgentMessage]:
         while True:

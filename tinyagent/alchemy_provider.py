@@ -33,6 +33,7 @@ from .agent_types import (
     JsonObject,
     Model,
     SimpleStreamOptions,
+    dump_model_dumpable,
 )
 
 ReasoningEffort: TypeAlias = Literal["minimal", "low", "medium", "high", "xhigh"]
@@ -50,7 +51,7 @@ class _AlchemyModule(Protocol):
 
 _ALCHEMY_MODULE: _AlchemyModule | None = None
 
-DEFAULT_OPENAI_COMPAT_CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions"
+DEFAULT_OPENAI_COMPAT_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions"
 
 _PROVIDER_API_KEY_ENV = {
     "openai": "OPENAI_API_KEY",
@@ -94,15 +95,17 @@ def _validate_assistant_message_contract(
     where: str,
     require_usage: bool,
 ) -> AssistantMessage:
-    if not isinstance(raw_message, dict):
+    if isinstance(raw_message, AssistantMessage):
+        message = raw_message
+    elif isinstance(raw_message, dict):
+        message = AssistantMessage.model_validate(raw_message)
+    else:
         raise RuntimeError(f"{where}: assistant message must be a dict")
 
-    message = cast(dict[str, object], raw_message)
-
     if require_usage:
-        _validate_usage_contract(message.get("usage"), where=where)
+        _validate_usage_contract(message.usage, where=where)
 
-    return cast(AssistantMessage, message)
+    return message
 
 
 def _get_alchemy_module() -> _AlchemyModule:
@@ -120,7 +123,6 @@ def _get_alchemy_module() -> _AlchemyModule:
     return _ALCHEMY_MODULE
 
 
-@dataclass
 class OpenAICompatModel(Model):
     """Model config for OpenAI-compatible chat/completions endpoints."""
 
@@ -164,9 +166,11 @@ class AlchemyStreamResponse:
         ev = await asyncio.to_thread(self._handle.next_event)
         if ev is None:
             raise StopAsyncIteration
+        if isinstance(ev, AssistantMessageEvent):
+            return ev
         if not isinstance(ev, dict):
             raise RuntimeError("tinyagent._alchemy returned an invalid event")
-        return cast(AssistantMessageEvent, ev)
+        return AssistantMessageEvent.model_validate(ev)
 
 
 def _convert_tools(tools: list[AgentTool] | None) -> list[dict[str, Any]] | None:
@@ -185,22 +189,17 @@ def _convert_tools(tools: list[AgentTool] | None) -> list[dict[str, Any]] | None
 
 
 def _resolve_base_url(model: Model) -> str:
-    base_url = getattr(model, "base_url", DEFAULT_OPENAI_COMPAT_CHAT_COMPLETIONS_URL)
-    if not isinstance(base_url, str) or not base_url.strip():
+    if not isinstance(model, OpenAICompatModel):
+        return DEFAULT_OPENAI_COMPAT_CHAT_COMPLETIONS_URL
+    base_url = model.base_url.strip()
+    if not base_url:
         raise ValueError("Model `base_url` must be a non-empty string")
-    return base_url.strip()
+    return base_url
 
 
 def _resolve_provider(model: Model) -> str:
-    raw_provider = getattr(model, "provider", "")
-    if not isinstance(raw_provider, str):
-        return "openrouter"
-
-    provider = raw_provider.strip()
-    if provider:
-        return provider
-
-    return "openrouter"
+    provider = model.provider.strip()
+    return provider or "openai"
 
 
 def _canonicalize_api(raw_api: str) -> str:
@@ -209,7 +208,7 @@ def _canonicalize_api(raw_api: str) -> str:
         return ""
 
     # Legacy aliases used in tinyagent Model.api values.
-    if api in {"openai", "openrouter", "openai-compatible", "chat-completions"}:
+    if api in {"openai", "openai-compatible", "chat-completions"}:
         return "openai-completions"
     if api == "minimax":
         return "minimax-completions"
@@ -233,17 +232,15 @@ def _resolve_model_api(model: Model, provider: str) -> str:
        else openai-completions)
     """
 
-    raw_api = getattr(model, "api", "")
-    if isinstance(raw_api, str):
-        explicit = _canonicalize_api(raw_api)
-        if explicit:
-            return explicit
+    explicit = _canonicalize_api(model.api)
+    if explicit:
+        return explicit
 
     return _infer_api_from_provider(provider)
 
 
 def _resolve_api_key(model: Model, options: SimpleStreamOptions) -> str | None:
-    explicit = options.get("api_key")
+    explicit = options.api_key
     if explicit:
         return explicit
 
@@ -267,29 +264,42 @@ async def stream_alchemy_openai_completions(
     provider = _resolve_provider(model)
     base_url = _resolve_base_url(model)
     api = _resolve_model_api(model, provider)
+    name: str | None = None
+    headers: dict[str, str] | None = None
+    reasoning: ReasoningMode = False
+    context_window: int | None = None
+    max_tokens: int | None = None
+    if isinstance(model, OpenAICompatModel):
+        name = model.name
+        headers = model.headers
+        reasoning = model.reasoning
+        context_window = model.context_window
+        max_tokens = model.max_tokens
 
     model_dict: dict[str, Any] = {
         "id": model.id,
         "provider": provider,
         "api": api,
         "base_url": base_url,
-        "name": getattr(model, "name", None),
-        "headers": getattr(model, "headers", None),
-        "reasoning": getattr(model, "reasoning", False),
-        "context_window": getattr(model, "context_window", None),
-        "max_tokens": getattr(model, "max_tokens", None),
+        "name": name,
+        "headers": headers,
+        "reasoning": reasoning,
+        "context_window": context_window,
+        "max_tokens": max_tokens,
     }
 
     context_dict: dict[str, Any] = {
         "system_prompt": context.system_prompt or "",
-        "messages": context.messages,
+        "messages": [
+            dump_model_dumpable(message, where="context.messages") for message in context.messages
+        ],
         "tools": _convert_tools(context.tools),
     }
 
     options_dict: dict[str, Any] = {
         "api_key": _resolve_api_key(model, options),
-        "temperature": options.get("temperature"),
-        "max_tokens": options.get("max_tokens"),
+        "temperature": options.temperature,
+        "max_tokens": options.max_tokens,
     }
 
     handle = alchemy_llm_py.openai_completions_stream(
@@ -299,12 +309,3 @@ async def stream_alchemy_openai_completions(
     )
 
     return AlchemyStreamResponse(_handle=handle)
-
-
-async def stream_alchemy_openrouter(
-    model: Model,
-    context: Context,
-    options: SimpleStreamOptions,
-) -> AlchemyStreamResponse:
-    """Rust-backed stream compatible with OpenRouterModel and base_url overrides."""
-    return await stream_alchemy_openai_completions(model, context, options)

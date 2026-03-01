@@ -1,9 +1,9 @@
 ---
 title: Usage Semantics Contract
-description: Canonical usage contract unified across Python and Rust provider paths.
+description: Canonical usage contract for the active built-in provider path.
 ontological_relations:
   - extends: providers.md
-  - implemented_by: ../../tinyagent/openrouter_provider.py
+  - implemented_by: ../../tinyagent/alchemy_provider.py
   - enforced_by: ../../tinyagent/alchemy_provider.py
   - validated_by: ../../tests/test_caching.py
   - validated_by: ../../tests/test_usage_contracts.py
@@ -13,17 +13,16 @@ ontological_relations:
 
 ## Summary
 
-TinyAgent now uses one usage contract across both provider paths:
+TinyAgent now uses a single usage contract in the active built-in path:
 
-- Python provider: `stream_openrouter`
-- Rust provider: `stream_alchemy_openai_completions` / `stream_alchemy_openrouter`
+- Primary built-in provider: `stream_alchemy_openai_completions` (Rust binding)
 
 The keys and meanings are aligned, and Rust path responses are runtime-validated
 before being returned to callers.
 
 ## Canonical Usage Shape
 
-Assistant messages expose `message["usage"]` with this shape:
+Assistant messages expose `AssistantMessage.usage` with this dict shape:
 
 ```json
 {
@@ -75,19 +74,19 @@ This supports both Anthropic-style cache fields and OpenAI-style nested prompt d
 
 ## What Was Unified
 
-Before alignment, provider paths could disagree on usage interpretation.
-After alignment:
+Historically, Python and Rust paths were aligned on the same canonical keys. The
+current repo keeps only the hard-cutover path:
 
-- both Python and Rust paths return the same canonical keys
-- both paths use provider-raw token meanings for `input` and `output`
-- both paths expose stable snake_case keys
-- Rust path enforces the contract (`usage` and `usage.cost` required keys)
+- canonical provider-raw key names are enforced in runtime contracts
+- provider token meanings are preserved for `input` and `output`
+- stable snake_case shape remains (`usage.cost` defaults included)
+- Rust stream result enforces required usage keys
 
 ## Practical Guidance
 
-If you consume `message["usage"]` downstream:
+If you consume `message.usage` downstream:
 
-- treat this schema as the source of truth
+- treat this schema (`message.usage`) as the source of truth
 - use `total_tokens` directly when present
 - do not derive custom totals by adding cache fields onto `total_tokens`
 - do not assume cache-write stats are always non-zero (some providers omit/inconsistently report)
@@ -101,7 +100,7 @@ Contract behavior is covered by:
   - provider `total_tokens` preference
   - fallback behavior when provider totals are invalid/missing
 - `tests/test_usage_contracts.py`
-  - Rust/Python boundary contract checks
+  - Contract checks for canonical usage fields in the current runtime path
   - required `usage` and `usage.cost` keys
   - preservation of usage payload through agent execution
 

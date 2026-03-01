@@ -16,15 +16,15 @@ Complete API documentation for the tinyagent package.
 | Module | Description |
 |--------|-------------|
 | [caching](caching.md) | Prompt caching for reduced cost and latency |
-| [usage-semantics](usage-semantics.md) | Unified usage contract and token semantics across Python and Rust providers |
+| [usage-semantics](usage-semantics.md) | Canonical usage contract and token semantics for the built-in provider path |
 
 ## Providers
 
 | Module | Description |
 |--------|-------------|
-| [providers](providers.md) | OpenRouter, Alchemy (Rust), and Proxy providers |
-| [openai-compatible-endpoints](openai-compatible-endpoints.md) | Using `OpenRouterModel.base_url` with OpenAI-compatible endpoints (Python + Rust binding) |
-| [usage-semantics](usage-semantics.md) | Canonical `message["usage"]` schema, field mapping, and precedence rules |
+| [providers](providers.md) | Alchemy (Rust) and Proxy providers |
+| [openai-compatible-endpoints](openai-compatible-endpoints.md) | Using `OpenAICompatModel.base_url` with OpenAI-compatible endpoints |
+| [usage-semantics](usage-semantics.md) | Canonical `usage` schema, field mapping, and precedence rules |
 
 ## Quick Reference
 
@@ -47,11 +47,9 @@ from tinyagent import (
 )
 
 # Providers
-from tinyagent import OpenRouterModel, stream_openrouter
 from tinyagent.alchemy_provider import (
     OpenAICompatModel,
     stream_alchemy_openai_completions,
-    stream_alchemy_openrouter,
 )
 
 # Helpers
@@ -110,4 +108,16 @@ ApiKeyResolverCallback = Callable[
 
 # Tool progress updates
 AgentToolUpdateCallback = Callable[[AgentToolResult], None]
+```
+
+## Runtime Cutover Validation
+
+After the hard-cutover migration, validate the typed event/model contract with the
+live harness:
+
+```bash
+uv run python docs/harness/tool_call_types_harness.py
+```
+
+The harness prints only model type names and performs one real tool-call validation.
 ```

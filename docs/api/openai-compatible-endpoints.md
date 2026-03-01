@@ -1,337 +1,155 @@
 ---
-title: OpenAI-Compatible Endpoints via OpenRouterModel
-description: Use OpenRouterModel.base_url to target OpenAI-compatible /chat/completions endpoints (OpenRouter, OpenAI, Chutes, local servers) without custom HTTP wrappers.
+title: OpenAI-Compatible Endpoints via OpenAICompatModel
+description: Use OpenAI-compatible `/chat/completions` endpoints with TinyAgent through `OpenAICompatModel`.
 ontological_relations:
-  - extends: providers.md#OpenRouter-Provider
-  - extends: providers.md#Alchemy-Provider
-  - implemented_by: ../../tinyagent/openrouter_provider.py
+  - extends: providers.md
   - implemented_by: ../../tinyagent/alchemy_provider.py
-  - validated_by: ../../tests/test_openrouter_provider.py
   - validated_by: ../../tests/test_alchemy_provider.py
   - composes_with: agent.md#AgentOptions
 ---
 
-# OpenAI-Compatible Endpoints via `OpenRouterModel.base_url`
+# OpenAI-Compatible Endpoints via `OpenAICompatModel.base_url`
+
+TinyAgent’s provider model supports a `base_url` override on `OpenAICompatModel`, so you can point to any OpenAI-compatible chat-completion endpoint without a custom wrapper.
+
+- OpenRouter (via compatible endpoint URL)
+- OpenAI directly
+- Chutes or custom gateway endpoints
+- Self-hosted/local compatible servers
 
 ## Summary
 
-TinyAgent’s native OpenRouter model config supports a `base_url` override on `OpenRouterModel`.
-You can use this with both provider paths:
-
-- `stream_openrouter` (pure Python)
-- `stream_alchemy_openrouter` / `stream_alchemy_openai_completions` (Rust binding via PyO3)
-
-This means you can target **any OpenAI-compatible** `/chat/completions` endpoint without maintaining a custom wrapper.
-
-This has been live-verified with both Python and Rust paths, including Chutes
-(`https://llm.chutes.ai/v1/chat/completions`) using `Qwen/Qwen3-32B`.
-
-This unifies behavior in one provider path:
-
-- consistent TinyAgent event streaming (`start`, `text_delta`, `tool_call_delta`, `done`)
-- consistent message/tool conversion logic
-- consistent usage contract shape and provider-raw semantics in final assistant messages
-
-## When to Read
-
-Read this guide when you need to:
-
-- use TinyAgent with **non-OpenRouter OpenAI-compatible backends**
-- point TinyAgent to **direct OpenAI** or **hosted compatible providers**
-- run TinyAgent against **self-hosted/local** inference endpoints (vLLM, LM Studio proxy, etc.)
-- use the Rust binding path with OpenRouterModel (`stream_alchemy_openrouter`)
-- confirm compatibility for Chutes or other hosted OpenAI-compatible gateways
-- delete provider-specific wrappers and standardize on TinyAgent’s native provider implementation
-
-## What Changed
-
-`OpenRouterModel` now includes:
+The Rust provider path uses `stream_alchemy_openai_completions`.
 
 ```python
-base_url: str = "https://openrouter.ai/api/v1/chat/completions"
+from tinyagent.alchemy_provider import OpenAICompatModel, stream_alchemy_openai_completions
 ```
 
-For the Rust binding path, routing is determined by three fields together:
-- `provider`: backend identity and env-key fallback source
-- `api`: unified alchemy API selector (`openai-completions` or `minimax-completions`)
-- `base_url`: concrete endpoint URL
+`OpenAICompatModel` exposes:
 
-If `api` is omitted/blank, TinyAgent infers:
-- `provider in {"minimax", "minimax-cn"}` => `minimax-completions`
-- otherwise => `openai-completions`
+- `provider`: backend identity used for dispatch and env-key fallback
+- `api`: explicit alchemy API selector (`openai-completions`, `minimax-completions`)
+- `base_url`: concrete endpoint used by the request
 
-Usage semantics are aligned across both provider paths:
+If `api` is omitted/blank, it is inferred:
 
-- `usage.input` = provider-reported prompt/input tokens
-- `usage.output` = provider-reported completion/output tokens
-- `usage.total_tokens` = provider-reported total when present, else `input + output`
-- cache fields map from provider cache-read/cache-write fields (including OpenAI-style nested details)
-- reasoning-token breakdown fields are not folded into `usage.output`
+- `provider in {"minimax", "minimax-cn"}` -> `minimax-completions`
+- otherwise -> `openai-completions`
 
-And the providers now behave as follows:
+Legacy aliases are not required by the current provider path.
 
-### `stream_openrouter` (Python path)
+## Routing and auth
 
-1. resolves URL from `model.base_url` (fallback: OpenRouter default)
-2. validates that `base_url` is a non-empty string
-3. posts streaming requests to that resolved URL
+### API key resolution (provider)
 
-### `stream_alchemy_openai_completions` / `stream_alchemy_openrouter` (Rust path)
+1. `options.api_key`
+2. `OPENAI_API_KEY` when `provider == "openai"`
+3. `MINIMAX_API_KEY` when `provider == "minimax"`
+4. `MINIMAX_CN_API_KEY` when `provider == "minimax-cn"`
 
-1. accepts `OpenRouterModel` and `OpenAICompatModel`
-2. resolves URL from `model.base_url` with the same non-empty validation behavior
-3. supports endpoint-aware API key fallback
-   - `OPENAI_API_KEY` when `provider == "openai"`
-   - `OPENROUTER_API_KEY` when `provider == "openrouter"`
-   - `MINIMAX_API_KEY` when `provider == "minimax"`
-   - `MINIMAX_CN_API_KEY` when `provider == "minimax-cn"`
+For non-OpenAI/minimax providers (for example `provider="openrouter"`), pass the key explicitly.
 
-## Endpoint Contract
+### Base URL behavior
 
-The target endpoint should be OpenAI-compatible for chat completions:
+- `base_url` must be a non-empty string.
+- The value is forwarded directly into the Rust provider request.
 
-- accepts `POST` JSON payload with fields like `model`, `messages`, `stream`, optional `tools`
-- returns SSE chunks similar to OpenAI/OpenRouter style deltas
-- supports bearer auth in `Authorization: Bearer <token>` (or equivalent gateway behavior)
+### Usage semantics
 
-## Usage
+- Message/tool conversion and usage contract are unified with the rest of TinyAgent.
+- `usage` fields (`input`, `output`, `cache_read`, `cache_write`, `total_tokens`, `cost`) are normalized consistently by the provider layer.
 
-### Default (OpenRouter)
+## Endpoint contract requirements
 
-```python
-from tinyagent import OpenRouterModel
+The endpoint should be OpenAI-compatible for chat completions:
 
-model = OpenRouterModel(
-    id="anthropic/claude-3.5-sonnet",
-)
-```
+- accepts `POST` JSON payload with `model`, `messages`, `stream`, optional `tools`
+- returns SSE or stream-like chunks that can map to assistant events
+- bearer token auth via headers is supported by the endpoint
 
-### Direct OpenAI
+## Example usage
+
+### OpenAI
 
 ```python
-model = OpenRouterModel(
+model = OpenAICompatModel(
+    provider="openai",
     id="gpt-4o-mini",
     base_url="https://api.openai.com/v1/chat/completions",
 )
 ```
 
-### Chutes example
+### OpenRouter-compatible URL
 
 ```python
-model = OpenRouterModel(
-    id="Qwen/Qwen3-32B",
-    base_url="https://llm.chutes.ai/v1/chat/completions",
-)
-
-response = await stream_openrouter(
-    model,
-    context,
-    {
-        "api_key": chutes_api_key,
-        "temperature": 0,
-        "max_tokens": 256,
-    },
-)
-```
-
-### Local/self-hosted endpoint
-
-```python
-model = OpenRouterModel(
-    id="your-local-model-name",
-    base_url="http://localhost:8000/v1/chat/completions",
-)
-```
-
-### Rust binding path (PyO3)
-
-Using `OpenRouterModel` (same model config object as Python path):
-
-```python
-from tinyagent import OpenRouterModel
-from tinyagent.alchemy_provider import stream_alchemy_openrouter
-
-model = OpenRouterModel(
-    id="Qwen/Qwen3-32B",
-    base_url="https://llm.chutes.ai/v1/chat/completions",
-)
-
-response = await stream_alchemy_openrouter(
-    model,
-    context,
-    {"api_key": chutes_api_key, "temperature": 0, "max_tokens": 256},
-)
-```
-
-Using `OpenAICompatModel` directly:
-
-```python
-from tinyagent.alchemy_provider import OpenAICompatModel, stream_alchemy_openai_completions
-
 model = OpenAICompatModel(
-    provider="openrouter",  # or "openai" / custom label used in your integration
-    id="Qwen/Qwen3-32B",
-    base_url="https://llm.chutes.ai/v1/chat/completions",
-)
-
-response = await stream_alchemy_openai_completions(
-    model,
-    context,
-    {"api_key": chutes_api_key},
+    provider="openrouter",  # provider label used by your integration
+    id="anthropic/claude-3.5-sonnet",
+    base_url="https://openrouter.ai/api/v1/chat/completions",
 )
 ```
 
-MiniMax global via the same Rust provider path:
+### Chutes gateway
+
+```python
+model = OpenAICompatModel(
+    provider="openrouter",
+    id="Qwen/Qwen3-32B",
+    base_url="https://llm.chutes.ai/v1/chat/completions",
+)
+```
+
+### MiniMax
 
 ```python
 model = OpenAICompatModel(
     provider="minimax",
     id="MiniMax-M2.5",
     base_url="https://api.minimax.io/v1/chat/completions",
-    # api omitted => inferred as "minimax-completions"
 )
 
-response = await stream_alchemy_openai_completions(model, context, {})
-```
-
-MiniMax CN:
-
-```python
-model = OpenAICompatModel(
+model_cn = OpenAICompatModel(
     provider="minimax-cn",
     id="MiniMax-M2.5",
     base_url="https://api.minimax.chat/v1/chat/completions",
-    # api omitted => inferred as "minimax-completions"
-)
-
-response = await stream_alchemy_openai_completions(model, context, {})
-```
-
-## API Key Behavior
-
-`stream_openrouter` resolves auth in this order:
-
-1. `options["api_key"]`
-2. `OPENROUTER_API_KEY` environment variable
-
-`stream_alchemy_openai_completions` / `stream_alchemy_openrouter` resolve auth in this order:
-
-1. `options["api_key"]`
-2. `OPENAI_API_KEY` when `model.provider == "openai"`
-3. `OPENROUTER_API_KEY` when `model.provider == "openrouter"`
-4. `MINIMAX_API_KEY` when `model.provider == "minimax"`
-5. `MINIMAX_CN_API_KEY` when `model.provider == "minimax-cn"`
-
-For non-OpenRouter endpoints, passing `options["api_key"]` explicitly is recommended.
-That keeps auth source unambiguous and avoids environment-variable mismatch.
-
-## OpenRouter-Specific Routing Controls
-
-`openrouter_provider` and `openrouter_route` are OpenRouter request-body controls.
-They should generally be used only when `base_url` points to OpenRouter.
-
-```python
-model = OpenRouterModel(
-    id="anthropic/claude-3.5-sonnet",
-    openrouter_provider={"order": ["anthropic"]},
-    openrouter_route="fallback",
 )
 ```
 
-## Validation and Test Coverage
+## Tool call streaming events
 
-### Automated tests
+Providers emit the standard `AssistantMessageEvent` stream shape:
 
-- `tests/test_openrouter_provider.py`
-  - default URL fallback
-  - base URL override
-  - whitespace trimming
-  - blank URL rejection
+- `start`
+- `text_start`, `text_delta`, `text_end`
+- `thinking_start`, `thinking_delta`, `thinking_end`
+- `tool_call_start`, `tool_call_delta`, `tool_call_end`
+- `done`
+- `error`
 
-### Live smoke verification
+These are translated by `agent_loop` into `AgentEvent` stream events.
 
-Validated against:
+## Reasoning mode
 
-- OpenRouter default endpoint (Python provider)
-- OpenRouter endpoint via explicit `base_url` (Python provider)
-- Chutes endpoint (`https://llm.chutes.ai/v1/chat/completions`) with `Qwen/Qwen3-32B` (Python provider)
-- OpenRouter default endpoint via Rust binding (`stream_alchemy_openai_completions`)
-- Chutes endpoint via Rust binding (`stream_alchemy_openrouter` + `OpenRouterModel`)
-
-### Verified compatibility matrix
-
-| Provider path | Endpoint | Model | Status |
-|---|---|---|---|
-| Python (`stream_openrouter`) | OpenRouter default | `openai/gpt-4o-mini` | ✅ |
-| Python (`stream_openrouter`) | Chutes | `Qwen/Qwen3-32B` | ✅ |
-| Rust (`stream_alchemy_openai_completions`) | OpenRouter default | `openai/gpt-4o-mini` | ✅ |
-| Rust (`stream_alchemy_openrouter`) | Chutes | `Qwen/Qwen3-32B` | ✅ |
-
-## Reasoning Support
-
-Models that support reasoning (e.g., `deepseek/deepseek-r1`) can be configured with
-effort levels via `OpenAICompatModel`:
+For providers with reasoning support (for example DeepSeek R1), set
+`reasoning` on `OpenAICompatModel`.
 
 ```python
-from tinyagent.alchemy_provider import OpenAICompatModel
-
 model = OpenAICompatModel(
     provider="openrouter",
     id="deepseek/deepseek-r1",
     base_url="https://openrouter.ai/api/v1/chat/completions",
-    reasoning="high",  # or True, "minimal", "low", "medium", "xhigh"
+    reasoning="high",  # bool or "minimal" | "low" | "medium" | "high" | "xhigh"
 )
 ```
 
-**Response Structure**:
-
-When reasoning is enabled, responses contain separate content blocks:
-
-```python
-{
-    "content": [
-        {"type": "thinking", "thinking": "Step 1: Count initial apples..."},
-        {"type": "text", "text": "You have 5 apples."}
-    ]
-}
-```
-
-**Streaming Events**:
-- `thinking_start`, `thinking_delta`, `thinking_end` for reasoning
-- `text_start`, `text_delta`, `text_end` for final answer
-
-See `examples/example_reasoning.py` and [providers.md](providers.md#reasoning-responses)
-for typed helpers to filter content blocks.
-
-## Observed Backend Differences
-
-Some reasoning-capable models (for example `Qwen/Qwen3-32B` on Chutes) may include
-`<think> ... </think>` content before the final answer in text output when reasoning
-is not explicitly enabled via the API.
-
-This is model/backend behavior, not a TinyAgent provider parsing bug. TinyAgent streams
-and returns what the backend emits.
-
-When using models with native reasoning support (like DeepSeek R1), enable
-`reasoning=True` to get properly structured `ThinkingContent` blocks instead.
+When enabled, responses may include `ThinkingContent` blocks plus final answer text
+blocks.
 
 ## Troubleshooting
 
-### `ValueError: Model \`base_url\` must be a non-empty string`
-
-`base_url` is blank or only whitespace. Provide a full URL.
-
-### 401 / 403 auth failures
-
-- ensure correct key for the target backend
-- pass `options["api_key"]` directly for endpoint-specific auth
-
-### Model not found
-
-Model IDs are backend-specific. Use IDs supported by the target endpoint.
-
-## Related Docs
-
-- [providers.md](providers.md)
-- [README.md](../README.md)
-- [caching.md](caching.md)
+- `RuntimeError: Model base_url must be a non-empty string`
+  - `base_url` is blank/whitespace; provide a full URL.
+- `401/403` authentication failures
+  - pass `options.api_key` explicitly or use correct env var for the provider.
+- model errors at runtime
+  - verify model ID and endpoint compatibility with the target backend.

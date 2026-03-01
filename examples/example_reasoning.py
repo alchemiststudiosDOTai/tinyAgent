@@ -25,20 +25,20 @@ from tinyagent.alchemy_provider import OpenAICompatModel, stream_alchemy_openai_
 
 
 def is_thinking_content(block: AssistantContent | None) -> TypeGuard[ThinkingContent]:
-    return block is not None and block.get("type") == "thinking"
+    return isinstance(block, ThinkingContent)
 
 
 def is_text_content(block: AssistantContent | None) -> TypeGuard[TextContent]:
-    return block is not None and block.get("type") == "text"
+    return isinstance(block, TextContent)
 
 
 def is_assistant_message(message: AgentMessage) -> TypeGuard[AssistantMessage]:
-    return message.get("role") == "assistant"
+    return isinstance(message, AssistantMessage)
 
 
 def print_reasoning_response(message: AssistantMessage) -> None:
     """Print reasoning and answer blocks separately."""
-    content = message.get("content") or []
+    content = message.content
 
     thinking_blocks = [b for b in content if is_thinking_content(b)]
     text_blocks = [b for b in content if is_text_content(b)]
@@ -46,13 +46,13 @@ def print_reasoning_response(message: AssistantMessage) -> None:
     if thinking_blocks:
         print("=== REASONING ===")
         for thinking_block in thinking_blocks:
-            print(thinking_block.get("thinking", ""))
+            print(thinking_block.thinking or "")
         print()
 
     if text_blocks:
         print("=== ANSWER ===")
         for text_block in text_blocks:
-            print(text_block.get("text", ""))
+            print(text_block.text or "")
         print()
 
 
@@ -85,7 +85,7 @@ async def main() -> None:
     # Also save raw JSON for inspection
     output_path = Path(__file__).parent / "example_reasoning_output.json"
     with output_path.open("w", encoding="utf-8") as f:
-        json.dump(assistant_message, f, indent=2)
+        json.dump(assistant_message.model_dump(mode="json"), f, indent=2)
         f.write("\n")
 
     print(f"Raw output saved to: {output_path}")

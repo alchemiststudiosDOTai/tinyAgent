@@ -15,18 +15,22 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any, TypedDict, cast
+from typing import Any
 
 from tinyagent import (
     AgentEvent,
     AgentTool,
     AgentToolResult,
+    AssistantMessage,
     EventStream,
+    TextContent,
+    ToolCallContent,
     ToolExecutionEndEvent,
     ToolExecutionStartEvent,
     ToolResultMessage,
     execute_tool_calls,
 )
+from tinyagent.agent_tool_execution import ToolExecutionResult
 
 FAKE_WEATHER: dict[str, str] = {
     "paris": "22°C, partly cloudy",
@@ -38,40 +42,32 @@ FAKE_WEATHER: dict[str, str] = {
 }
 
 
-def _extract_tool_calls(assistant_message: dict[str, Any]) -> list[dict[str, Any]]:
-    tool_calls: list[dict[str, Any]] = []
-    for block in assistant_message.get("content", []):
-        if not isinstance(block, dict):
-            continue
-        if block.get("type") == "tool_call":
+def _extract_tool_calls(assistant_message: AssistantMessage) -> list[ToolCallContent]:
+    tool_calls: list[ToolCallContent] = []
+    for block in assistant_message.content:
+        if isinstance(block, ToolCallContent):
             tool_calls.append(block)
     return tool_calls
 
 
 def _create_error_result(text: str) -> AgentToolResult:
-    return AgentToolResult(content=[{"type": "text", "text": text}], details={})
+    return AgentToolResult(content=[TextContent(text=text)], details={})
 
 
 def _create_tool_result_message(
-    tool_call: dict[str, Any],
+    tool_call: ToolCallContent,
     result: AgentToolResult,
     *,
     is_error: bool,
 ) -> ToolResultMessage:
-    return {
-        "role": "tool_result",
-        "tool_call_id": str(tool_call.get("id", "")),
-        "tool_name": str(tool_call.get("name", "")),
-        "content": result.content,
-        "details": result.details,
-        "is_error": is_error,
-        "timestamp": int(asyncio.get_running_loop().time() * 1000),
-    }
-
-
-class SequentialToolExecutionResult(TypedDict):
-    tool_results: list[ToolResultMessage]
-    steering_messages: None
+    return ToolResultMessage(
+        tool_call_id=tool_call.id or "",
+        tool_name=tool_call.name or "",
+        content=result.content,
+        details=result.details,
+        is_error=is_error,
+        timestamp=int(time.time() * 1000),
+    )
 
 
 async def execute_get_weather(
@@ -82,8 +78,9 @@ async def execute_get_weather(
 ) -> AgentToolResult:
     city = args.get("city", "unknown")
     await asyncio.sleep(0.3)  # simulate network latency
-    weather = FAKE_WEATHER.get(str(city).lower().replace(" ", "_"), "no data")
-    return AgentToolResult(content=[{"type": "text", "text": f"{city}: {weather}"}])
+    city_key = str(city).lower().replace(" ", "_")
+    weather = FAKE_WEATHER.get(city_key, "no data")
+    return AgentToolResult(content=[TextContent(text=f"{city}: {weather}")])
 
 
 weather_tool = AgentTool(
@@ -100,10 +97,10 @@ weather_tool = AgentTool(
 
 async def execute_sequential(
     tools: list[AgentTool],
-    assistant_message: dict[str, Any],
+    assistant_message: AssistantMessage,
     stream: EventStream,
     signal: asyncio.Event | None = None,
-) -> SequentialToolExecutionResult:
+) -> ToolExecutionResult:
     """Execute tools one by one (sequential) for comparison."""
 
     tool_calls = _extract_tool_calls(assistant_message)
@@ -111,10 +108,9 @@ async def execute_sequential(
     results: list[ToolResultMessage] = []
 
     for tool_call in tool_calls:
-        tool_call_id = str(tool_call.get("id", ""))
-        tool_call_name = str(tool_call.get("name", ""))
-        raw_args = tool_call.get("arguments", {})
-        tool_call_args = raw_args if isinstance(raw_args, dict) else {}
+        tool_call_id = tool_call.id or ""
+        tool_call_name = tool_call.name or ""
+        tool_call_args = tool_call.arguments if isinstance(tool_call.arguments, dict) else {}
 
         stream.push(
             ToolExecutionStartEvent(
@@ -161,23 +157,20 @@ async def execute_sequential(
             )
         )
 
-    return {"tool_results": results, "steering_messages": None}
+    return ToolExecutionResult(tool_results=results, steering_messages=None)
 
 
 T0 = 0.0
 
 
 def event_logger(event: AgentEvent) -> None:
-    etype = getattr(event, "type", None)
-    if etype == "tool_execution_start":
-        event_start = cast(ToolExecutionStartEvent, event)
+    if isinstance(event, ToolExecutionStartEvent):
         city = "?"
-        if isinstance(event_start.args, dict):
-            city = str(event_start.args.get("city", "?"))
-        print(f"  [START] {event_start.tool_name}({city}) at t={time.perf_counter() - T0:.3f}s")
-    elif etype == "tool_execution_end":
-        event_end = cast(ToolExecutionEndEvent, event)
-        print(f"  [DONE]  {event_end.tool_name} at t={time.perf_counter() - T0:.3f}s")
+        if isinstance(event.args, dict) and "city" in event.args:
+            city = str(event.args["city"])
+        print(f"  [START] {event.tool_name}({city}) at t={time.perf_counter() - T0:.3f}s")
+    elif isinstance(event, ToolExecutionEndEvent):
+        print(f"  [DONE]  {event.tool_name} at t={time.perf_counter() - T0:.3f}s")
 
 
 class LoggingEventStream(EventStream):
@@ -202,28 +195,26 @@ async def run_parallel(cities: list[str]) -> float:
     )
 
     T0 = time.perf_counter()
-    message = {
-        "role": "assistant",
-        "content": [
-            {
-                "type": "tool_call",
-                "id": f"call_{city.lower().replace(' ', '_')}",
-                "name": "get_weather",
-                "arguments": {"city": city},
-            }
+    message = AssistantMessage(
+        content=[
+            ToolCallContent(
+                id=f"call_{city.lower().replace(' ', '_')}",
+                name="get_weather",
+                arguments={"city": city},
+            )
             for city in cities
-        ],
-    }
+        ]
+    )
 
     result = await execute_tool_calls(
         tools=[weather_tool],
-        assistant_message=cast(Any, message),
+        assistant_message=message,
         stream=stream,
         signal=None,
     )
 
     elapsed = time.perf_counter() - T0
-    print(f"\n  Results: {len(result['tool_results'])} tools completed")
+    print(f"\n  Results: {len(result.tool_results)} tools completed")
     print(f"  Total time: {elapsed:.3f}s")
     print("  Expected: ~0.3s (all 3 run simultaneously)")
     return elapsed
@@ -243,18 +234,16 @@ async def run_sequential(cities: list[str]) -> float:
     )
 
     T0 = time.perf_counter()
-    message = {
-        "role": "assistant",
-        "content": [
-            {
-                "type": "tool_call",
-                "id": f"call_{city.lower().replace(' ', '_')}",
-                "name": "get_weather",
-                "arguments": {"city": city},
-            }
+    message = AssistantMessage(
+        content=[
+            ToolCallContent(
+                id=f"call_{city.lower().replace(' ', '_')}",
+                name="get_weather",
+                arguments={"city": city},
+            )
             for city in cities
-        ],
-    }
+        ]
+    )
 
     result = await execute_sequential(
         tools=[weather_tool],
@@ -264,7 +253,7 @@ async def run_sequential(cities: list[str]) -> float:
     )
 
     elapsed = time.perf_counter() - T0
-    print(f"\n  Results: {len(result['tool_results'])} tools completed")
+    print(f"\n  Results: {len(result.tool_results)} tools completed")
     print(f"  Total time: {elapsed:.3f}s")
     print(f"  Expected: ~{0.3 * len(cities):.1f}s (0.3s × {len(cities)} sequential calls)")
     return elapsed

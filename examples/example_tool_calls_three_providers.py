@@ -20,7 +20,17 @@ from typing import Any
 from dotenv import load_dotenv
 
 from tinyagent import Agent, AgentOptions, extract_text
-from tinyagent.agent_types import AgentEvent, AgentTool, AgentToolResult, Model, TextContent
+from tinyagent.agent_types import (
+    AgentEvent,
+    AgentTool,
+    AgentToolResult,
+    AssistantMessage,
+    Model,
+    TextContent,
+    ToolExecutionEndEvent,
+    ToolExecutionStartEvent,
+    ToolResultMessage,
+)
 from tinyagent.alchemy_provider import OpenAICompatModel, stream_alchemy_openai_completions
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/chat/completions"
@@ -44,7 +54,7 @@ class ProviderRun:
 class ProviderRunCapture:
     provider: str
     tool_starts: list[dict[str, str]] = field(default_factory=list)
-    tool_ends: list[dict[str, str]] = field(default_factory=list)
+    tool_ends: list[dict[str, str | bool]] = field(default_factory=list)
     tool_results: list[dict[str, str]] = field(default_factory=list)
     stop_reason: str = ""
     final_text: str = ""
@@ -60,20 +70,15 @@ async def execute_add_numbers(
     a = float(args["a"])
     b = float(args["b"])
     result = a + b
-    return AgentToolResult(content=[TextContent(type="text", text=str(int(result)))])
+    return AgentToolResult(content=[TextContent(text=str(int(result)))])
 
 
-def _event_type(event: AgentEvent) -> str | None:
-    if isinstance(event, dict):
-        value = event.get("type")
-        return value if isinstance(value, str) else None
-    value = getattr(event, "type", None)
-    return value if isinstance(value, str) else None
-
-
-def _event_attr(event: AgentEvent, key: str) -> str:
-    value = event.get(key) if isinstance(event, dict) else getattr(event, key, "")
-    return value if isinstance(value, str) else ""
+def _event_tool_attrs(event: AgentEvent) -> tuple[str, str] | None:
+    if isinstance(event, ToolExecutionStartEvent):
+        return event.tool_name, event.tool_call_id
+    if isinstance(event, ToolExecutionEndEvent):
+        return event.tool_name, event.tool_call_id
+    return None
 
 
 def _resolve_api_key(provider: str) -> str | None:
@@ -130,19 +135,24 @@ async def run_provider(agent: Agent, run: ProviderRun) -> ProviderRunCapture:
     capture = ProviderRunCapture(provider=run.name)
 
     def on_event(event: AgentEvent) -> None:
-        etype = _event_type(event)
-        if etype == "tool_execution_start":
+        attrs = _event_tool_attrs(event)
+        if attrs is None:
+            return
+        tool_name, tool_call_id = attrs
+
+        if isinstance(event, ToolExecutionStartEvent):
             capture.tool_starts.append(
                 {
-                    "tool_name": _event_attr(event, "tool_name"),
-                    "tool_call_id": _event_attr(event, "tool_call_id"),
+                    "tool_name": tool_name,
+                    "tool_call_id": tool_call_id,
                 }
             )
-        elif etype == "tool_execution_end":
+        elif isinstance(event, ToolExecutionEndEvent):
             capture.tool_ends.append(
                 {
-                    "tool_name": _event_attr(event, "tool_name"),
-                    "tool_call_id": _event_attr(event, "tool_call_id"),
+                    "tool_name": tool_name,
+                    "tool_call_id": tool_call_id,
+                    "is_error": event.is_error,
                 }
             )
 
@@ -154,19 +164,18 @@ async def run_provider(agent: Agent, run: ProviderRun) -> ProviderRunCapture:
     finally:
         unsubscribe()
 
-    capture.stop_reason = str(message.get("stop_reason") or "")
+    if isinstance(message, AssistantMessage):
+        capture.stop_reason = str(message.stop_reason or "")
+        capture.error_message = str(message.error_message or "")
     capture.final_text = extract_text(message)
-    capture.error_message = str(message.get("error_message") or "")
 
-    for msg in agent.state.get("messages", []):
-        if not isinstance(msg, dict):
-            continue
-        if msg.get("role") != "tool_result":
+    for msg in agent.state.messages:
+        if not isinstance(msg, ToolResultMessage):
             continue
         capture.tool_results.append(
             {
-                "tool_name": str(msg.get("tool_name") or ""),
-                "tool_call_id": str(msg.get("tool_call_id") or ""),
+                "tool_name": str(msg.tool_name or ""),
+                "tool_call_id": str(msg.tool_call_id or ""),
             }
         )
 

@@ -1,122 +1,142 @@
 # Agent Types Module
 
-Type definitions for the agent framework. Uses TypedDict for runtime flexibility with type safety.
+Type definitions for the TinyAgent runtime.
+
+All runtime message/event/state contracts are Pydantic models (not `TypedDict`) so
+code paths should use constructor/accessor style APIs instead of dict indexing.
 
 ## Content Types
 
 ### TextContent
+
 ```python
-class TextContent(TypedDict, total=False):
-    type: Literal["text"]
-    text: str
-    text_signature: str | None
+class TextContent(BaseModel):
+    type: Literal["text"] = "text"
+    text: str | None = None
+    text_signature: str | None = None
+    cache_control: CacheControl | None = None
 ```
+
 Text block in a message.
 
 ### ImageContent
+
 ```python
-class ImageContent(TypedDict, total=False):
-    type: Literal["image"]
-    url: str
-    mime_type: str | None
+class ImageContent(BaseModel):
+    type: Literal["image"] = "image"
+    url: str | None = None
+    mime_type: str | None = None
 ```
-Image block (for vision models).
+
+Image block (for vision-capable providers).
 
 ### ThinkingContent
-```python
-class ThinkingContent(TypedDict, total=False):
-    type: Literal["thinking"]
-    thinking: str
-    thinking_signature: str | None
-```
-Reasoning/thinking block returned by models with reasoning capability
-(e.g., `deepseek/deepseek-r1` via alchemy provider with `reasoning=True`).
 
-See [providers.md](providers.md#reasoning-responses) for usage with the alchemy provider.
+```python
+class ThinkingContent(BaseModel):
+    type: Literal["thinking"] = "thinking"
+    thinking: str | None = None
+    thinking_signature: str | None = None
+    cache_control: CacheControl | None = None
+```
+
+Reasoning/thinking block returned by models with reasoning capability.
 
 ### ToolCallContent
+
 ```python
-class ToolCallContent(TypedDict, total=False):
-    type: Literal["tool_call"]
-    id: str
-    name: str
-    arguments: JsonObject
-    partial_json: str
+class ToolCallContent(BaseModel):
+    type: Literal["tool_call"] = "tool_call"
+    id: str | None = None
+    name: str | None = None
+    arguments: JsonObject = Field(default_factory=dict)
+    partial_json: str | None = None
 ```
-Tool invocation block. `partial_json` is used during streaming.
 
 ### AssistantContent
+
 ```python
-AssistantContent: TypeAlias = TextContent | ThinkingContent | ToolCallContent
+AssistantContent = TextContent | ThinkingContent | ToolCallContent
 ```
-Union of all content types that can appear in assistant messages.
 
-**Type Narrowing with TypeGuard**:
+Union of all supported assistant content blocks.
+
+### CacheControl
+
 ```python
-from typing import TypeGuard
-from tinyagent.agent_types import AssistantContent, ThinkingContent, TextContent
-
-def is_thinking_content(block: AssistantContent | None) -> TypeGuard[ThinkingContent]:
-    return block is not None and block.get("type") == "thinking"
-
-def is_text_content(block: AssistantContent | None) -> TypeGuard[TextContent]:
-    return block is not None and block.get("type") == "text"
+class CacheControl(BaseModel):
+    type: str | None = None
 ```
+
+Used for Anthropic-style prompt caching.
 
 ## Message Types
 
 ### UserMessage
+
 ```python
-class UserMessage(TypedDict, total=False):
-    role: Literal["user"]
-    content: list[TextContent | ImageContent]
-    timestamp: int | None
+class UserMessage(BaseModel):
+    role: Literal["user"] = "user"
+    content: list[TextContent | ImageContent] = Field(default_factory=list)
+    timestamp: int | None = None
 ```
-Input from the user.
 
 ### AssistantMessage
+
 ```python
-class AssistantMessage(TypedDict, total=False):
-    role: Literal["assistant"]
-    content: list[AssistantContent | None]
-    stop_reason: StopReason | None
-    timestamp: int | None
-    api: str | None
-    provider: str | None
-    model: str | None
-    usage: JsonObject | None
-    error_message: str | None
+StopReason = Literal[
+    "complete", "error", "aborted", "tool_calls", "stop", "length", "tool_use"
+]
+
+class AssistantMessage(BaseModel):
+    role: Literal["assistant"] = "assistant"
+    content: list[AssistantContent | None] = Field(default_factory=list)
+    stop_reason: StopReason | None = None
+    timestamp: int | None = None
+    api: str | None = None
+    provider: str | None = None
+    model: str | None = None
+    usage: JsonObject | None = None
+    error_message: str | None = None
 ```
-Response from the LLM.
 
 ### ToolResultMessage
+
 ```python
-class ToolResultMessage(TypedDict, total=False):
-    role: Literal["tool_result"]
-    tool_call_id: str
-    tool_name: str
-    content: list[TextContent | ImageContent]
-    details: JsonObject
-    is_error: bool
-    timestamp: int | None
+class ToolResultMessage(BaseModel):
+    role: Literal["tool_result"] = "tool_result"
+    tool_call_id: str | None = None
+    tool_name: str | None = None
+    content: list[TextContent | ImageContent] = Field(default_factory=list)
+    details: JsonObject = Field(default_factory=dict)
+    is_error: bool = False
+    timestamp: int | None = None
 ```
-Result from executing a tool.
 
 ### Message
+
 ```python
 Message = Union[UserMessage, AssistantMessage, ToolResultMessage]
 ```
-LLM-compatible message types only.
+
+LLM-boundary-compatible messages.
 
 ### AgentMessage
+
 ```python
+class CustomAgentMessage(BaseModel):
+    role: str = ""
+    timestamp: int | None = None
+
 AgentMessage = Union[Message, CustomAgentMessage]
 ```
-Internal message type that allows custom roles.
+
+Internal agent messages may include custom roles.
 
 ## Tool Types
 
 ### Tool
+
 ```python
 @dataclass
 class Tool:
@@ -124,29 +144,29 @@ class Tool:
     description: str = ""
     parameters: JsonObject = field(default_factory=dict)
 ```
-Tool schema definition.
 
 ### AgentTool
+
 ```python
 @dataclass
 class AgentTool(Tool):
     label: str = ""
     execute: Callable[..., Awaitable[AgentToolResult]] | None = None
 ```
-Tool with execution function.
 
 ### AgentToolResult
+
 ```python
 @dataclass
 class AgentToolResult:
     content: list[TextContent | ImageContent] = field(default_factory=list)
     details: JsonObject = field(default_factory=dict)
 ```
-Result from tool execution.
 
 ## Context Types
 
 ### Context
+
 ```python
 @dataclass
 class Context:
@@ -154,9 +174,11 @@ class Context:
     messages: list[Message] = field(default_factory=list)
     tools: list[AgentTool] | None = None
 ```
-LLM-compatible context.
+
+LLM-boundary context passed to providers.
 
 ### AgentContext
+
 ```python
 @dataclass
 class AgentContext:
@@ -164,11 +186,13 @@ class AgentContext:
     messages: list[AgentMessage] = field(default_factory=list)
     tools: list[AgentTool] | None = None
 ```
-Internal context with AgentMessage support.
+
+Internal context used by `agent_loop`.
 
 ## Model Types
 
 ### ThinkingLevel
+
 ```python
 class ThinkingLevel(str, Enum):
     OFF = "off"
@@ -178,32 +202,82 @@ class ThinkingLevel(str, Enum):
     HIGH = "high"
     XHIGH = "xhigh"
 ```
-Reasoning level for supported models.
 
 ### Model
+
 ```python
-@dataclass
-class Model:
+class Model(BaseModel):
     provider: str = ""
-    id: str = ""           # Model identifier
-    api: str = ""          # API type (openai, anthropic, etc.)
+    id: str = ""
+    api: str = ""
     thinking_level: ThinkingLevel = ThinkingLevel.OFF
 ```
-Model configuration.
+
+Base model configuration used by all provider streams.
 
 ### SimpleStreamOptions
+
 ```python
-class SimpleStreamOptions(TypedDict, total=False):
-    api_key: str | None
-    temperature: float | None
-    max_tokens: int | None
-    signal: asyncio.Event | None
+class SimpleStreamOptions(BaseModel):
+    api_key: str | None = None
+    temperature: float | None = None
+    max_tokens: int | None = None
+    signal: asyncio.Event | None = None
 ```
-Standard options passed to stream functions.
+
+Options passed to provider stream functions.
 
 ## Event Types
 
+### AssistantMessageEvent
+
+```python
+class AssistantMessageEvent(BaseModel):
+    type: Literal[
+        "start",
+        "text_start",
+        "text_delta",
+        "text_end",
+        "thinking_start",
+        "thinking_delta",
+        "thinking_end",
+        "tool_call_start",
+        "tool_call_delta",
+        "tool_call_end",
+        "done",
+        "error",
+    ] | None = None
+    partial: AssistantMessage | None = None
+    content_index: int | None = None
+    delta: str | None = None
+    content: str | TextContent | ThinkingContent | ToolCallContent | None = None
+    tool_call: ToolCallContent | None = None
+    reason: str | None = None
+    message: AssistantMessage | None = None
+    error: AssistantMessage | str | None = None
+```
+
+Events emitted by providers while streaming an assistant message.
+
+### Event Type Guards
+
+```python
+from tinyagent.agent_types import (
+    is_agent_end_event,
+    is_turn_end_event,
+    is_message_start_or_update_event,
+    is_message_event,
+    is_tool_execution_start_event,
+    is_tool_execution_end_event,
+    is_tool_execution_event,
+)
+```
+
+Use these helpers in event handlers to keep discriminated event branching explicit and
+avoid ad-hoc `getattr`/dict probing.
+
 ### AgentStartEvent / AgentEndEvent
+
 ```python
 @dataclass
 class AgentStartEvent:
@@ -214,9 +288,9 @@ class AgentEndEvent:
     type: Literal["agent_end"] = "agent_end"
     messages: list[AgentMessage] = field(default_factory=list)
 ```
-Agent run lifecycle events.
 
 ### TurnStartEvent / TurnEndEvent
+
 ```python
 @dataclass
 class TurnStartEvent:
@@ -228,9 +302,9 @@ class TurnEndEvent:
     message: AgentMessage | None = None
     tool_results: list[ToolResultMessage] = field(default_factory=list)
 ```
-Single turn lifecycle events.
 
 ### MessageStartEvent / MessageUpdateEvent / MessageEndEvent
+
 ```python
 @dataclass
 class MessageStartEvent:
@@ -248,9 +322,9 @@ class MessageEndEvent:
     type: Literal["message_end"] = "message_end"
     message: AgentMessage | None = None
 ```
-Message streaming events.
 
 ### ToolExecution Events
+
 ```python
 @dataclass
 class ToolExecutionStartEvent:
@@ -275,23 +349,34 @@ class ToolExecutionEndEvent:
     result: AgentToolResult | None = None
     is_error: bool = False
 ```
-Tool execution lifecycle events.
 
-### AgentEvent
+### Event Type Alias
+
 ```python
 AgentEvent = Union[
-    AgentStartEvent, AgentEndEvent,
-    TurnStartEvent, TurnEndEvent,
-    MessageStartEvent, MessageUpdateEvent, MessageEndEvent,
-    ToolExecutionStartEvent, ToolExecutionUpdateEvent, ToolExecutionEndEvent,
+    AgentStartEvent,
+    AgentEndEvent,
+    TurnStartEvent,
+    TurnEndEvent,
+    MessageStartEvent,
+    MessageUpdateEvent,
+    MessageEndEvent,
+    ToolExecutionStartEvent,
+    ToolExecutionUpdateEvent,
+    ToolExecutionEndEvent,
 ]
 ```
-All agent event types.
 
 ## Configuration Types
 
 ### AgentLoopConfig
+
 ```python
+type ConvertToLlmFn = Callable[[list[AgentMessage]], MaybeAwaitable[list[Message]]]
+type TransformContextFn = Callable[[list[AgentMessage], asyncio.Event | None], Awaitable[list[AgentMessage]]]
+type ApiKeyResolver = Callable[[str], MaybeAwaitable[str | None]]
+type AgentMessageProvider = Callable[[], Awaitable[list[AgentMessage]]]
+
 @dataclass
 class AgentLoopConfig:
     model: Model
@@ -304,54 +389,69 @@ class AgentLoopConfig:
     temperature: float | None = None
     max_tokens: int | None = None
 ```
-Configuration for the agent loop.
 
 ### AgentState
+
 ```python
-class AgentState(TypedDict, total=False):
-    system_prompt: str
-    model: Model | None
-    thinking_level: ThinkingLevel
-    tools: list[AgentTool]
-    messages: list[AgentMessage]
-    is_streaming: bool
-    stream_message: AgentMessage | None
-    pending_tool_calls: set[str]
-    error: str | None
+class AgentState(BaseModel):
+    system_prompt: str = ""
+    model: Model | None = None
+    thinking_level: ThinkingLevel = ThinkingLevel.OFF
+    tools: list[AgentTool] = Field(default_factory=list)
+    messages: list[AgentMessage] = Field(default_factory=list)
+    is_streaming: bool = False
+    stream_message: AgentMessage | None = None
+    pending_tool_calls: set[str] = Field(default_factory=set)
+    error: str | None = None
 ```
-Complete agent state snapshot.
 
 ## Protocol Types
 
 ### StreamFn
+
 ```python
-StreamFn: TypeAlias = Callable[
-    [Model, Context, SimpleStreamOptions],
-    Awaitable["StreamResponse"]
-]
+type StreamFn = Callable[[Model, Context, SimpleStreamOptions], Awaitable["StreamResponse"]]
 ```
-Function signature for LLM streaming providers.
 
 ### StreamResponse
+
 ```python
 class StreamResponse(Protocol):
     def result(self) -> Awaitable[AssistantMessage]: ...
     def __aiter__(self) -> AsyncIterator[AssistantMessageEvent]: ...
     async def __anext__(self) -> AssistantMessageEvent: ...
 ```
-Protocol for streaming responses.
 
 ## Utility Types
 
+### Model serialization contract
+
+```python
+from typing import Protocol
+
+@runtime_checkable
+class ModelDumpable(Protocol):
+    def model_dump(self, *, exclude_none: bool = True) -> dict[str, object]: ...
+
+
+def dump_model_dumpable(value: object, *, where: str) -> dict[str, object]:
+    ...
+```
+
+`dump_model_dumpable` is the shared boundary helper used by providers to require
+model-like payloads and fail fast when a message/event/model object does not follow
+`model_dump()` contract.
+
 ### JsonValue / JsonObject
+
 ```python
 JsonPrimitive: TypeAlias = str | int | float | bool | None
 JsonValue: TypeAlias = JsonPrimitive | list["JsonValue"] | dict[str, "JsonValue"]
 JsonObject: TypeAlias = dict[str, JsonValue]
 ```
-JSON-compatible type aliases.
 
 ### EventStream
+
 ```python
 class EventStream:
     def __init__(
@@ -364,4 +464,5 @@ class EventStream:
     def end(self, result: list[AgentMessage]) -> None
     async def result(self) -> list[AgentMessage]
 ```
+
 Async event stream that yields events and returns a final result.

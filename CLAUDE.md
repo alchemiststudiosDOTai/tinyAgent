@@ -60,7 +60,7 @@ Ruff config: line-length 100, max-complexity 10. Max file length: 500 lines (enf
 ```
 Layer 3 (orchestration):  agent
 Layer 2 (coordination):   agent_loop, proxy
-Layer 1 (leaf services):  agent_tool_execution, openrouter_provider,
+Layer 1 (leaf services):  agent_tool_execution,
                           alchemy_provider, proxy_event_handlers, caching
 Layer 0 (foundation):     agent_types
 ```
@@ -69,11 +69,11 @@ Higher layers import lower. Siblings within a layer cannot import each other. `a
 
 ### Key Abstractions
 
-- **`StreamFn`** (`agent_types.py`): Provider abstraction -- a callable `(Model, Context, SimpleStreamOptions) -> Awaitable[StreamResponse]`. Three implementations: `stream_openrouter`, `stream_alchemy_openai_completions`, `stream_proxy`.
+- **`StreamFn`** (`agent_types.py`): Provider abstraction -- a callable `(Model, Context, SimpleStreamOptions) -> Awaitable[StreamResponse]`. Built-in implementations: `stream_alchemy_openai_completions`, `stream_proxy`.
 - **`StreamResponse`** (`agent_types.py`): Protocol (structural typing, not ABC) requiring `result()` and async iteration of `AssistantMessageEvent`.
 - **`AgentTool`** (`agent_types.py`): Tool definition with `execute` callable signature `(tool_call_id, args, signal, on_update) -> AgentToolResult`.
 - **`EventStream`** (`agent_types.py`): Internal async queue with exception propagation from background tasks.
-- **Messages**: TypedDicts (`UserMessage`, `AssistantMessage`, `ToolResultMessage`), not dataclasses -- enables natural dict access and JSON serialization.
+- **Messages**: Pydantic models (`UserMessage`, `AssistantMessage`, `ToolResultMessage`) via a model-dump contract at boundaries.
 
 ### Data Flow: `agent.prompt()` end-to-end
 
@@ -101,7 +101,7 @@ The Rust binding and the `alchemy-llm` crate are maintained by the alchemy team.
 
 ### Provider-Specific API Key Env Vars
 
-Alchemy provider resolves API keys from provider-specific env vars (e.g., `OPENROUTER_API_KEY`). See `alchemy_provider.py:_PROVIDER_API_KEY_ENV`.
+Alchemy provider resolves API keys from provider-specific env vars (`OPENAI_API_KEY`, `MINIMAX_API_KEY`, `MINIMAX_CN_API_KEY`). See `alchemy_provider.py:_PROVIDER_API_KEY_ENV`.
 
 ## Design Patterns
 

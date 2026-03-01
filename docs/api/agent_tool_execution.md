@@ -71,9 +71,7 @@ def validate_tool_arguments(
 
 Validate tool arguments against the tool's schema.
 
-**Current Implementation**: Returns arguments as-is (placeholder).
-
-**Future**: Could use JSON Schema validation against `tool.parameters`.
+**Current Implementation**: Parses JSON-string arguments when needed, then returns a dict payload. No JSON Schema validation is performed in the current runtime.
 
 ## Internal Functions
 
@@ -85,8 +83,6 @@ def _extract_tool_calls(
 ```
 
 Extract all tool call content blocks from an assistant message.
-
-Filters content list for items with `type == "tool_call"`.
 
 ### _find_tool
 ```python
@@ -110,7 +106,7 @@ async def _execute_single_tool(
 ) -> tuple[AgentToolResult, bool]
 ```
 
-Execute a single tool and return (result, is_error).
+Execute a single tool and return `(result, is_error)`.
 
 **Error Handling**:
 - Tool not found: Returns error result
@@ -136,9 +132,9 @@ Create a `ToolResultMessage` from execution result.
 
 ### ToolExecutionResult
 ```python
-class ToolExecutionResult(TypedDict):
-    tool_results: list[ToolResultMessage]
-    steering_messages: list[AgentMessage] | None
+class ToolExecutionResult(BaseModel):
+    tool_results: list[ToolResultMessage] = Field(default_factory=list)
+    steering_messages: list[AgentMessage] | None = None
 ```
 
 Result from executing tool calls.
@@ -172,13 +168,13 @@ async def search_web(
 
     # Optional: send progress updates
     on_update(AgentToolResult(
-        content=[{"type": "text", "text": "Searching..."}]
+        content=[TextContent(type="text", text="Searching...")]
     ))
 
     results = await perform_search(query)
 
     return AgentToolResult(
-        content=[{"type": "text", "text": json.dumps(results)}],
+        content=[TextContent(type="text", text=json.dumps(results))],
         details={"result_count": len(results)}
     )
 ```
