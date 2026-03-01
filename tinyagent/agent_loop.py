@@ -33,6 +33,7 @@ from .agent_types import (
     StreamResponse,
     TurnEndEvent,
     TurnStartEvent,
+    is_agent_end_event,
 )
 
 
@@ -53,10 +54,10 @@ def create_agent_stream() -> EventStream:
     """Create an event stream for agent events."""
 
     def is_end_event(event: AgentEvent) -> bool:
-        return hasattr(event, "type") and event.type == "agent_end"
+        return is_agent_end_event(event)
 
     def get_result(event: AgentEvent) -> list[AgentMessage]:
-        if hasattr(event, "type") and event.type == "agent_end" and hasattr(event, "messages"):
+        if is_agent_end_event(event):
             return event.messages
         return []
 
@@ -116,16 +117,12 @@ async def _resolve_api_key(config: AgentLoopConfig) -> str | None:
 def _coerce_assistant_message(raw_message: object) -> AssistantMessage:
     if isinstance(raw_message, AssistantMessage):
         return raw_message
-    if isinstance(raw_message, dict):
-        return AssistantMessage.model_validate(raw_message)
     raise TypeError(f"Unsupported assistant message payload: {type(raw_message).__name__}")
 
 
 def _coerce_assistant_event(raw_event: object) -> AssistantMessageEvent:
     if isinstance(raw_event, AssistantMessageEvent):
         return raw_event
-    if isinstance(raw_event, dict):
-        return AssistantMessageEvent.model_validate(raw_event)
     raise TypeError(f"Unsupported assistant event payload: {type(raw_event).__name__}")
 
 

@@ -6,7 +6,7 @@ import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Literal, Protocol, TypeAlias, TypeVar, Union, cast
+from typing import Literal, Protocol, TypeAlias, TypeGuard, TypeVar, Union, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import TypeAliasType
@@ -47,6 +47,26 @@ class _AgentBaseModel(BaseModel):
     """Shared model configuration for migrated message/state models."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
+
+
+@runtime_checkable
+class ModelDumpable(Protocol):
+    """Protocol for values that support Pydantic-style model serialization."""
+
+    def model_dump(self, *, exclude_none: bool = True) -> dict[str, object]:
+        del exclude_none
+        raise NotImplementedError
+
+
+def dump_model_dumpable(value: object, *, where: str) -> dict[str, object]:
+    """Serialize a model payload via the shared model_dump contract."""
+
+    if not isinstance(value, ModelDumpable):
+        raise TypeError(f"{where}: expected model payload with model_dump(exclude_none=True)")
+    dumped = value.model_dump(exclude_none=True)
+    if not isinstance(dumped, dict):
+        raise TypeError(f"{where}: model_dump(exclude_none=True) must return a dict")
+    return dumped
 
 
 class ThinkingBudgets(_AgentBaseModel):
@@ -254,8 +274,7 @@ class AgentContext:
     tools: list[AgentTool] | None = None
 
 
-@dataclass
-class Model:
+class Model(_AgentBaseModel):
     """Model configuration."""
 
     provider: str = ""
@@ -418,6 +437,47 @@ AgentEvent = Union[
 ]
 
 
+MessageEvent = MessageStartEvent | MessageUpdateEvent | MessageEndEvent
+ToolExecutionEvent = ToolExecutionStartEvent | ToolExecutionUpdateEvent | ToolExecutionEndEvent
+
+
+def is_agent_end_event(event: AgentEvent) -> TypeGuard[AgentEndEvent]:
+    return isinstance(event, AgentEndEvent)
+
+
+def is_turn_end_event(event: AgentEvent) -> TypeGuard[TurnEndEvent]:
+    return isinstance(event, TurnEndEvent)
+
+
+def is_message_start_or_update_event(
+    event: AgentEvent,
+) -> TypeGuard[MessageStartEvent | MessageUpdateEvent]:
+    return isinstance(event, MessageStartEvent | MessageUpdateEvent)
+
+
+def is_message_end_event(event: AgentEvent) -> TypeGuard[MessageEndEvent]:
+    return isinstance(event, MessageEndEvent)
+
+
+def is_message_event(event: AgentEvent) -> TypeGuard[MessageEvent]:
+    return isinstance(event, MessageStartEvent | MessageUpdateEvent | MessageEndEvent)
+
+
+def is_tool_execution_start_event(event: AgentEvent) -> TypeGuard[ToolExecutionStartEvent]:
+    return isinstance(event, ToolExecutionStartEvent)
+
+
+def is_tool_execution_end_event(event: AgentEvent) -> TypeGuard[ToolExecutionEndEvent]:
+    return isinstance(event, ToolExecutionEndEvent)
+
+
+def is_tool_execution_event(event: AgentEvent) -> TypeGuard[ToolExecutionEvent]:
+    return isinstance(
+        event,
+        ToolExecutionStartEvent | ToolExecutionUpdateEvent | ToolExecutionEndEvent,
+    )
+
+
 @dataclass
 class AgentLoopConfig:
     """Configuration for the agent loop."""
@@ -447,6 +507,14 @@ class AgentState(_AgentBaseModel):
     error: str | None = None
 
 
+@dataclass(frozen=True)
+class _WakeupSignal:
+    """Internal queue marker used to wake blocked stream consumers."""
+
+
+EventStreamQueueItem: TypeAlias = AgentEvent | _WakeupSignal
+
+
 class EventStream:
     """Async event stream that yields events and returns a final result.
 
@@ -455,14 +523,14 @@ class EventStream:
     of the stream. Otherwise callers awaiting `agent.prompt()` can hang forever.
     """
 
-    _WAKEUP_SENTINEL = object()
+    _WAKEUP_SENTINEL = _WakeupSignal()
 
     def __init__(
         self,
         is_end_event: Callable[[AgentEvent], bool],
         get_result: Callable[[AgentEvent], list[AgentMessage]],
     ):
-        self._queue: asyncio.Queue[AgentEvent | object] = asyncio.Queue()
+        self._queue: asyncio.Queue[EventStreamQueueItem] = asyncio.Queue()
         self._is_end_event = is_end_event
         self._get_result = get_result
         self._result: list[AgentMessage] | None = None
@@ -506,7 +574,7 @@ class EventStream:
                     raise StopAsyncIteration
 
             queued_item = await self._queue.get()
-            if queued_item is self._WAKEUP_SENTINEL:
+            if isinstance(queued_item, _WakeupSignal):
                 if self._exception is not None:
                     exc = self._exception
                     self._exception = None
@@ -515,7 +583,7 @@ class EventStream:
                     raise StopAsyncIteration
                 continue
 
-            event = cast(AgentEvent, queued_item)
+            event = queued_item
             if self._is_end_event(event):
                 self._result = self._get_result(event)
                 self._ended = True

@@ -21,8 +21,6 @@ from .agent_types import (
     ImageContent,
     MaybeAwaitable,
     Message,
-    MessageEndEvent,
-    MessageStartEvent,
     MessageUpdateEvent,
     Model,
     StreamFn,
@@ -31,7 +29,13 @@ from .agent_types import (
     ThinkingContent,
     ThinkingLevel,
     ToolCallContent,
+    ToolResultMessage,
     UserMessage,
+    is_message_end_event,
+    is_message_start_or_update_event,
+    is_tool_execution_end_event,
+    is_tool_execution_start_event,
+    is_turn_end_event,
 )
 from .caching import add_cache_breakpoints
 
@@ -42,7 +46,7 @@ def _on_message_start_or_update(
     partial_holder: list[AgentMessage | None],
     append_message: Callable[[AgentMessage], None],
 ) -> None:
-    if not isinstance(event, MessageStartEvent | MessageUpdateEvent):
+    if not is_message_start_or_update_event(event):
         return
     partial_holder[0] = event.message
     state.stream_message = partial_holder[0]
@@ -56,20 +60,18 @@ def _on_message_end(
 ) -> None:
     partial_holder[0] = None
     state.stream_message = None
-    if not isinstance(event, MessageEndEvent):
+    if not is_message_end_event(event):
         return
     if event.message is not None:
         append_message(event.message)
 
 
-def _update_pending_tool_calls(state: AgentState, event: AgentEvent, *, is_start: bool) -> None:
+def _update_pending_tool_calls(state: AgentState, tool_call_id: str, *, is_start: bool) -> None:
     pending = set(state.pending_tool_calls)
-    tool_call_id = getattr(event, "tool_call_id", None)
-    if isinstance(tool_call_id, str):
-        if is_start:
-            pending.add(tool_call_id)
-        else:
-            pending.discard(tool_call_id)
+    if is_start:
+        pending.add(tool_call_id)
+    else:
+        pending.discard(tool_call_id)
     state.pending_tool_calls = pending
 
 
@@ -79,7 +81,9 @@ def _on_tool_execution_start(
     partial_holder: list[AgentMessage | None],
     append_message: Callable[[AgentMessage], None],
 ) -> None:
-    _update_pending_tool_calls(state, event, is_start=True)
+    if not is_tool_execution_start_event(event):
+        return
+    _update_pending_tool_calls(state, event.tool_call_id, is_start=True)
 
 
 def _on_tool_execution_end(
@@ -88,7 +92,9 @@ def _on_tool_execution_end(
     partial_holder: list[AgentMessage | None],
     append_message: Callable[[AgentMessage], None],
 ) -> None:
-    _update_pending_tool_calls(state, event, is_start=False)
+    if not is_tool_execution_end_event(event):
+        return
+    _update_pending_tool_calls(state, event.tool_call_id, is_start=False)
 
 
 def _on_turn_end(
@@ -97,11 +103,13 @@ def _on_turn_end(
     partial_holder: list[AgentMessage | None],
     append_message: Callable[[AgentMessage], None],
 ) -> None:
-    msg = getattr(event, "message", None)
-    if getattr(msg, "role", None) == "assistant":
-        error_message = getattr(msg, "error_message", None)
-        if isinstance(error_message, str) and error_message:
-            state.error = error_message
+    if not is_turn_end_event(event):
+        return
+    if not isinstance(event.message, AssistantMessage):
+        return
+    error_message = event.message.error_message
+    if isinstance(error_message, str) and error_message:
+        state.error = error_message
 
 
 def _on_agent_end(
@@ -181,13 +189,11 @@ def extract_text(message: AgentMessage | None) -> str:
 
     if not message:
         return ""
-
-    content_val = getattr(message, "content", None)
-    if not isinstance(content_val, list):
+    if not isinstance(message, UserMessage | AssistantMessage | ToolResultMessage):
         return ""
 
     parts: list[str] = []
-    for item in content_val:
+    for item in message.content:
         if isinstance(item, TextContent) and isinstance(item.text, str):
             parts.append(item.text)
     return "".join(parts)

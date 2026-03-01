@@ -82,34 +82,23 @@ def _any_block_has_cache_control(blocks: Sequence[object]) -> bool:
     for block in blocks:
         if isinstance(block, TextContent) and block.cache_control is not None:
             return True
-        if isinstance(block, dict) and block.get("cache_control") is not None:
-            return True
     return False
 
 
 def _context_has_cache_control(context: Context) -> bool:
     """Check if any message in the context has cache_control on a text block."""
     for msg in context.messages:
-        content = (
-            cast(list[object], msg.get("content", []))
-            if isinstance(msg, dict)
-            else cast(list[object], msg.content)
-        )
+        content = cast(list[object], msg.content)
         for block in content:
             if isinstance(block, TextContent) and block.cache_control is not None:
-                return True
-            if isinstance(block, dict) and block.get("cache_control") is not None:
                 return True
     return False
 
 
 def _extract_text_from_block(block: object) -> str | None:
-    """Extract text value from a TextContent model or dict."""
+    """Extract text value from a TextContent model."""
     if isinstance(block, TextContent):
         return block.text if isinstance(block.text, str) else None
-    if isinstance(block, dict) and block.get("type") == "text":
-        text_val = block.get("text")
-        return text_val if isinstance(text_val, str) else None
     return None
 
 
@@ -119,12 +108,6 @@ def _convert_block_to_structured(block: object) -> dict[str, object] | None:
         entry: dict[str, object] = {"type": "text", "text": block.text or ""}
         if block.cache_control is not None:
             entry["cache_control"] = block.cache_control.model_dump(exclude_none=True)
-        return entry
-    if isinstance(block, dict) and block.get("type") == "text":
-        entry = {"type": "text", "text": block.get("text", "")}
-        cache_control = block.get("cache_control")
-        if cache_control is not None:
-            entry["cache_control"] = cache_control
         return entry
     return None
 
@@ -151,11 +134,7 @@ def _extract_text_parts(content: list[object]) -> list[str]:
 
 def _convert_user_message(msg: UserMessage) -> dict[str, object]:
     """Convert a UserMessage to OpenAI-compatible dict format."""
-    content: list[object] = (
-        cast(list[object], msg.get("content", []))
-        if isinstance(msg, dict)
-        else cast(list[object], msg.content)
-    )
+    content = cast(list[object], msg.content)
     if _any_block_has_cache_control(content):
         return {"role": "user", "content": _convert_blocks_structured(content)}
     return {"role": "user", "content": "\n".join(_extract_text_parts(content))}

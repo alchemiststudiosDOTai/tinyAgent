@@ -112,6 +112,16 @@ The migration away from TypedDict-based runtime models is a **full hard cutover*
 - `.get()` is allowed only on raw wire payload dicts at provider/protocol boundaries (SSE chunks, raw JSON).
 - If you touch dict-style usage of migrated models, convert it in the same change.
 
+### Hard Cutover Harness
+
+Use `harness/tool_call_types_harness.py` as the live cutover proof harness.
+
+- It must run a real API call using keys from `.env` (via Rust/alchemy provider path).
+- It must execute exactly one real tool call.
+- Output must stay minimal: type names only.
+- The harness path is strict: direct model/event types end-to-end, zero dict/model shim branches.
+- Run with: `uv run python harness/tool_call_types_harness.py`
+
 ## Design Patterns
 
 - **Table-driven dispatch**: Event handlers in `agent.py` and `proxy_event_handlers.py` use dicts mapping event types to handler functions

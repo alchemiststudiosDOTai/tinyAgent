@@ -33,6 +33,7 @@ from .agent_types import (
     JsonObject,
     Model,
     SimpleStreamOptions,
+    dump_model_dumpable,
 )
 
 ReasoningEffort: TypeAlias = Literal["minimal", "low", "medium", "high", "xhigh"]
@@ -121,7 +122,6 @@ def _get_alchemy_module() -> _AlchemyModule:
     return _ALCHEMY_MODULE
 
 
-@dataclass
 class OpenAICompatModel(Model):
     """Model config for OpenAI-compatible chat/completions endpoints."""
 
@@ -187,34 +187,18 @@ def _convert_tools(tools: list[AgentTool] | None) -> list[dict[str, Any]] | None
     return out
 
 
-def _dump_model_payload(value: object, *, where: str) -> dict[str, Any]:
-    if isinstance(value, dict):
-        return cast(dict[str, Any], value)
-    model_dump = getattr(value, "model_dump", None)
-    if callable(model_dump):
-        dumped = model_dump(exclude_none=True)
-        if isinstance(dumped, dict):
-            return cast(dict[str, Any], dumped)
-    raise RuntimeError(f"{where}: unsupported payload type {type(value)!r}")
-
-
 def _resolve_base_url(model: Model) -> str:
-    base_url = getattr(model, "base_url", DEFAULT_OPENAI_COMPAT_CHAT_COMPLETIONS_URL)
-    if not isinstance(base_url, str) or not base_url.strip():
+    if not isinstance(model, OpenAICompatModel):
+        return DEFAULT_OPENAI_COMPAT_CHAT_COMPLETIONS_URL
+    base_url = model.base_url.strip()
+    if not base_url:
         raise ValueError("Model `base_url` must be a non-empty string")
-    return base_url.strip()
+    return base_url
 
 
 def _resolve_provider(model: Model) -> str:
-    raw_provider = getattr(model, "provider", "")
-    if not isinstance(raw_provider, str):
-        return "openai"
-
-    provider = raw_provider.strip()
-    if provider:
-        return provider
-
-    return "openai"
+    provider = model.provider.strip()
+    return provider or "openai"
 
 
 def _canonicalize_api(raw_api: str) -> str:
@@ -247,11 +231,9 @@ def _resolve_model_api(model: Model, provider: str) -> str:
        else openai-completions)
     """
 
-    raw_api = getattr(model, "api", "")
-    if isinstance(raw_api, str):
-        explicit = _canonicalize_api(raw_api)
-        if explicit:
-            return explicit
+    explicit = _canonicalize_api(model.api)
+    if explicit:
+        return explicit
 
     return _infer_api_from_provider(provider)
 
@@ -281,23 +263,34 @@ async def stream_alchemy_openai_completions(
     provider = _resolve_provider(model)
     base_url = _resolve_base_url(model)
     api = _resolve_model_api(model, provider)
+    name: str | None = None
+    headers: dict[str, str] | None = None
+    reasoning: ReasoningMode = False
+    context_window: int | None = None
+    max_tokens: int | None = None
+    if isinstance(model, OpenAICompatModel):
+        name = model.name
+        headers = model.headers
+        reasoning = model.reasoning
+        context_window = model.context_window
+        max_tokens = model.max_tokens
 
     model_dict: dict[str, Any] = {
         "id": model.id,
         "provider": provider,
         "api": api,
         "base_url": base_url,
-        "name": getattr(model, "name", None),
-        "headers": getattr(model, "headers", None),
-        "reasoning": getattr(model, "reasoning", False),
-        "context_window": getattr(model, "context_window", None),
-        "max_tokens": getattr(model, "max_tokens", None),
+        "name": name,
+        "headers": headers,
+        "reasoning": reasoning,
+        "context_window": context_window,
+        "max_tokens": max_tokens,
     }
 
     context_dict: dict[str, Any] = {
         "system_prompt": context.system_prompt or "",
         "messages": [
-            _dump_model_payload(message, where="context.messages") for message in context.messages
+            dump_model_dumpable(message, where="context.messages") for message in context.messages
         ],
         "tools": _convert_tools(context.tools),
     }

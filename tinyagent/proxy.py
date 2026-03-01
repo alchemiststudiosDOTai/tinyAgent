@@ -25,6 +25,7 @@ from .agent_types import (
     JsonValue,
     Model,
     StreamResponse,
+    dump_model_dumpable,
 )
 from .proxy_event_handlers import process_proxy_event
 
@@ -80,16 +81,8 @@ def _model_to_json(model: Model) -> JsonObject:
 
 
 def _message_to_json(message: object) -> JsonObject:
-    if isinstance(message, dict):
-        return cast(JsonObject, message)
-
-    model_dump = getattr(message, "model_dump", None)
-    if callable(model_dump):
-        dumped = model_dump(exclude_none=True)
-        if isinstance(dumped, dict):
-            return cast(JsonObject, dumped)
-
-    raise TypeError(f"Unsupported message payload type for proxy serialization: {type(message)!r}")
+    dumped = dump_model_dumpable(message, where="context.messages")
+    return cast(JsonObject, dumped)
 
 
 def _context_to_json(context: Context) -> JsonObject:

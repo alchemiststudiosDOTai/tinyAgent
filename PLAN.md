@@ -21,6 +21,29 @@ This plan addresses all five issues from `RESEARCH.md`:
 4. Missing serializable protocol (`model_dump` probing)
 5. `cast(AgentEvent, ...)` in `EventStream`
 
+## Current Status (2026-03-01)
+
+Completed:
+
+1. **Phase 1** completed (`agent_types.py` hard cutover foundation).
+2. **Phase 2** completed (`alchemy_provider.py` + `proxy.py` serializer/model contract cleanup).
+3. **Phase 3** completed (`caching.py` + `agent.py` + `agent_loop.py` message/event hard cutover).
+4. Live cutover harness added at `harness/tool_call_types_harness.py` and validated with a real `.env` API key + real tool call.
+5. **Phase 4** completed (test refactor + coverage additions for event type guards, EventStream behavior, provider serializer strictness, caching model-only flow, and agent pending/error regressions).
+6. **Phase 5** completed (live harness gate + Rust smoke validation on configured providers).
+
+Validation run during implementation:
+
+```bash
+uv run ruff check tinyagent/agent_types.py tinyagent/alchemy_provider.py tinyagent/proxy.py tinyagent/caching.py tinyagent/agent.py tinyagent/agent_loop.py harness/tool_call_types_harness.py
+uv run pytest -q tests/test_alchemy_provider.py tests/test_usage_contracts.py tests/test_caching.py tests/test_contracts.py tests/test_parallel_tool_execution.py tests/architecture/
+uv run python harness/tool_call_types_harness.py
+uv run pytest -q tests/test_agent.py tests/test_agent_types.py tests/test_proxy.py tests/test_caching.py tests/test_alchemy_provider.py tests/test_usage_contracts.py tests/test_parallel_tool_execution.py
+HARNESS_DEBUG=1 HARNESS_TIMEOUT_SECONDS=90 uv run python -u harness/tool_call_types_harness.py
+uv run python harness/tool_call_types_harness.py
+uv run python -u scripts/smoke_rust_tool_calls_three_providers.py
+```
+
 ## Phase 0: Baseline + Safety Rails
 
 1. Freeze baseline behavior with current tests.
@@ -36,6 +59,8 @@ rg -n "getattr\(model|getattr\(event|isinstance\(msg, dict\)|model_dump\", None\
 ```
 
 ## Phase 1: Foundation Contract Hard Cutover (Layer 0)
+
+Status: **Completed**
 
 Target file: `tinyagent/agent_types.py`
 
@@ -55,6 +80,8 @@ rg -n "_WAKEUP_SENTINEL = object\(\)" tinyagent/agent_types.py
 Both should return no results.
 
 ## Phase 2: Provider Serialization Contract (Layers 1-2)
+
+Status: **Completed**
 
 Target files:
 
@@ -76,6 +103,8 @@ rg -n "model_dump\", None\)" tinyagent/alchemy_provider.py tinyagent/proxy.py
 Both should return no results.
 
 ## Phase 3: Message Hard Cutover (Layers 1-3)
+
+Status: **Completed**
 
 Target files:
 
@@ -99,6 +128,8 @@ Should return only boundary-safe cases (or nothing).
 
 ## Phase 4: Test Refactor + Coverage Additions
 
+Status: **Completed**
+
 Target tests:
 
 - `tests/test_caching.py`
@@ -106,6 +137,8 @@ Target tests:
 - `tests/test_usage_contracts.py`
 - `tests/test_parallel_tool_execution.py`
 - `tests/test_agent.py` (and related stream/event tests)
+- `tests/test_agent_types.py`
+- `tests/test_proxy.py`
 
 Add/adjust tests for:
 
@@ -117,7 +150,22 @@ Add/adjust tests for:
 
 ## Phase 5: Live Validation with `.env` Keys
 
+Status: **Completed**
+
 Run live tests after unit/architecture suite is green.
+
+Hard cutover harness (mandatory gate):
+
+```bash
+uv run python harness/tool_call_types_harness.py
+```
+
+Harness pass criteria:
+
+1. Uses a real `.env` provider key and real Rust/alchemy stream call.
+2. Executes exactly one tool call (script raises if not exactly one).
+3. Prints minimal type-only output (event/message/content/result type names).
+4. No dict/model shim path is exercised in the harness flow.
 
 Primary smoke:
 
@@ -139,7 +187,15 @@ Expected result:
 2. No runtime attribute errors from removed `getattr`/dict branches.
 3. Usage contract fields remain present and valid.
 
+Observed (2026-03-01):
+
+1. Harness gate passed with minimal type-only output and exactly one tool call.
+2. Rust 3-provider smoke passed for OpenRouter and Chutes.
+3. MiniMax path was skipped because `MINIMAX_API_KEY` was not set in `.env`.
+
 ## Phase 6: Docs + Release Hygiene
+
+Status: **Remaining**
 
 1. Update docs that still describe TypedDict runtime behavior:
    - `docs/api/agent_types.md`
@@ -151,17 +207,20 @@ Expected result:
 
 1. All five issues in `RESEARCH.md` are removed in code, not masked.
 2. No compatibility shims remain for dict/model dual runtime paths.
-3. `uv run pytest -q` passes.
-4. `uv run pytest tests/architecture/ -x -q` passes.
-5. Live smoke with `.env` provider keys passes.
-6. Grep checks confirm removal of unsafe patterns.
+3. Hard cutover harness passes: `uv run python harness/tool_call_types_harness.py`.
+4. `uv run pytest -q` passes.
+5. `uv run pytest tests/architecture/ -x -q` passes.
+6. Live smoke with `.env` provider keys passes.
+7. Grep checks confirm removal of unsafe patterns.
 
 ## Execution Order (Recommended)
+
+Completed:
 
 1. `agent_types.py` contracts and EventStream typing
 2. provider serialization and model typing (`alchemy_provider.py`, `proxy.py`)
 3. message/caching/agent handler cleanup (`caching.py`, `agent_loop.py`, `agent.py`)
-4. test updates
-5. live smoke and docs/changelog
 
-This order minimizes churn by stabilizing core contracts first, then migrating dependents.
+Remaining:
+
+6. docs/changelog updates (phase 6)
