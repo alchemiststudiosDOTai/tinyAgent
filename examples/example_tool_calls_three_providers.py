@@ -54,7 +54,7 @@ class ProviderRun:
 class ProviderRunCapture:
     provider: str
     tool_starts: list[dict[str, str]] = field(default_factory=list)
-    tool_ends: list[dict[str, str]] = field(default_factory=list)
+    tool_ends: list[dict[str, str | bool]] = field(default_factory=list)
     tool_results: list[dict[str, str]] = field(default_factory=list)
     stop_reason: str = ""
     final_text: str = ""
@@ -70,7 +70,7 @@ async def execute_add_numbers(
     a = float(args["a"])
     b = float(args["b"])
     result = a + b
-    return AgentToolResult(content=[TextContent(type="text", text=str(int(result)))])
+    return AgentToolResult(content=[TextContent(text=str(int(result)))])
 
 
 def _event_tool_attrs(event: AgentEvent) -> tuple[str, str] | None:
@@ -152,6 +152,7 @@ async def run_provider(agent: Agent, run: ProviderRun) -> ProviderRunCapture:
                 {
                     "tool_name": tool_name,
                     "tool_call_id": tool_call_id,
+                    "is_error": event.is_error,
                 }
             )
 

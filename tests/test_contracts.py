@@ -18,6 +18,7 @@ from tinyagent.proxy_event_handlers import (
     _is_text_content,
     _is_thinking_content,
     _is_tool_call,
+    process_proxy_event,
 )
 
 # -- Type guard contracts --
@@ -50,6 +51,27 @@ class TestTypeGuards:
         assert _is_text_content(None) is False
         assert _is_thinking_content(None) is False
         assert _is_tool_call(None) is False
+
+
+# -- Proxy event contracts --
+
+
+class TestProxyEvents:
+    """Proxy event handling guards malformed indices."""
+
+    def test_negative_content_index_is_clamped_to_zero(self) -> None:
+        partial = AssistantMessage(content=[])
+        event = process_proxy_event(
+            {
+                "type": "text_start",
+                "contentIndex": -5,
+            },
+            partial,
+        )
+
+        assert event is not None
+        assert event.content_index == 0
+        assert isinstance(partial.content[0], TextContent)
 
 
 # -- Message role contracts --

@@ -48,7 +48,9 @@ ProxyEventHandler: TypeAlias = Callable[
 
 def _get_content_index(proxy_event: JsonObject) -> int:
     value = proxy_event.get("contentIndex")
-    return value if isinstance(value, int) else 0
+    if not isinstance(value, int) or isinstance(value, bool):
+        return 0
+    return max(value, 0)
 
 
 def _ensure_content_slot(partial: AssistantMessage, index: int) -> list[AssistantContent | None]:

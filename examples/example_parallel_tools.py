@@ -51,7 +51,7 @@ def _extract_tool_calls(assistant_message: AssistantMessage) -> list[ToolCallCon
 
 
 def _create_error_result(text: str) -> AgentToolResult:
-    return AgentToolResult(content=[TextContent(type="text", text=text)], details={})
+    return AgentToolResult(content=[TextContent(text=text)], details={})
 
 
 def _create_tool_result_message(
@@ -66,7 +66,7 @@ def _create_tool_result_message(
         content=result.content,
         details=result.details,
         is_error=is_error,
-        timestamp=int(asyncio.get_running_loop().time() * 1000),
+        timestamp=int(time.time() * 1000),
     )
 
 
@@ -80,7 +80,7 @@ async def execute_get_weather(
     await asyncio.sleep(0.3)  # simulate network latency
     city_key = str(city).lower().replace(" ", "_")
     weather = FAKE_WEATHER.get(city_key, "no data")
-    return AgentToolResult(content=[TextContent(type="text", text=f"{city}: {weather}")])
+    return AgentToolResult(content=[TextContent(text=f"{city}: {weather}")])
 
 
 weather_tool = AgentTool(

@@ -65,6 +65,12 @@ def test_resolve_api_key_openai_env(monkeypatch: pytest.MonkeyPatch) -> None:
     assert _resolve_api_key(model, SimpleStreamOptions()) == "env-openai"
 
 
+def test_resolve_api_key_openrouter_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENROUTER_API_KEY", "env-openrouter")
+    model = Model(provider="openrouter", id="x", api="openai-completions")
+    assert _resolve_api_key(model, SimpleStreamOptions()) == "env-openrouter"
+
+
 def test_resolve_api_key_minimax_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MINIMAX_API_KEY", "env-minimax")
     model = Model(provider="minimax", id="MiniMax-M2.5", api="minimax-completions")
@@ -119,7 +125,6 @@ class _FakeAlchemyModule:
         return _FakeHandle()
 
 
-@pytest.mark.asyncio
 async def test_stream_alchemy_rejects_message_without_model_dump(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -131,7 +136,7 @@ async def test_stream_alchemy_rejects_message_without_model_dump(
         messages=bad_messages,
     )
 
-    with pytest.raises(TypeError, match="context.messages"):
+    with pytest.raises(TypeError, match=r"context\.messages"):
         await stream_alchemy_openai_completions(
             Model(provider="openai", id="gpt-4o-mini", api="openai-completions"),
             context,
@@ -139,7 +144,6 @@ async def test_stream_alchemy_rejects_message_without_model_dump(
         )
 
 
-@pytest.mark.asyncio
 async def test_stream_alchemy_rejects_model_dump_returning_non_dict(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -164,7 +168,6 @@ async def test_stream_alchemy_rejects_model_dump_returning_non_dict(
         )
 
 
-@pytest.mark.asyncio
 async def test_stream_alchemy_accepts_valid_model_messages(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
