@@ -44,10 +44,12 @@ Legacy aliases are not required by the current provider path.
 
 1. `options.api_key`
 2. `OPENAI_API_KEY` when `provider == "openai"`
-3. `MINIMAX_API_KEY` when `provider == "minimax"`
-4. `MINIMAX_CN_API_KEY` when `provider == "minimax-cn"`
+3. `OPENROUTER_API_KEY` when `provider == "openrouter"`
+4. `MINIMAX_API_KEY` when `provider == "minimax"`
+5. `MINIMAX_CN_API_KEY` when `provider == "minimax-cn"`
 
-For non-OpenAI/minimax providers (for example `provider="openrouter"`), pass the key explicitly.
+For `provider="openrouter"`, env fallback works out of the box. Passing
+`options.api_key` explicitly is still supported and takes precedence.
 
 ### Base URL behavior
 

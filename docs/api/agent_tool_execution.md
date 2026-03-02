@@ -103,6 +103,7 @@ async def _execute_single_tool(
     tool_call: ToolCallContent,
     signal: asyncio.Event | None,
     stream: EventStream,
+    parent_task: asyncio.Task[object] | None,
 ) -> tuple[AgentToolResult, bool]
 ```
 

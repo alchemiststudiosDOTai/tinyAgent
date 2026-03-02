@@ -101,7 +101,7 @@ The Rust binding and the `alchemy-llm` crate are maintained by the alchemy team.
 
 ### Provider-Specific API Key Env Vars
 
-Alchemy provider resolves API keys from provider-specific env vars (`OPENAI_API_KEY`, `MINIMAX_API_KEY`, `MINIMAX_CN_API_KEY`). See `alchemy_provider.py:_PROVIDER_API_KEY_ENV`.
+Alchemy provider resolves API keys from provider-specific env vars (`OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `MINIMAX_API_KEY`, `MINIMAX_CN_API_KEY`). See `alchemy_provider.py:_PROVIDER_API_KEY_ENV`.
 
 ## Design Patterns
 

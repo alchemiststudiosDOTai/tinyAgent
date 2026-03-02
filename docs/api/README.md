@@ -85,13 +85,14 @@ Content Types
 ### Callback Signatures
 
 ```python
+import asyncio
 from typing import Awaitable, Callable
 from tinyagent import AgentMessage, Message, AgentToolResult
 
 # Convert messages before LLM call
 ConvertToLlmCallback = Callable[
     [list[AgentMessage]],
-    Awaitable[list[Message]]
+    list[Message] | Awaitable[list[Message]]
 ]
 
 # Transform context before LLM call
@@ -103,7 +104,7 @@ TransformContextCallback = Callable[
 # Resolve API key dynamically
 ApiKeyResolverCallback = Callable[
     [str],  # provider name
-    Awaitable[str | None]
+    str | None | Awaitable[str | None]
 ]
 
 # Tool progress updates

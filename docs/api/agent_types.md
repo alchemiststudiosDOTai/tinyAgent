@@ -2,8 +2,9 @@
 
 Type definitions for the TinyAgent runtime.
 
-All runtime message/event/state contracts are Pydantic models (not `TypedDict`) so
-code paths should use constructor/accessor style APIs instead of dict indexing.
+Runtime messages and state contracts are Pydantic models (not `TypedDict`), while
+lifecycle `AgentEvent` variants are dataclasses. Use constructor/accessor style APIs
+instead of dict indexing in migrated paths.
 
 ## Content Types
 
@@ -372,10 +373,13 @@ AgentEvent = Union[
 ### AgentLoopConfig
 
 ```python
-type ConvertToLlmFn = Callable[[list[AgentMessage]], MaybeAwaitable[list[Message]]]
-type TransformContextFn = Callable[[list[AgentMessage], asyncio.Event | None], Awaitable[list[AgentMessage]]]
-type ApiKeyResolver = Callable[[str], MaybeAwaitable[str | None]]
-type AgentMessageProvider = Callable[[], Awaitable[list[AgentMessage]]]
+ConvertToLlmFn: TypeAlias = Callable[[list[AgentMessage]], MaybeAwaitable[list[Message]]]
+TransformContextFn: TypeAlias = Callable[
+    [list[AgentMessage], asyncio.Event | None],
+    Awaitable[list[AgentMessage]],
+]
+ApiKeyResolver: TypeAlias = Callable[[str], MaybeAwaitable[str | None]]
+AgentMessageProvider: TypeAlias = Callable[[], Awaitable[list[AgentMessage]]]
 
 @dataclass
 class AgentLoopConfig:
@@ -410,7 +414,7 @@ class AgentState(BaseModel):
 ### StreamFn
 
 ```python
-type StreamFn = Callable[[Model, Context, SimpleStreamOptions], Awaitable["StreamResponse"]]
+StreamFn: TypeAlias = Callable[[Model, Context, SimpleStreamOptions], Awaitable["StreamResponse"]]
 ```
 
 ### StreamResponse
@@ -445,8 +449,13 @@ model-like payloads and fail fast when a message/event/model object does not fol
 ### JsonValue / JsonObject
 
 ```python
+from typing_extensions import TypeAliasType
+
 JsonPrimitive: TypeAlias = str | int | float | bool | None
-JsonValue: TypeAlias = JsonPrimitive | list["JsonValue"] | dict[str, "JsonValue"]
+JsonValue = TypeAliasType(
+    "JsonValue",
+    "JsonPrimitive | list[JsonValue] | dict[str, JsonValue]",
+)
 JsonObject: TypeAlias = dict[str, JsonValue]
 ```
 

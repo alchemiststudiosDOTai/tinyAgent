@@ -6,7 +6,7 @@ This document describes the architecture of TinyAgent: where components live, wh
 
 1. **Streaming-first**: All LLM interactions support streaming; non-streaming is a special case
 2. **Event-driven**: Components communicate through events for loose coupling
-3. **Type safety**: Full type hints with Pydantic runtime models for message/event/state types
+3. **Type safety**: Full type hints with Pydantic models for runtime messages/state and dataclasses for lifecycle events
 4. **Boundary preservation**: AgentMessage (internal) vs Message (LLM-boundary) separation
 
 ## Component Overview
@@ -39,7 +39,7 @@ This document describes the architecture of TinyAgent: where components live, wh
 
 ### agent_types.py
 
-**What**: Type definitions based on Pydantic models (for runtime message/event/state types) and type aliases/types.
+**What**: Type definitions based on Pydantic runtime models (messages/state), dataclass lifecycle events, and shared type aliases.
 
 **Key Types**:
 - `AgentMessage`: Internal message format (union of Message + custom types)

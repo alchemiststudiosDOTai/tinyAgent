@@ -35,8 +35,20 @@ Start an agent loop with one or more new prompt messages.
 
 **Example**:
 ```python
+from tinyagent import (
+    AgentContext,
+    AgentLoopConfig,
+    Model,
+    TextContent,
+    UserMessage,
+    agent_loop,
+    default_convert_to_llm,
+)
+
+model = Model(provider="openai", id="gpt-4o-mini", api="openai-completions")
+
 stream = agent_loop(
-    prompts=[{"role": "user", "content": [{"type": "text", "text": "Hello"}]}],
+    prompts=[UserMessage(content=[TextContent(text="Hello")])],
     context=AgentContext(system_prompt="You are helpful", messages=[], tools=[]),
     config=AgentLoopConfig(model=model, convert_to_llm=default_convert_to_llm),
 )

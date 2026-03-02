@@ -253,7 +253,7 @@ If `api` is omitted/blank, the Python side infers:
 - otherwise => `openai-completions`
 
 Legacy API aliases are normalized for backward compatibility:
-- `api="openrouter"` / `api="openai"` => `openai-completions`
+- `api="openai"` / `api="openai-compatible"` / `api="chat-completions"` => `openai-completions`
 - `api="minimax"` => `minimax-completions`
 
 ### Using via TinyAgent (high-level)

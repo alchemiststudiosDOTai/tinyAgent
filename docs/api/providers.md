@@ -19,7 +19,7 @@ ReasoningEffort = Literal["minimal", "low", "medium", "high", "xhigh"]
 
 
 class OpenAICompatModel(Model):
-    provider: str = "openai"
+    provider: str = "openrouter"
     id: str = "moonshotai/kimi-k2.5"
     api: str = "openai-completions"
 
@@ -63,10 +63,9 @@ For `stream_alchemy_openai_completions`:
 
 1. `options.api_key`
 2. `OPENAI_API_KEY` when `model.provider == "openai"`
-3. `MINIMAX_API_KEY` when `model.provider == "minimax"`
-4. `MINIMAX_CN_API_KEY` when `model.provider == "minimax-cn"`
-
-`OPENROUTER_API_KEY` is no longer used by the built-in provider path.
+3. `OPENROUTER_API_KEY` when `model.provider == "openrouter"`
+4. `MINIMAX_API_KEY` when `model.provider == "minimax"`
+5. `MINIMAX_CN_API_KEY` when `model.provider == "minimax-cn"`
 
 ## Proxy Provider
 
@@ -114,8 +113,7 @@ agent.set_model(
         provider="openrouter",  # provider label used by your integration
         id="anthropic/claude-3.5-sonnet",
         base_url="https://openrouter.ai/api/v1/chat/completions",
-        # for openrouter compatibility, pass api_key explicitly in stream options
-        # via Agent.get_api_key() or provider-level resolver.
+        # OPENROUTER_API_KEY env fallback is supported; options.api_key still wins.
     )
 )
 ```
