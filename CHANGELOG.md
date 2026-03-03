@@ -7,6 +7,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.6] - 2026-03-03
+
 ### Added
 - Added a mandatory live type-contract harness at `docs/harness/tool_call_types_harness.py` to verify one real tool-call turn and print model/event type names.
 - Added regression tests for strict model serialization boundaries and malformed proxy event handling.
@@ -163,7 +165,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Code quality gates (dead code, duplicates, debt)
 - Rust `alchemy_llm_py` binding documentation
 
-[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.5...HEAD
+[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.6...HEAD
+[1.2.6]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.5...v1.2.6
 [1.2.5]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.4...v1.2.5
 [1.2.4]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.3...v1.2.4
 [1.2.3]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.2...v1.2.3
