@@ -23,7 +23,7 @@ import asyncio
 import importlib
 import os
 from dataclasses import dataclass
-from typing import Any, Literal, Protocol, TypeAlias, cast
+from typing import Literal, Protocol, TypeAlias, cast
 
 from .agent_types import (
     AgentTool,
@@ -40,13 +40,19 @@ ReasoningEffort: TypeAlias = Literal["minimal", "low", "medium", "high", "xhigh"
 ReasoningMode: TypeAlias = bool | ReasoningEffort
 
 
+class _AlchemyStreamHandle(Protocol):
+    def next_event(self) -> object | None: ...
+
+    def result(self) -> object: ...
+
+
 class _AlchemyModule(Protocol):
     def openai_completions_stream(
         self,
-        model: dict[str, Any],
-        context: dict[str, Any],
-        options: dict[str, Any],
-    ) -> Any: ...
+        model: dict[str, object],
+        context: dict[str, object],
+        options: dict[str, object],
+    ) -> _AlchemyStreamHandle: ...
 
 
 _ALCHEMY_MODULE: _AlchemyModule | None = None
@@ -143,7 +149,7 @@ class OpenAICompatModel(Model):
 class AlchemyStreamResponse:
     """StreamResponse backed by a Rust stream handle."""
 
-    _handle: Any
+    _handle: _AlchemyStreamHandle
     _final_message: AssistantMessage | None = None
 
     async def result(self) -> AssistantMessage:
@@ -173,10 +179,10 @@ class AlchemyStreamResponse:
         return AssistantMessageEvent.model_validate(ev)
 
 
-def _convert_tools(tools: list[AgentTool] | None) -> list[dict[str, Any]] | None:
+def _convert_tools(tools: list[AgentTool] | None) -> list[dict[str, object]] | None:
     if not tools:
         return None
-    out: list[dict[str, Any]] = []
+    out: list[dict[str, object]] = []
     for t in tools:
         out.append(
             {
@@ -276,7 +282,7 @@ async def stream_alchemy_openai_completions(
         context_window = model.context_window
         max_tokens = model.max_tokens
 
-    model_dict: dict[str, Any] = {
+    model_dict: dict[str, object] = {
         "id": model.id,
         "provider": provider,
         "api": api,
@@ -288,7 +294,7 @@ async def stream_alchemy_openai_completions(
         "max_tokens": max_tokens,
     }
 
-    context_dict: dict[str, Any] = {
+    context_dict: dict[str, object] = {
         "system_prompt": context.system_prompt or "",
         "messages": [
             dump_model_dumpable(message, where="context.messages") for message in context.messages
@@ -296,7 +302,7 @@ async def stream_alchemy_openai_completions(
         "tools": _convert_tools(context.tools),
     }
 
-    options_dict: dict[str, Any] = {
+    options_dict: dict[str, object] = {
         "api_key": _resolve_api_key(model, options),
         "temperature": options.temperature,
         "max_tokens": options.max_tokens,

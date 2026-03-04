@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 import os
 from collections.abc import AsyncIterator, Callable
-from typing import Any
 
 from dotenv import load_dotenv
 
@@ -22,6 +21,7 @@ from tinyagent.agent_types import (
     AssistantMessage,
     AssistantMessageEvent,
     Context,
+    JsonObject,
     Model,
     SimpleStreamOptions,
     StreamResponse,
@@ -33,8 +33,10 @@ from tinyagent.alchemy_provider import OpenAICompatModel, stream_alchemy_openai_
 
 DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_CHUTES_BASE_URL = "https://llm.chutes.ai/v1/chat/completions"
+DEFAULT_MINIMAX_BASE_URL = "https://api.minimax.io/v1/chat/completions"
 DEFAULT_OPENROUTER_MODEL = "google/gemini-2.0-flash-001"
 DEFAULT_CHUTES_MODEL = "Qwen/Qwen3-Coder-Next-TEE"
+DEFAULT_MINIMAX_MODEL = "MiniMax-M2.5"
 DEFAULT_HARNESS_TIMEOUT_SECONDS = 120.0
 DEFAULT_HARNESS_MAX_TOKENS = 512
 
@@ -75,7 +77,17 @@ def _resolve_provider_and_model() -> OpenAICompatModel:
             base_url=os.getenv("CHUTES_BASE_URL", DEFAULT_CHUTES_BASE_URL),
             max_tokens=int(os.getenv("HARNESS_MAX_TOKENS", str(DEFAULT_HARNESS_MAX_TOKENS))),
         )
-    raise RuntimeError("Missing OPENROUTER_API_KEY or CHUTES_API_KEY in environment/.env")
+    if os.getenv("MINIMAX_API_KEY"):
+        return OpenAICompatModel(
+            provider="minimax",
+            api="minimax-completions",
+            id=os.getenv("MINIMAX_MODEL", DEFAULT_MINIMAX_MODEL),
+            base_url=os.getenv("MINIMAX_BASE_URL", DEFAULT_MINIMAX_BASE_URL),
+            max_tokens=int(os.getenv("HARNESS_MAX_TOKENS", str(DEFAULT_HARNESS_MAX_TOKENS))),
+        )
+    raise RuntimeError(
+        "Missing OPENROUTER_API_KEY, CHUTES_API_KEY, or MINIMAX_API_KEY in environment/.env"
+    )
 
 
 def _resolve_api_key(provider: str) -> str | None:
@@ -114,15 +126,25 @@ class CapturingStreamResponse(StreamResponse):
         return event
 
 
+def _coerce_numeric_argument(args: JsonObject, name: str) -> float:
+    raw = args[name]
+    if isinstance(raw, bool) or not isinstance(raw, str | int | float):
+        raise RuntimeError(f"Tool argument `{name}` must be numeric")
+    try:
+        return float(raw)
+    except ValueError as e:  # pragma: no cover - defensive for malformed provider output
+        raise RuntimeError(f"Tool argument `{name}` must be numeric") from e
+
+
 async def execute_add_once(
     tool_call_id: str,
-    args: dict[str, Any],
+    args: JsonObject,
     signal: asyncio.Event | None,
     on_update: Callable[[AgentToolResult], None],
 ) -> AgentToolResult:
     del tool_call_id, signal, on_update
-    a = float(args["a"])
-    b = float(args["b"])
+    a = _coerce_numeric_argument(args, "a")
+    b = _coerce_numeric_argument(args, "b")
     return AgentToolResult(content=[TextContent(text=str(int(a + b)))])
 
 
