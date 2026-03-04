@@ -7,6 +7,16 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.7] - 2026-03-04
+
+### Added
+- Added an AST-grep `no_any_python` rule with tests and snapshots under `src/rules/ast/` to enforce the TypedDict-to-Pydantic hard cutover policy.
+- Added an opt-in live integration test at `tests/test_tool_call_types_harness.py` for end-to-end harness validation (`RUN_LIVE_HARNESS=1`).
+
+### Changed
+- Tightened `tinyagent/alchemy_provider.py` stream boundary typing by replacing `Any` with protocol/object-typed interfaces.
+- Extended `docs/harness/tool_call_types_harness.py` provider resolution to include MiniMax and switched tool args to `JsonObject` with numeric coercion.
+
 ## [1.2.6] - 2026-03-03
 
 ### Added
@@ -165,7 +175,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Code quality gates (dead code, duplicates, debt)
 - Rust `alchemy_llm_py` binding documentation
 
-[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.6...HEAD
+[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.7...HEAD
+[1.2.7]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.6...v1.2.7
 [1.2.6]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.5...v1.2.6
 [1.2.5]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.4...v1.2.5
 [1.2.4]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.3...v1.2.4
