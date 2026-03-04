@@ -1,0 +1,13 @@
+id: no-any-python
+language: python
+severity: error
+message: "Absolute NO Any: replace with a specific type."
+files:
+  - tinyagent/**/*.py
+  - tests/**/*.py
+  - docs/**/*.py
+rule:
+  any:
+    - pattern: Any
+    - pattern: typing.Any
+    - pattern: typing_extensions.Any

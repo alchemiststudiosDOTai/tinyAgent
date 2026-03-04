@@ -1,0 +1,25 @@
+id: no-any-python
+snapshots:
+  ? |
+    from typing import Any
+  : labels:
+    - source: Any
+      style: primary
+      start: 19
+      end: 22
+  ? |
+    import typing
+
+    payload: typing.Any = {}
+  : labels:
+    - source: typing.Any
+      style: primary
+      start: 24
+      end: 34
+  ? |
+    value: Any
+  : labels:
+    - source: Any
+      style: primary
+      start: 7
+      end: 10

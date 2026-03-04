@@ -1,0 +1,21 @@
+id: no-any-python
+valid:
+  - |
+    from typing import Literal
+
+    def to_label(value: int) -> str:
+        return str(value)
+  - |
+    import typing
+
+    def first(values: typing.Sequence[int]) -> int:
+        return values[0]
+invalid:
+  - |
+    from typing import Any
+  - |
+    import typing
+
+    payload: typing.Any = {}
+  - |
+    value: Any
