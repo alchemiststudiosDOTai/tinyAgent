@@ -324,6 +324,7 @@ Cross-provider tool-call smoke examples:
 - [Prompt Caching](api/caching.md): Cache breakpoints, cost savings, and provider requirements
 - [OpenAI-Compatible Endpoints](api/openai-compatible-endpoints.md): Using `OpenAICompatModel.base_url` with OpenRouter/OpenAI/Chutes-compatible backends
 - [Usage Semantics](api/usage-semantics.md): Canonical `usage` schema across provider flows
+- [AST Rule: No TypeAlias Shims](ast-grep-no-typealias.md): Structural lint rule banning `TypeAlias` / `TypeAliasType`
 - [Changelog](../CHANGELOG.md): Release history
 
 ## Project Structure

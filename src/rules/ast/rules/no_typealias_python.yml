@@ -1,0 +1,15 @@
+id: no-typealias-python
+language: python
+severity: error
+message: "Do not use TypeAlias/TypeAliasType shims. Use concrete types directly."
+files:
+  - tinyagent/**/*.py
+  - tests/**/*.py
+  - docs/**/*.py
+rule:
+  any:
+    - pattern: TypeAlias
+    - pattern: typing.TypeAlias
+    - pattern: typing_extensions.TypeAlias
+    - pattern: TypeAliasType
+    - pattern: typing_extensions.TypeAliasType

@@ -1,0 +1,20 @@
+id: no-typealias-python
+valid:
+  - |
+    from typing import Callable
+
+    Handler = Callable[[int], str]
+  - |
+    def label(value: int) -> str:
+        return str(value)
+invalid:
+  - |
+    from typing import TypeAlias
+  - |
+    import typing
+
+    JsonObject: typing.TypeAlias = dict[str, object]
+  - |
+    from typing_extensions import TypeAliasType
+
+    JsonValue = TypeAliasType("JsonValue", "str | int")
