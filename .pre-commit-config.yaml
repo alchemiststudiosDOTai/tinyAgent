@@ -52,7 +52,7 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
-        args: ["--min-confidence", "80", "tinyagent", ".vulture-whitelist.py"]
+        args: ["--min-confidence", "80", "tinyagent"]
 
       - id: duplicate-code
         name: pylint (duplicate code detection)
