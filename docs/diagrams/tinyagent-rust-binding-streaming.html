@@ -1,0 +1,1461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TinyAgent Rust Binding Streaming</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+    --font-mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
+    --font-display: 'Instrument Serif', Georgia, serif;
+
+    --bg: #f6f1ea;
+    --surface: #fcf9f5;
+    --surface-2: #f2ebe2;
+    --surface-elevated: #fffdfa;
+    --border: rgba(70, 54, 39, 0.12);
+    --border-bright: rgba(70, 54, 39, 0.20);
+    --text: #2d241b;
+    --text-dim: #796a5a;
+
+    --terracotta: #b6542f;
+    --terracotta-dim: rgba(182, 84, 47, 0.12);
+    --sage: #6e8b61;
+    --sage-dim: rgba(110, 139, 97, 0.12);
+    --ink: #3e5a76;
+    --ink-dim: rgba(62, 90, 118, 0.12);
+    --amber: #c08a2c;
+    --amber-dim: rgba(192, 138, 44, 0.12);
+    --plum: #7b5a73;
+    --plum-dim: rgba(123, 90, 115, 0.12);
+
+    --shadow: 0 14px 38px rgba(47, 35, 24, 0.09);
+    --grid: rgba(85, 67, 49, 0.06);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #19130f;
+      --surface: #231b16;
+      --surface-2: #2b221c;
+      --surface-elevated: #30261f;
+      --border: rgba(236, 221, 204, 0.09);
+      --border-bright: rgba(236, 221, 204, 0.18);
+      --text: #f3e7d9;
+      --text-dim: #c0ae9e;
+
+      --terracotta: #de8f70;
+      --terracotta-dim: rgba(222, 143, 112, 0.14);
+      --sage: #a9c094;
+      --sage-dim: rgba(169, 192, 148, 0.14);
+      --ink: #9db8d4;
+      --ink-dim: rgba(157, 184, 212, 0.14);
+      --amber: #e6c06c;
+      --amber-dim: rgba(230, 192, 108, 0.14);
+      --plum: #c7a9bd;
+      --plum-dim: rgba(199, 169, 189, 0.14);
+
+      --shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+      --grid: rgba(243, 231, 217, 0.05);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--text);
+    font-family: var(--font-body);
+    background-color: var(--bg);
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+      radial-gradient(circle at 12% 0%, var(--terracotta-dim) 0%, transparent 32%),
+      radial-gradient(circle at 88% 18%, var(--sage-dim) 0%, transparent 24%);
+    background-size: 34px 34px, 34px 34px, auto, auto;
+    padding: 34px 40px 48px;
+    overflow-wrap: break-word;
+  }
+
+  a {
+    color: var(--terracotta);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+  }
+
+  .wrap {
+    max-width: 1440px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 190px 1fr;
+    gap: 0 42px;
+  }
+
+  .main { min-width: 0; }
+
+  .toc {
+    position: sticky;
+    top: 24px;
+    align-self: start;
+    grid-row: 1 / -1;
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
+    padding: 14px 0;
+  }
+
+  .toc::-webkit-scrollbar { width: 3px; }
+  .toc::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+
+  .toc-title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding-bottom: 10px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .toc a {
+    display: block;
+    text-decoration: none;
+    color: var(--text-dim);
+    font-size: 12px;
+    line-height: 1.45;
+    padding: 6px 10px;
+    border-left: 2px solid transparent;
+    border-radius: 6px;
+    margin-bottom: 2px;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .toc a:hover { color: var(--text); background: var(--surface-2); }
+  .toc a.active { color: var(--text); border-left-color: var(--terracotta); background: var(--surface-2); }
+
+  .hero {
+    background: color-mix(in srgb, var(--surface-elevated) 92%, var(--terracotta) 8%);
+    border: 1px solid color-mix(in srgb, var(--border) 58%, var(--terracotta) 42%);
+    border-radius: 22px;
+    padding: 34px;
+    box-shadow: var(--shadow);
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::after {
+    content: '';
+    position: absolute;
+    inset: auto -90px -90px auto;
+    width: 260px;
+    height: 260px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--sage-dim) 0%, transparent 72%);
+    pointer-events: none;
+  }
+
+  .eyebrow,
+  .sec-kicker,
+  .label,
+  .metric-label,
+  .mini-title,
+  .chip,
+  .code-note,
+  .source-pill,
+  .legend-item {
+    font-family: var(--font-mono);
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: var(--terracotta);
+    margin-bottom: 14px;
+  }
+
+  .eyebrow::before,
+  .sec-kicker::before,
+  .label::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+  }
+
+  h1 {
+    margin: 0 0 10px;
+    font-family: var(--font-display);
+    font-size: clamp(42px, 5vw, 72px);
+    line-height: 0.94;
+    font-weight: 400;
+    letter-spacing: -1.4px;
+    max-width: 9.5ch;
+  }
+
+  .hero-subtitle {
+    max-width: 820px;
+    font-size: 18px;
+    line-height: 1.7;
+    color: var(--text-dim);
+    margin: 0 0 24px;
+  }
+
+  .hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.9fr);
+    gap: 24px;
+    align-items: start;
+  }
+
+  .source-row,
+  .legend,
+  .chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .source-pill,
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    border: 1px solid var(--border);
+    background: var(--surface-elevated);
+    color: var(--text-dim);
+  }
+
+  .source-pill strong,
+  .chip strong { color: var(--text); font-weight: 600; }
+
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .metric {
+    background: var(--surface-elevated);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px 18px;
+    min-width: 0;
+  }
+
+  .metric-value {
+    font-family: var(--font-display);
+    font-size: 42px;
+    line-height: 0.95;
+    font-weight: 400;
+    margin-bottom: 6px;
+  }
+
+  .metric-label {
+    font-size: 10px;
+    letter-spacing: 1.3px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  .metric-desc {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-dim);
+  }
+
+  .sec-head {
+    margin: 34px 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .sec-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--amber);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  .sec-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(30px, 3vw, 46px);
+    line-height: 1;
+    font-weight: 400;
+    letter-spacing: -0.4px;
+  }
+
+  .sec-desc {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--text-dim);
+    max-width: 860px;
+  }
+
+  .ve-card,
+  .callout,
+  .code-file,
+  .table-wrap,
+  .mermaid-wrap {
+    min-width: 0;
+  }
+
+  .ve-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 18px 20px;
+    box-shadow: 0 2px 10px rgba(60, 40, 20, 0.03);
+  }
+
+  .ve-card--hero {
+    background: color-mix(in srgb, var(--surface-elevated) 90%, var(--amber) 10%);
+    border-color: color-mix(in srgb, var(--border) 60%, var(--amber) 40%);
+  }
+
+  .ve-card--recessed {
+    background: var(--surface-2);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+
+  .ve-card--terracotta { border-left: 3px solid var(--terracotta); }
+  .ve-card--sage { border-left: 3px solid var(--sage); }
+  .ve-card--ink { border-left: 3px solid var(--ink); }
+  .ve-card--amber { border-left: 3px solid var(--amber); }
+  .ve-card--plum { border-left: 3px solid var(--plum); }
+
+  .label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .ve-card--terracotta .label { color: var(--terracotta); }
+  .ve-card--sage .label { color: var(--sage); }
+  .ve-card--ink .label { color: var(--ink); }
+  .ve-card--amber .label { color: var(--amber); }
+  .ve-card--plum .label { color: var(--plum); }
+
+  .two-up,
+  .three-up,
+  .four-up,
+  .band,
+  .compare-grid,
+  .split {
+    display: grid;
+    gap: 16px;
+  }
+
+  .two-up { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .three-up { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .four-up { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .band { grid-template-columns: 1.1fr 0.9fr; align-items: start; }
+  .compare-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .split { grid-template-columns: 1.15fr 0.85fr; }
+
+  .section-stack { display: grid; gap: 16px; }
+
+  .mini-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+
+  .summary {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-dim);
+  }
+
+  .summary strong { color: var(--text); }
+
+  .node-list,
+  .detail-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: 14px;
+    line-height: 1.72;
+  }
+
+  .node-list li,
+  .detail-list li {
+    position: relative;
+    padding-left: 16px;
+  }
+
+  .node-list li::before,
+  .detail-list li::before {
+    content: '›';
+    position: absolute;
+    left: 0;
+    color: var(--text-dim);
+    font-weight: 700;
+  }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: var(--ink-dim);
+    color: var(--ink);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  .ve-card--terracotta code { background: var(--terracotta-dim); color: var(--terracotta); }
+  .ve-card--sage code { background: var(--sage-dim); color: var(--sage); }
+  .ve-card--amber code { background: var(--amber-dim); color: var(--amber); }
+  .ve-card--plum code { background: var(--plum-dim); color: var(--plum); }
+
+  .mermaid-wrap {
+    position: relative;
+    background: var(--surface-elevated);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 34px 24px 26px;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 420px;
+    box-shadow: var(--shadow);
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-bright) transparent;
+  }
+
+  .mermaid-wrap--compact { min-height: 320px; }
+  .mermaid-wrap::-webkit-scrollbar { width: 6px; height: 6px; }
+  .mermaid-wrap::-webkit-scrollbar-track { background: transparent; }
+  .mermaid-wrap::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 4px; }
+
+  .mermaid-wrap .mermaid { zoom: 1.15; }
+  .mermaid-wrap { cursor: grab; }
+  .mermaid-wrap.is-panning { cursor: grabbing; user-select: none; }
+
+  .zoom-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    gap: 2px;
+    z-index: 10;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 3px;
+  }
+
+  .zoom-controls button {
+    width: 30px;
+    height: 30px;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  .zoom-controls button:hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  .mermaid .nodeLabel {
+    font-family: var(--font-body) !important;
+    font-size: 17px !important;
+    color: var(--text) !important;
+  }
+
+  .mermaid .edgeLabel,
+  .mermaid .messageText,
+  .mermaid .noteText,
+  .mermaid .loopText {
+    font-family: var(--font-mono) !important;
+    font-size: 12px !important;
+    color: var(--text-dim) !important;
+    background-color: var(--bg) !important;
+  }
+
+  .mermaid .edgeLabel rect,
+  .mermaid .labelBox { fill: var(--bg) !important; }
+
+  .mermaid .node rect,
+  .mermaid .node circle,
+  .mermaid .node polygon,
+  .mermaid .actor {
+    stroke-width: 1.6px !important;
+  }
+
+  .mermaid .actor,
+  .mermaid .actor-line {
+    stroke: var(--border-bright) !important;
+  }
+
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+  }
+
+  .pipeline-lane {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .pipe-step {
+    min-width: 148px;
+    flex-shrink: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-elevated);
+  }
+
+  .pipe-step--terracotta { border-color: color-mix(in srgb, var(--border) 55%, var(--terracotta) 45%); }
+  .pipe-step--sage { border-color: color-mix(in srgb, var(--border) 55%, var(--sage) 45%); }
+  .pipe-step--ink { border-color: color-mix(in srgb, var(--border) 55%, var(--ink) 45%); }
+  .pipe-step--amber { border-color: color-mix(in srgb, var(--border) 55%, var(--amber) 45%); }
+  .pipe-step--plum { border-color: color-mix(in srgb, var(--border) 55%, var(--plum) 45%); }
+
+  .pipe-num {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  .pipe-name {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 5px;
+  }
+
+  .pipe-detail {
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+
+  .pipe-arrow {
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+    color: var(--border-bright);
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .code-file {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+
+  .code-file__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-elevated);
+  }
+
+  .code-file__title {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .code-note {
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .code-file__body {
+    margin: 0;
+    padding: 16px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: color-mix(in srgb, var(--surface) 78%, var(--surface-2) 22%);
+    color: var(--text);
+  }
+
+  .callout {
+    background: color-mix(in srgb, var(--surface) 92%, var(--amber) 8%);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--amber);
+    border-radius: 14px;
+    padding: 16px 18px;
+    font-size: 14px;
+    line-height: 1.66;
+    color: var(--text-dim);
+  }
+
+  .callout strong { color: var(--text); }
+
+  .table-wrap {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  th, td {
+    padding: 14px 16px;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--border);
+  }
+
+  thead th {
+    background: var(--surface-elevated);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  tbody tr:nth-child(even) { background: color-mix(in srgb, var(--surface) 88%, var(--surface-2) 12%); }
+  tbody tr:last-child td { border-bottom: none; }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .badge--terracotta { background: var(--terracotta-dim); color: var(--terracotta); }
+  .badge--sage { background: var(--sage-dim); color: var(--sage); }
+  .badge--ink { background: var(--ink-dim); color: var(--ink); }
+  .badge--amber { background: var(--amber-dim); color: var(--amber); }
+  .badge--plum { background: var(--plum-dim); color: var(--plum); }
+
+  .footer-note {
+    margin-top: 18px;
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--text-dim);
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate {
+    animation: fadeUp 0.42s ease-out both;
+    animation-delay: calc(var(--i, 0) * 0.06s);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+    .mermaid-wrap .mermaid { zoom: 1 !important; }
+  }
+
+  @media (max-width: 1180px) {
+    .hero-grid,
+    .band,
+    .split,
+    .two-up,
+    .compare-grid,
+    .three-up,
+    .four-up {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 1000px) {
+    body { padding-top: 0; }
+    .wrap { grid-template-columns: 1fr; }
+    .toc {
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      overflow-x: auto;
+      max-height: none;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 40px;
+      margin: 0 -40px 18px;
+    }
+    .toc::-webkit-scrollbar { display: none; }
+    .toc-title { display: none; }
+    .toc a {
+      white-space: nowrap;
+      flex-shrink: 0;
+      border-left: none;
+      border-bottom: 2px solid transparent;
+      border-radius: 6px 6px 0 0;
+      font-size: 11px;
+    }
+    .toc a.active {
+      border-left: none;
+      border-bottom-color: var(--terracotta);
+      background: var(--surface);
+    }
+    .sec-head { scroll-margin-top: 62px; }
+  }
+
+  @media (max-width: 768px) {
+    body { padding: 18px 18px 28px; }
+    .toc { margin: 0 -18px 18px; padding-left: 18px; padding-right: 18px; }
+    .hero { padding: 22px; }
+    .metric-grid { grid-template-columns: 1fr 1fr; }
+    h1 { max-width: none; }
+    .mermaid-wrap { min-height: 300px; padding: 30px 12px 18px; }
+    .pipeline-lane { gap: 8px; flex-wrap: wrap; }
+    .pipe-arrow { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="toc" id="toc">
+    <div class="toc-title">Contents</div>
+    <a href="#s1">1. Overview</a>
+    <a href="#s2">2. Call path</a>
+    <a href="#s3">3. Request build</a>
+    <a href="#s4">4. Live bridge</a>
+    <a href="#s5">5. Events + contracts</a>
+  </nav>
+
+  <main class="main">
+    <section class="hero animate" style="--i:0">
+      <div class="hero-grid">
+        <div>
+          <div class="eyebrow">tinyagent · rust binding · streaming</div>
+          <h1>How the Rust streaming bridge actually works</h1>
+          <p class="hero-subtitle">
+            TinyAgent’s Rust-backed provider path is a two-language bridge: Python shapes the call,
+            Rust owns the long-lived stream and SSE parsing, and Python rehydrates the stream back into
+            canonical <code>AssistantMessageEvent</code> and <code>AssistantMessage</code> models.
+          </p>
+          <div class="source-row">
+            <div class="source-pill"><strong>Python</strong> tinyagent/alchemy_provider.py</div>
+            <div class="source-pill"><strong>Rust</strong> src/lib.rs</div>
+            <div class="source-pill"><strong>Docs</strong> docs/README.md + docs/api/providers.md</div>
+            <div class="source-pill"><strong>Example</strong> examples/example_react_tools.py</div>
+          </div>
+        </div>
+        <div class="metric-grid">
+          <div class="metric">
+            <div class="metric-value">2</div>
+            <div class="metric-label">Public Rust entrypoints</div>
+            <div class="metric-desc"><code>openai_completions_stream()</code> for incremental reads and <code>collect_openai_completions()</code> for one-shot collection.</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value">1</div>
+            <div class="metric-label">Shared Tokio runtime</div>
+            <div class="metric-desc">A lazily initialized multi-thread runtime owns the long-running provider work.</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value">10</div>
+            <div class="metric-label">Canonical event names</div>
+            <div class="metric-desc">Start, text, thinking, tool-call, and terminal events are normalized into one stream vocabulary.</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value">2</div>
+            <div class="metric-label">Supported alchemy APIs</div>
+            <div class="metric-desc"><code>openai-completions</code> and <code>minimax-completions</code> are the two dispatch targets today.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div id="s1" class="sec-head animate" style="--i:1">
+      <div class="sec-kicker">Section 1</div>
+      <h2 class="sec-title">Overview</h2>
+      <p class="sec-desc">
+        The path is easiest to read as three zones: <strong>Python preflight</strong>, <strong>Rust execution</strong>, and
+        <strong>Python re-validation</strong>. The Rust side is not the whole provider; it is the streaming core that Python wraps.
+      </p>
+    </div>
+
+    <div class="section-stack animate" style="--i:2">
+      <div class="legend">
+        <div class="legend-item"><span class="swatch" style="background:var(--terracotta-dim);border-color:var(--terracotta)"></span> Python shaping + validation</div>
+        <div class="legend-item"><span class="swatch" style="background:var(--ink-dim);border-color:var(--ink)"></span> Rust binding + runtime</div>
+        <div class="legend-item"><span class="swatch" style="background:var(--sage-dim);border-color:var(--sage)"></span> provider/network stream</div>
+        <div class="legend-item"><span class="swatch" style="background:var(--amber-dim);border-color:var(--amber)"></span> terminal result + usage contract</div>
+      </div>
+
+      <div class="mermaid-wrap">
+        <div class="zoom-controls">
+          <button onclick="zoomDiagram(this, 1.18)" title="Zoom in">+</button>
+          <button onclick="zoomDiagram(this, 0.85)" title="Zoom out">−</button>
+          <button onclick="resetZoom(this)" title="Reset zoom">↴</button>
+          <button onclick="openDiagramFullscreen(this)" title="Open full size in new tab">⛶</button>
+        </div>
+        <pre class="mermaid">
+flowchart TD
+  subgraph PY1[Python entry]
+    A["Agent loop / caller<br/>await stream_alchemy_openai_completions()"]
+    B["alchemy_provider.py<br/>resolve provider, api, base_url, api_key"]
+    C["Python dict payloads<br/>model_dict, context_dict, options_dict"]
+  end
+
+  subgraph RS[Rust binding]
+    D["#[pyfunction]<br/>openai_completions_stream()"]
+    E["build_stream_request()<br/>depythonize + convert messages/tools"]
+    F["alchemy_llm::stream()<br/>OpenAI or MiniMax transport"]
+    G["Tokio task<br/>stream.next() → event_to_py_value()"]
+    H["mpsc channels<br/>event rx + final_rx"]
+  end
+
+  subgraph NET[Network]
+    I["OpenAI-compatible endpoint<br/>SSE response"]
+  end
+
+  subgraph PY2[Python consumer side]
+    J["AlchemyStreamResponse<br/>asyncio.to_thread(next_event/result)"]
+    K["AssistantMessageEvent / AssistantMessage<br/>model_validate() + usage contract"]
+  end
+
+  A --> B --> C --> D --> E --> F --> I
+  I --> F --> G --> H --> J --> K
+  K --> A
+
+  classDef py fill:#b6542f22,stroke:#b6542f,stroke-width:1.6px;
+  classDef rust fill:#3e5a7622,stroke:#3e5a76,stroke-width:1.6px;
+  classDef net fill:#6e8b6122,stroke:#6e8b61,stroke-width:1.6px;
+  classDef final fill:#c08a2c22,stroke:#c08a2c,stroke-width:1.6px;
+
+  class A,B,C,J py;
+  class D,E,F,G,H rust;
+  class I net;
+  class K final;
+        </pre>
+      </div>
+
+      <div class="band">
+        <div class="ve-card ve-card--hero ve-card--terracotta">
+          <div class="label">Core insight</div>
+          <p class="summary">
+            <strong>Rust owns the live stream, Python owns the public contract.</strong> The handle returned by
+            <code>openai_completions_stream()</code> is intentionally blocking on the Rust side; the async illusion is created in Python by calling
+            <code>next_event()</code> and <code>result()</code> inside <code>asyncio.to_thread()</code>.
+          </p>
+        </div>
+        <div class="ve-card ve-card--recessed ve-card--sage">
+          <div class="label">What this buys you</div>
+          <ul class="detail-list">
+            <li>SSE parsing and event serialization happen off the Python hot path.</li>
+            <li>The agent loop still receives the same canonical TinyAgent event/message models.</li>
+            <li>Provider differences collapse into one <code>StreamResponse</code>-shaped adapter.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div id="s2" class="sec-head animate" style="--i:3">
+      <div class="sec-kicker">Section 2</div>
+      <h2 class="sec-title">Call path</h2>
+      <p class="sec-desc">
+        The streaming call is not “Python calls Rust and gets async back.” It is “Python asks Rust to start work, Rust emits blocking handle methods, and Python wraps those methods in async threads.”
+      </p>
+    </div>
+
+    <div class="compare-grid animate" style="--i:4">
+      <div class="ve-card ve-card--ink">
+        <div class="label">Control-flow sequence</div>
+        <div class="mermaid-wrap mermaid-wrap--compact">
+          <div class="zoom-controls">
+            <button onclick="zoomDiagram(this, 1.18)" title="Zoom in">+</button>
+            <button onclick="zoomDiagram(this, 0.85)" title="Zoom out">−</button>
+            <button onclick="resetZoom(this)" title="Reset zoom">↴</button>
+            <button onclick="openDiagramFullscreen(this)" title="Open full size in new tab">⛶</button>
+          </div>
+          <pre class="mermaid">
+sequenceDiagram
+  participant Loop as Python caller
+  participant Provider as alchemy_provider.py
+  participant Binding as tinyagent._alchemy
+  participant RT as Tokio runtime
+  participant LLM as alchemy_llm
+  participant SSE as endpoint
+
+  Loop->>Provider: await stream_alchemy_openai_completions(model, context, opts)
+  Provider->>Binding: openai_completions_stream(model_dict, context_dict, options_dict)
+  Binding->>RT: build_stream_request() + enter runtime
+  RT->>LLM: alchemy_llm::stream(...)
+  LLM->>SSE: POST /chat/completions stream=true
+  SSE-->>LLM: SSE chunks
+  RT->>RT: spawn task + stream.next().await
+  RT-->>Binding: event JSON via mpsc channel
+  Loop->>Provider: await __anext__()
+  Provider->>Binding: next_event() via asyncio.to_thread
+  Binding-->>Provider: next event dict or None
+  Provider-->>Loop: AssistantMessageEvent
+  opt terminal message
+    RT-->>Binding: final assistant message via final_rx
+    Loop->>Provider: await result()
+    Provider->>Binding: result() via asyncio.to_thread
+    Binding-->>Provider: final assistant message dict
+    Provider-->>Loop: AssistantMessage
+  end
+          </pre>
+        </div>
+      </div>
+
+      <div class="section-stack">
+        <div class="ve-card ve-card--terracotta">
+          <div class="label">Python wrapper side</div>
+          <ul class="node-list">
+            <li><code>stream_alchemy_openai_completions()</code> resolves provider, base URL, API, and API key.</li>
+            <li>It serializes <code>Model</code>, <code>Context</code>, and <code>SimpleStreamOptions</code> into plain dicts.</li>
+            <li>It returns an <code>AlchemyStreamResponse</code>, which satisfies TinyAgent’s <code>StreamResponse</code> protocol.</li>
+          </ul>
+        </div>
+
+        <div class="ve-card ve-card--ink">
+          <div class="label">Rust handle side</div>
+          <ul class="node-list">
+            <li><code>OpenAICompletionsStream.next_event()</code> blocks on a standard <code>mpsc::Receiver</code>.</li>
+            <li><code>OpenAICompletionsStream.result()</code> reads the final message from a separate receiver once.</li>
+            <li>Both methods use <code>py.allow_threads</code> so Python is not holding the GIL while Rust waits.</li>
+          </ul>
+        </div>
+
+        <div class="callout">
+          <strong>Why two channels?</strong> Events and the final assistant message have slightly different lifecycles.
+          The event stream may end at the same moment a terminal message is captured, but callers still need a clean,
+          dedicated path for <code>result()</code> even after iteration finishes.
+        </div>
+      </div>
+    </div>
+
+    <div id="s3" class="sec-head animate" style="--i:5">
+      <div class="sec-kicker">Section 3</div>
+      <h2 class="sec-title">Request build + dispatch</h2>
+      <p class="sec-desc">
+        The bridge spends a surprising amount of code just normalizing shape. That normalization is what lets the rest of TinyAgent stay provider-agnostic.
+      </p>
+    </div>
+
+    <div class="two-up animate" style="--i:6">
+      <div class="ve-card ve-card--sage">
+        <div class="label">Python preflight in alchemy_provider.py</div>
+        <div class="pipeline-lane">
+          <div class="pipe-step pipe-step--terracotta">
+            <div class="pipe-num">step 1</div>
+            <div class="pipe-name">Resolve routing</div>
+            <div class="pipe-detail">provider, base_url, and api are canonicalized before Rust ever sees the request</div>
+          </div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-step pipe-step--sage">
+            <div class="pipe-num">step 2</div>
+            <div class="pipe-name">Flatten models</div>
+            <div class="pipe-detail">Model, Context, and tools are converted into JSON-ish dicts</div>
+          </div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-step pipe-step--ink">
+            <div class="pipe-num">step 3</div>
+            <div class="pipe-name">Acquire handle</div>
+            <div class="pipe-detail">_alchemy.openai_completions_stream(...) returns the blocking Rust stream handle</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ve-card ve-card--ink">
+        <div class="label">Rust normalization in build_stream_request()</div>
+        <div class="pipeline-lane">
+          <div class="pipe-step pipe-step--ink">
+            <div class="pipe-num">step 1</div>
+            <div class="pipe-name">Depythonize</div>
+            <div class="pipe-detail">Python objects become <code>PyModelConfig</code>, <code>PyContext</code>, and <code>PyOptions</code></div>
+          </div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-step pipe-step--amber">
+            <div class="pipe-num">step 2</div>
+            <div class="pipe-name">Convert</div>
+            <div class="pipe-detail">messages and tools become alchemy message/context structures</div>
+          </div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-step pipe-step--sage">
+            <div class="pipe-num">step 3</div>
+            <div class="pipe-name">Dispatch</div>
+            <div class="pipe-detail">request becomes either <code>OpenAICompletions</code> or <code>MinimaxCompletions</code></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="split animate" style="--i:7">
+      <div class="code-file">
+        <div class="code-file__header">
+          <div class="code-file__title">Python-side call shape</div>
+          <div class="code-note">tinyagent/alchemy_provider.py</div>
+        </div>
+        <pre class="code-file__body">model_dict = {
+    "id": model.id,
+    "provider": provider,
+    "api": api,
+    "base_url": base_url,
+    "name": name,
+    "headers": headers,
+}
+context_dict = {
+    "system_prompt": context.system_prompt or "",
+    "messages": [dump_model_dumpable(m, where="context.messages") for m in context.messages],
+    "tools": _convert_tools(context.tools),
+}
+handle = alchemy_llm_py.openai_completions_stream(model_dict, context_dict, options_dict)</pre>
+      </div>
+
+      <div class="section-stack">
+        <div class="ve-card ve-card--recessed ve-card--amber">
+          <div class="label">Routing rules</div>
+          <ul class="node-list">
+            <li>Explicit <code>model.api</code> wins after alias normalization.</li>
+            <li>Blank <code>api</code> is inferred from provider.</li>
+            <li><code>minimax</code> and <code>minimax-cn</code> map to <code>minimax-completions</code>.</li>
+            <li>Everything else defaults to <code>openai-completions</code>.</li>
+          </ul>
+        </div>
+
+        <div class="ve-card ve-card--recessed ve-card--terracotta">
+          <div class="label">Auth rules</div>
+          <ul class="node-list">
+            <li><code>options.api_key</code> has highest priority.</li>
+            <li>Otherwise Python resolves env-key fallback from <code>provider</code>.</li>
+            <li>Rust receives the already selected API key in <code>options_dict</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div id="s4" class="sec-head animate" style="--i:8">
+      <div class="sec-kicker">Section 4</div>
+      <h2 class="sec-title">Live stream bridge</h2>
+      <p class="sec-desc">
+        The most important function in the Rust file is not the request builder — it is the background task that pulls <code>stream.next().await</code>, captures the terminal message, and fans results back to Python.
+      </p>
+    </div>
+
+    <div class="three-up animate" style="--i:9">
+      <div class="ve-card ve-card--ink">
+        <div class="label">Tokio runtime</div>
+        <ul class="node-list">
+          <li>A single lazily initialized multi-thread runtime backs all streaming work.</li>
+          <li><code>openai_completions_stream()</code> calls <code>RUNTIME.enter()</code> before provider code that may spawn tasks.</li>
+          <li>The actual event loop is then launched with <code>RUNTIME.spawn(async move { ... })</code>.</li>
+        </ul>
+      </div>
+
+      <div class="ve-card ve-card--sage">
+        <div class="label">Event fan-out</div>
+        <ul class="node-list">
+          <li>Each provider event is converted by <code>event_to_py_value()</code>.</li>
+          <li>Converted JSON values go through <code>tx.send(...)</code> to the event receiver.</li>
+          <li>The terminal <code>AssistantMessage</code> is separately cached and sent on <code>final_tx</code>.</li>
+        </ul>
+      </div>
+
+      <div class="ve-card ve-card--amber">
+        <div class="label">Python async façade</div>
+        <ul class="node-list">
+          <li><code>AlchemyStreamResponse.__anext__()</code> awaits <code>asyncio.to_thread(self._handle.next_event)</code>.</li>
+          <li><code>AlchemyStreamResponse.result()</code> does the same with the final result method.</li>
+          <li>Returned dicts are validated back into <code>AssistantMessageEvent</code> and <code>AssistantMessage</code>.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="compare-grid animate" style="--i:10">
+      <div class="code-file">
+        <div class="code-file__header">
+          <div class="code-file__title">Rust-side streaming loop</div>
+          <div class="code-note">src/lib.rs · condensed</div>
+        </div>
+        <pre class="code-file__body">RUNTIME.spawn(async move {
+    let mut terminal = None;
+
+    while let Some(ev) = stream.next().await {
+        match &ev {
+            Done { message, .. } => terminal = Some(message.clone()),
+            Error { error, .. } => terminal = Some(error.clone()),
+            _ => {}
+        }
+
+        if tx.send(event_to_py_value(&ev)).is_err() {
+            return; // Python side dropped the stream
+        }
+
+        if matches!(ev, Done { .. } | Error { .. }) {
+            break;
+        }
+    }
+
+    let _ = final_tx.send(final_message_json);
+});</pre>
+      </div>
+
+      <div class="callout">
+        <strong>Subtle but important:</strong> every non-terminal event still carries a <code>partial</code> assistant message snapshot.
+        That means Python consumers do not need to reconstruct the whole message from deltas unless they want to — the provider already ships the rolling partial state alongside the delta.
+      </div>
+    </div>
+
+    <div id="s5" class="sec-head animate" style="--i:11">
+      <div class="sec-kicker">Section 5</div>
+      <h2 class="sec-title">Events, terminals, and safety contracts</h2>
+      <p class="sec-desc">
+        The stream is only useful because it is normalized. Both the event vocabulary and the final message contract are enforced before the rest of TinyAgent sees them.
+      </p>
+    </div>
+
+    <div class="two-up animate" style="--i:12">
+      <div class="ve-card ve-card--terracotta">
+        <div class="label">Canonical event vocabulary</div>
+        <div class="four-up">
+          <div class="ve-card ve-card--recessed ve-card--terracotta">
+            <div class="mini-title">Open</div>
+            <p class="summary"><code>start</code></p>
+          </div>
+          <div class="ve-card ve-card--recessed ve-card--ink">
+            <div class="mini-title">Text</div>
+            <p class="summary"><code>text_start</code><br><code>text_delta</code><br><code>text_end</code></p>
+          </div>
+          <div class="ve-card ve-card--recessed ve-card--plum">
+            <div class="mini-title">Thinking</div>
+            <p class="summary"><code>thinking_start</code><br><code>thinking_delta</code><br><code>thinking_end</code></p>
+          </div>
+          <div class="ve-card ve-card--recessed ve-card--sage">
+            <div class="mini-title">Tool calls</div>
+            <p class="summary"><code>tool_call_start</code><br><code>tool_call_delta</code><br><code>tool_call_end</code></p>
+          </div>
+        </div>
+        <p class="footer-note">
+          Terminal events are <code>done</code> and <code>error</code>. Rust maps provider-specific stop reasons into TinyAgent’s canonical names before Python validation runs.
+        </p>
+      </div>
+
+      <div class="ve-card ve-card--amber">
+        <div class="label">Terminal mapping</div>
+        <ul class="node-list">
+          <li><code>Done::Stop</code> → <code>reason="stop"</code></li>
+          <li><code>Done::Length</code> → <code>reason="length"</code></li>
+          <li><code>Done::ToolUse</code> → <code>reason="tool_calls"</code></li>
+          <li><code>Error::Error</code> → <code>reason="error"</code></li>
+          <li><code>Error::Aborted</code> → <code>reason="aborted"</code></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="table-wrap animate" style="--i:13">
+      <table>
+        <thead>
+          <tr>
+            <th>Surface</th>
+            <th>Kind</th>
+            <th>What it guarantees</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>event_to_py_value()</code></td>
+            <td><span class="badge badge--ink">rust serializer</span></td>
+            <td>Normalizes every provider event into a TinyAgent-shaped JSON payload, including rolling <code>partial</code> state.</td>
+          </tr>
+          <tr>
+            <td><code>AlchemyStreamResponse.__anext__()</code></td>
+            <td><span class="badge badge--terracotta">python adapter</span></td>
+            <td>Turns a blocking Rust handle method into async iteration and validates the result as <code>AssistantMessageEvent</code>.</td>
+          </tr>
+          <tr>
+            <td><code>_validate_assistant_message_contract()</code></td>
+            <td><span class="badge badge--amber">python validation</span></td>
+            <td>Ensures the final result is a valid <code>AssistantMessage</code>; optionally requires full usage data.</td>
+          </tr>
+          <tr>
+            <td><code>_validate_usage_contract()</code></td>
+            <td><span class="badge badge--sage">usage schema</span></td>
+            <td>Checks canonical keys like <code>input</code>, <code>output</code>, <code>total_tokens</code>, and nested <code>cost</code> fields.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="two-up animate" style="--i:14">
+      <div class="ve-card ve-card--plum">
+        <div class="label">Two public Rust entrypoints</div>
+        <ul class="node-list">
+          <li><code>openai_completions_stream()</code> returns a stream handle for incremental reads.</li>
+          <li><code>collect_openai_completions()</code> consumes the full stream and returns <code>{events, final_message}</code>.</li>
+          <li>Both route through the same request-building and alchemy dispatch path.</li>
+        </ul>
+      </div>
+
+      <div class="ve-card ve-card--recessed ve-card--terracotta">
+        <div class="label">Current constraints</div>
+        <ul class="node-list">
+          <li>Only <code>openai-completions</code> and <code>minimax-completions</code> are dispatched.</li>
+          <li>Image blocks are not supported by this Rust path yet.</li>
+          <li>The bridge is real-time but not natively async end-to-end; Python uses worker threads around blocking handle methods.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout animate" style="--i:15">
+      <strong>Mental model:</strong> <code>alchemy_provider.py</code> is the adapter, <code>src/lib.rs</code> is the stream engine,
+      <code>alchemy_llm::stream()</code> is the transport abstraction, and <code>AlchemyStreamResponse</code> is the compatibility layer
+      that makes the whole Rust path look like any other TinyAgent <code>StreamFn</code> implementation.
+    </div>
+  </main>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  import elkLayouts from 'https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk/dist/mermaid-layout-elk.esm.min.mjs';
+
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+  mermaid.registerLayoutLoaders(elkLayouts);
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    look: 'classic',
+    layout: 'elk',
+    flowchart: { htmlLabels: true, curve: 'basis' },
+    sequence: { useMaxWidth: true, wrap: true },
+    themeVariables: {
+      primaryColor: isDark ? '#30261f' : '#fffaf5',
+      primaryBorderColor: isDark ? '#de8f70' : '#b6542f',
+      primaryTextColor: isDark ? '#f3e7d9' : '#2d241b',
+      secondaryColor: isDark ? '#2a241d' : '#faf4ee',
+      secondaryBorderColor: isDark ? '#9db8d4' : '#3e5a76',
+      secondaryTextColor: isDark ? '#f3e7d9' : '#2d241b',
+      tertiaryColor: isDark ? '#2b261d' : '#fbf7ef',
+      tertiaryBorderColor: isDark ? '#a9c094' : '#6e8b61',
+      tertiaryTextColor: isDark ? '#f3e7d9' : '#2d241b',
+      lineColor: isDark ? '#c0ae9e' : '#796a5a',
+      noteBkgColor: isDark ? '#30261f' : '#fff8ef',
+      noteBorderColor: isDark ? '#e6c06c' : '#c08a2c',
+      noteTextColor: isDark ? '#f3e7d9' : '#2d241b',
+      actorBkg: isDark ? '#30261f' : '#fffaf5',
+      actorBorder: isDark ? '#de8f70' : '#b6542f',
+      actorTextColor: isDark ? '#f3e7d9' : '#2d241b',
+      signalColor: isDark ? '#c0ae9e' : '#796a5a',
+      signalTextColor: isDark ? '#f3e7d9' : '#2d241b',
+      labelBoxBkgColor: isDark ? '#19130f' : '#f6f1ea',
+      labelTextColor: isDark ? '#f3e7d9' : '#2d241b',
+      fontFamily: "'IBM Plex Sans', system-ui, sans-serif",
+      fontSize: '18px'
+    }
+  });
+</script>
+
+<script>
+  var INITIAL_ZOOM = 1.15;
+
+  function zoomDiagram(btn, factor) {
+    var wrap = btn.closest('.mermaid-wrap');
+    var target = wrap.querySelector('.mermaid');
+    var current = parseFloat(target.dataset.zoom || INITIAL_ZOOM);
+    var next = Math.min(Math.max(current * factor, 0.55), 5);
+    target.dataset.zoom = next;
+    target.style.zoom = next;
+  }
+
+  function resetZoom(btn) {
+    var wrap = btn.closest('.mermaid-wrap');
+    var target = wrap.querySelector('.mermaid');
+    target.dataset.zoom = INITIAL_ZOOM;
+    target.style.zoom = INITIAL_ZOOM;
+  }
+
+  function openDiagramFullscreen(btn) {
+    var wrap = btn.closest('.mermaid-wrap');
+    openMermaidInNewTab(wrap);
+  }
+
+  function openMermaidInNewTab(wrap) {
+    var svg = wrap.querySelector('.mermaid svg');
+    if (!svg) return;
+
+    var clone = svg.cloneNode(true);
+    clone.style.zoom = '';
+    clone.style.transform = '';
+
+    var styles = getComputedStyle(document.documentElement);
+    var bg = styles.getPropertyValue('--bg').trim() || '#ffffff';
+
+    var html = '<!DOCTYPE html>' +
+      '<html lang="en"><head><meta charset="UTF-8">' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+      '<title>Diagram</title>' +
+      '<style>' +
+      'body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:' + bg + ';padding:40px;box-sizing:border-box;}' +
+      'svg{max-width:100%;max-height:92vh;height:auto;}' +
+      '</style></head><body>' + clone.outerHTML + '</body></html>';
+
+    var blob = new Blob([html], { type: 'text/html' });
+    window.open(URL.createObjectURL(blob), '_blank');
+  }
+
+  document.querySelectorAll('.mermaid-wrap').forEach(function(wrap) {
+    wrap.addEventListener('wheel', function(e) {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      var target = wrap.querySelector('.mermaid');
+      var current = parseFloat(target.dataset.zoom || INITIAL_ZOOM);
+      var factor = e.deltaY < 0 ? 1.1 : 0.9;
+      var next = Math.min(Math.max(current * factor, 0.55), 5);
+      target.dataset.zoom = next;
+      target.style.zoom = next;
+    }, { passive: false });
+
+    var startX, startY, scrollL, scrollT, startTime, didPan;
+    wrap.addEventListener('mousedown', function(e) {
+      if (e.target.closest('.zoom-controls')) return;
+      wrap.classList.add('is-panning');
+      startX = e.clientX;
+      startY = e.clientY;
+      scrollL = wrap.scrollLeft;
+      scrollT = wrap.scrollTop;
+      startTime = Date.now();
+      didPan = false;
+    });
+
+    window.addEventListener('mousemove', function(e) {
+      if (!wrap.classList.contains('is-panning')) return;
+      var dx = e.clientX - startX;
+      var dy = e.clientY - startY;
+      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) didPan = true;
+      wrap.scrollLeft = scrollL - dx;
+      wrap.scrollTop = scrollT - dy;
+    });
+
+    window.addEventListener('mouseup', function() {
+      if (!wrap.classList.contains('is-panning')) return;
+      wrap.classList.remove('is-panning');
+      var elapsed = Date.now() - startTime;
+      if (!didPan && elapsed < 300) {
+        openMermaidInNewTab(wrap);
+      }
+    });
+  });
+
+  (function() {
+    const toc = document.getElementById('toc');
+    const links = toc.querySelectorAll('a');
+    const sections = [];
+
+    links.forEach(link => {
+      const id = link.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if (el) sections.push({ id, el, link });
+    });
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          links.forEach(l => l.classList.remove('active'));
+          const match = sections.find(s => s.el === entry.target);
+          if (match) {
+            match.link.classList.add('active');
+            if (window.innerWidth <= 1000) {
+              match.link.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            }
+          }
+        }
+      });
+    }, { rootMargin: '-10% 0px -80% 0px' });
+
+    sections.forEach(s => observer.observe(s.el));
+
+    links.forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        const id = link.getAttribute('href').slice(1);
+        const el = document.getElementById(id);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          history.replaceState(null, '', '#' + id);
+        }
+      });
+    });
+  })();
+</script>
+</body>
+</html>
