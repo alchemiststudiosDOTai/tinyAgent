@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import cast
 
 import pytest
 
-from tinyagent.agent_types import Context, TextContent, UserMessage
+from tinyagent.agent_types import Context, Message, TextContent, UserMessage
 from tinyagent.proxy import _context_to_json, _message_to_json
 
 
@@ -26,10 +26,10 @@ def test_message_to_json_rejects_model_dump_returning_non_dict() -> None:
 
 
 def test_context_to_json_requires_model_messages() -> None:
-    bad_messages: list[Any] = [object()]
+    bad_messages = [object()]
     context = Context(
         system_prompt="test",
-        messages=bad_messages,
+        messages=cast(list[Message], bad_messages),
     )
     with pytest.raises(TypeError, match="context.messages"):
         _context_to_json(context)

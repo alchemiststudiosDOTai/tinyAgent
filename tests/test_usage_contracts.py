@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import asyncio
 import importlib
-from collections.abc import AsyncIterator, Coroutine
-from typing import Any, TypeVar, cast
+from collections.abc import AsyncIterator, Awaitable
+from typing import TypeVar, cast
 
 import pytest
 
@@ -21,11 +21,13 @@ from tinyagent.agent_types import (
     AgentContext,
     AgentLoopConfig,
     AgentMessage,
+    AgentMessageProvider,
     AgentTool,
     AssistantMessage,
     AssistantMessageEvent,
     Context,
     JsonObject,
+    Message,
     Model,
     SimpleStreamOptions,
     TextContent,
@@ -61,15 +63,15 @@ class FakeAlchemyModule:
 
     def __init__(self, handle: FakeHandle) -> None:
         self._handle = handle
-        self.captured_model: dict[str, Any] | None = None
-        self.captured_context: dict[str, Any] | None = None
-        self.captured_options: dict[str, Any] | None = None
+        self.captured_model: dict[str, object] | None = None
+        self.captured_context: dict[str, object] | None = None
+        self.captured_options: dict[str, object] | None = None
 
     def openai_completions_stream(
         self,
-        model: dict[str, Any],
-        context: dict[str, Any],
-        options: dict[str, Any],
+        model: dict[str, object],
+        context: dict[str, object],
+        options: dict[str, object],
     ) -> FakeHandle:
         self.captured_model = model
         self.captured_context = context
@@ -103,8 +105,11 @@ class FakeStreamResponse:
         return event
 
 
-def _run(coro: Coroutine[Any, Any, T]) -> T:
-    return asyncio.run(coro)
+def _run(awaitable: Awaitable[T]) -> T:
+    async def _wrapper() -> T:
+        return await awaitable
+
+    return asyncio.run(_wrapper())
 
 
 def _usage_payload() -> JsonObject:
@@ -409,8 +414,9 @@ def test_agent_does_not_continue_turn_when_tool_execution_returns_no_results(
             assistant_message: AssistantMessage,
             signal: asyncio.Event | None,
             stream: object,
-            get_steering_messages: Any = None,
+            get_steering_messages: AgentMessageProvider | None = None,
         ) -> ToolExecutionResult:
+            del tools, assistant_message, signal, stream, get_steering_messages
             return ToolExecutionResult()
 
         agent_loop_module = importlib.import_module("tinyagent.agent_loop")
@@ -513,6 +519,7 @@ def test_process_turn_does_not_double_poll_steering_after_tool_batch(
             stream: object,
             stream_fn: object = None,
         ) -> AssistantMessage:
+            del context, config, signal, stream, stream_fn
             return assistant_message
 
         async def fake_execute_tool_calls(
@@ -520,8 +527,9 @@ def test_process_turn_does_not_double_poll_steering_after_tool_batch(
             assistant_message: AssistantMessage,
             signal: asyncio.Event | None,
             stream: object,
-            get_steering_messages_cb: Any = None,
+            get_steering_messages_cb: AgentMessageProvider | None = None,
         ) -> ToolExecutionResult:
+            del tools, assistant_message, signal, stream
             assert get_steering_messages_cb is not None
             await get_steering_messages_cb()
             return ToolExecutionResult(
@@ -536,13 +544,17 @@ def test_process_turn_does_not_double_poll_steering_after_tool_batch(
         )
         monkeypatch.setattr(agent_loop_module, "execute_tool_calls", fake_execute_tool_calls)
 
+        def convert_to_llm(messages: list[AgentMessage]) -> list[Message]:
+            del messages
+            return []
+
         config = AgentLoopConfig(
             model=Model(
                 provider="openrouter",
                 id="moonshotai/kimi-k2.5",
                 api="openai-completions",
             ),
-            convert_to_llm=lambda messages: cast(Any, []),
+            convert_to_llm=convert_to_llm,
             get_steering_messages=get_steering_messages,
         )
         current_context = AgentContext(system_prompt="", messages=[], tools=[])
