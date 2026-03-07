@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import cast
 
 import pytest
 
-from tinyagent.agent_types import Context, Model, SimpleStreamOptions, TextContent, UserMessage
+from tinyagent.agent_types import (
+    Context,
+    Message,
+    Model,
+    SimpleStreamOptions,
+    TextContent,
+    UserMessage,
+)
 from tinyagent.alchemy_provider import (
     DEFAULT_OPENAI_COMPAT_CHAT_COMPLETIONS_URL,
     OpenAICompatModel,
@@ -117,9 +124,9 @@ class _FakeHandle:
 class _FakeAlchemyModule:
     def openai_completions_stream(
         self,
-        model: dict[str, Any],
-        context: dict[str, Any],
-        options: dict[str, Any],
+        model: dict[str, object],
+        context: dict[str, object],
+        options: dict[str, object],
     ) -> _FakeHandle:
         del model, context, options
         return _FakeHandle()
@@ -130,10 +137,10 @@ async def test_stream_alchemy_rejects_message_without_model_dump(
 ) -> None:
     monkeypatch.setattr("tinyagent.alchemy_provider._ALCHEMY_MODULE", _FakeAlchemyModule())
 
-    bad_messages: list[Any] = [object()]
+    bad_messages = [object()]
     context = Context(
         system_prompt="test",
-        messages=bad_messages,
+        messages=cast(list[Message], bad_messages),
     )
 
     with pytest.raises(TypeError, match=r"context\.messages"):
@@ -154,10 +161,10 @@ async def test_stream_alchemy_rejects_model_dump_returning_non_dict(
 
     monkeypatch.setattr("tinyagent.alchemy_provider._ALCHEMY_MODULE", _FakeAlchemyModule())
 
-    bad_messages: list[Any] = [BadDump()]
+    bad_messages = [BadDump()]
     context = Context(
         system_prompt="test",
-        messages=bad_messages,
+        messages=cast(list[Message], bad_messages),
     )
 
     with pytest.raises(TypeError, match="must return a dict"):
