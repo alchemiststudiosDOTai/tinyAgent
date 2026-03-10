@@ -115,18 +115,10 @@ def _build_proxy_request_body(
     }
 
 
-async def _parse_error_response(response: httpx.Response) -> str:
-    """Parse error message from a non-200 proxy response."""
+def _build_proxy_error_message(response: httpx.Response) -> str:
+    """Build a deterministic error message for non-200 proxy responses."""
 
-    error_message = f"Proxy error: {response.status_code}"
-    try:
-        error_data = await response.aread()
-        error_json = json.loads(error_data)
-        if isinstance(error_json, dict) and error_json.get("error"):
-            error_message = f"Proxy error: {error_json['error']}"
-    except Exception:
-        pass
-    return error_message
+    return f"Proxy error: {response.status_code}"
 
 
 def _parse_sse_lines(buffer: str, chunk: str) -> tuple[str, list[str]]:
@@ -164,6 +156,13 @@ async def _iter_sse_events(response: httpx.Response) -> AsyncIterator[JsonObject
                 yield data
 
 
+class _QueueDoneSignal:
+    """Sentinel that marks the end of the proxy event stream."""
+
+
+_QUEUE_DONE = _QueueDoneSignal()
+
+
 class ProxyStreamResponse(StreamResponse):
     """A streaming response that reads SSE from a proxy server."""
 
@@ -175,17 +174,17 @@ class ProxyStreamResponse(StreamResponse):
         self._partial: AssistantMessage = _create_initial_partial(model)
         self._final: AssistantMessage | None = None
 
-        self._queue: asyncio.Queue[AssistantMessageEvent | None] = asyncio.Queue()
+        self._queue: asyncio.Queue[AssistantMessageEvent | _QueueDoneSignal] = asyncio.Queue()
         self._task = asyncio.create_task(self._run())
 
     def __aiter__(self) -> AsyncIterator[AssistantMessageEvent]:
         return self
 
     async def __anext__(self) -> AssistantMessageEvent:
-        event = await self._queue.get()
-        if event is None:
+        queued_item = await self._queue.get()
+        if isinstance(queued_item, _QueueDoneSignal):
             raise StopAsyncIteration
-        return event
+        return queued_item
 
     async def result(self) -> AssistantMessage:
         await self._task
@@ -240,7 +239,7 @@ class ProxyStreamResponse(StreamResponse):
                 timeout=None,
             ) as response:
                 if response.status_code != 200:
-                    raise RuntimeError(await _parse_error_response(response))
+                    raise RuntimeError(_build_proxy_error_message(response))
 
                 await self._stream_from_http_response(response)
 
@@ -267,7 +266,7 @@ class ProxyStreamResponse(StreamResponse):
         except Exception as exc:  # noqa: BLE001
             await self._run_error(exc)
         finally:
-            await self._queue.put(None)
+            await self._queue.put(_QUEUE_DONE)
 
 
 async def stream_proxy(

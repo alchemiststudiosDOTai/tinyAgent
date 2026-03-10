@@ -5,6 +5,7 @@ ast-grep rules for source code enforcement.
 Current rules:
 
 - `rules/no_any_python.yml`: absolute ban on `Any` in Python type annotations and imports.
+- `rules/no_typealias_python.yml`: bans `TypeAlias` and `TypeAliasType` shims in Python.
 
 Run from repository root:
 
