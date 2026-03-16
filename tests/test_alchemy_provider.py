@@ -17,6 +17,7 @@ from tinyagent.agent_types import (
 from tinyagent.alchemy_provider import (
     DEFAULT_OPENAI_COMPAT_CHAT_COMPLETIONS_URL,
     OpenAICompatModel,
+    _get_alchemy_module,
     _resolve_api_key,
     _resolve_base_url,
     _resolve_model_api,
@@ -93,6 +94,29 @@ def test_resolve_api_key_minimax_cn_env(monkeypatch: pytest.MonkeyPatch) -> None
 def test_resolve_api_key_unknown_provider_returns_none() -> None:
     model = Model(provider="my-custom-provider", id="x", api="openai-completions")
     assert _resolve_api_key(model, SimpleStreamOptions()) is None
+
+
+def test_get_alchemy_module_falls_back_to_top_level_package(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    imported: list[str] = []
+    fallback_module = _FakeAlchemyModule()
+
+    def fake_import_module(name: str) -> object:
+        imported.append(name)
+        if name == "tinyagent._alchemy":
+            raise ModuleNotFoundError(name)
+        if name == "_alchemy":
+            return fallback_module
+        raise AssertionError(f"unexpected import: {name}")
+
+    monkeypatch.setattr("tinyagent.alchemy_provider._ALCHEMY_MODULE", None)
+    monkeypatch.setattr("tinyagent.alchemy_provider.importlib.import_module", fake_import_module)
+
+    resolved = _get_alchemy_module()
+
+    assert resolved is fallback_module
+    assert imported == ["tinyagent._alchemy", "_alchemy"]
 
 
 class _FakeHandle:

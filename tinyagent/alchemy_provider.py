@@ -114,15 +114,20 @@ def _get_alchemy_module() -> _AlchemyModule:
     global _ALCHEMY_MODULE
     if _ALCHEMY_MODULE is None:
         package = __package__ or "tinyagent"
-        try:
-            module = importlib.import_module(f"{package}._alchemy")
-        except Exception as e:  # pragma: no cover
+        import_errors: list[Exception] = []
+        for module_name in (f"{package}._alchemy", "_alchemy"):
+            try:
+                module = importlib.import_module(module_name)
+                _ALCHEMY_MODULE = cast(_AlchemyModule, module)
+                break
+            except Exception as exc:  # pragma: no cover
+                import_errors.append(exc)
+        if _ALCHEMY_MODULE is None:
             raise RuntimeError(
                 "tinyagent._alchemy is not installed. "
                 "Install the optional binding from "
                 "https://github.com/tunahorse/tinyagent-alchemy"
-            ) from e
-        _ALCHEMY_MODULE = cast(_AlchemyModule, module)
+            ) from import_errors[-1]
     return _ALCHEMY_MODULE
 
 

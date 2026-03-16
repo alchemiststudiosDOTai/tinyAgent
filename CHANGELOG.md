@@ -7,6 +7,11 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.9] - 2026-03-16
+
+### Fixed
+- Added a fallback import path for the optional external alchemy binding so TinyAgent accepts both `tinyagent._alchemy` and top-level `_alchemy` wheel layouts after the repo split.
+
 ## [1.2.8] - 2026-03-16
 
 ### Added
@@ -192,7 +197,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Code quality gates (dead code, duplicates, debt)
 - Rust `alchemy_llm_py` binding documentation
 
-[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.8...HEAD
+[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.9...HEAD
+[1.2.9]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.8...v1.2.9
 [1.2.8]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.7...v1.2.8
 [1.2.7]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.6...v1.2.7
 [1.2.6]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.5...v1.2.6
