@@ -19,7 +19,7 @@
   - `agent_loop.py` — orchestration loop.
   - `agent_tool_execution.py` — concurrent tool execution.
   - `agent_types.py` — shared message, event, and state models.
-  - `alchemy_provider.py` — compatibility adapter for the optional external binding; do not treat this repo as the active home of that implementation.
+  - `alchemy_provider.py` — provider bridge kept here for package compatibility; do not treat this repo as the active home of the Rust implementation behind it.
   - `proxy.py`, `proxy_event_handlers.py` — proxy streaming path.
   - `caching.py` — prompt caching helpers.
 - `tests/` — unit and contract tests.
