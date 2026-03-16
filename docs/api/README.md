@@ -22,7 +22,7 @@ Complete API documentation for the tinyagent package.
 
 | Module | Description |
 |--------|-------------|
-| [providers](providers.md) | Alchemy (Rust) and Proxy providers |
+| [providers](providers.md) | Optional alchemy binding adapter and Proxy providers |
 | [openai-compatible-endpoints](openai-compatible-endpoints.md) | Using `OpenAICompatModel.base_url` with OpenAI-compatible endpoints |
 | [usage-semantics](usage-semantics.md) | Canonical `usage` schema, field mapping, and precedence rules |
 
@@ -113,8 +113,8 @@ AgentToolUpdateCallback = Callable[[AgentToolResult], None]
 
 ## Runtime Cutover Validation
 
-After the hard-cutover migration, validate the typed event/model contract with the
-live harness:
+After installing the optional external binding, validate the typed event/model
+contract with the live harness:
 
 ```bash
 uv run python docs/harness/tool_call_types_harness.py

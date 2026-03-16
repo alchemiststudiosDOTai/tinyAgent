@@ -13,11 +13,12 @@ ontological_relations:
 
 ## Summary
 
-TinyAgent now uses a single usage contract in the active built-in path:
+TinyAgent now uses a single usage contract in the active compatibility path:
 
-- Primary built-in provider: `stream_alchemy_openai_completions` (Rust binding)
+- Primary compatibility provider: `stream_alchemy_openai_completions`
+  (`tinyagent.alchemy_provider`, backed by the optional external binding)
 
-The keys and meanings are aligned, and Rust path responses are runtime-validated
+The keys and meanings are aligned, and binding-backed responses are runtime-validated
 before being returned to callers.
 
 ## Canonical Usage Shape
@@ -75,12 +76,12 @@ This supports both Anthropic-style cache fields and OpenAI-style nested prompt d
 ## What Was Unified
 
 Historically, Python and Rust paths were aligned on the same canonical keys. The
-current repo keeps only the hard-cutover path:
+current repo keeps the Python-side contract enforcement and compatibility adapter:
 
 - canonical provider-raw key names are enforced in runtime contracts
 - provider token meanings are preserved for `input` and `output`
 - stable snake_case shape remains (`usage.cost` defaults included)
-- Rust stream result enforces required usage keys
+- binding-backed stream results enforce required usage keys
 
 ## Practical Guidance
 

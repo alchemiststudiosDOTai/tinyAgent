@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Smoke test: 3 sequential tool-call turns via Rust binding across 3 providers."""
+"""Smoke test: 3 sequential tool-call turns via the optional binding across 3 providers.
+
+Install/build `tinyagent._alchemy` from:
+  https://github.com/tunahorse/tinyagent-alchemy
+"""
 
 from __future__ import annotations
 

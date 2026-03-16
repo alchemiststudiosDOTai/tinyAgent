@@ -19,7 +19,7 @@ TinyAgent’s provider model supports a `base_url` override on `OpenAICompatMode
 
 ## Summary
 
-The Rust provider path uses `stream_alchemy_openai_completions`.
+The optional alchemy binding path uses `stream_alchemy_openai_completions`.
 
 ```python
 from tinyagent.alchemy_provider import OpenAICompatModel, stream_alchemy_openai_completions
@@ -54,7 +54,7 @@ For `provider="openrouter"`, env fallback works out of the box. Passing
 ### Base URL behavior
 
 - `base_url` must be a non-empty string.
-- The value is forwarded directly into the Rust provider request.
+- The value is forwarded directly into the binding-backed provider request.
 
 ### Usage semantics
 
@@ -155,3 +155,5 @@ blocks.
   - pass `options.api_key` explicitly or use correct env var for the provider.
 - model errors at runtime
   - verify model ID and endpoint compatibility with the target backend.
+- `tinyagent._alchemy is not installed`
+  - install/build the optional binding from `https://github.com/tunahorse/tinyagent-alchemy`.
