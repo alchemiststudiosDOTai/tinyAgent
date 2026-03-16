@@ -68,3 +68,10 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+
+      - id: treelint
+        name: treelint (tinyagent tree hygiene)
+        entry: python3 scripts/lint_tinyagent_tree.py
+        language: system
+        pass_filenames: false
+        always_run: true
