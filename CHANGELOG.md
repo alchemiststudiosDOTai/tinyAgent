@@ -7,6 +7,18 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- Added `tinyagent/py.typed` to mark the published Python package as typed.
+
+### Changed
+- Switched the repo build from a local `maturin` mixed Rust/Python package to a pure Python `setuptools` build.
+- Reframed `tinyagent/alchemy_provider.py` as a compatibility adapter for the optional external binding repo at `https://github.com/tunahorse/tinyagent-alchemy`.
+- Updated README, API docs, architecture notes, harness guidance, and `AGENTS.md` to treat the Rust binding as external to this repo.
+
+### Removed
+- Removed the in-repo Rust binding manifests and local binding-enforcement lint now that binding ownership has moved out of this repository.
+- Removed stale binding-specific docs and diagrams that still described `src/lib.rs` as the source of truth.
+
 ## [1.2.7] - 2026-03-04
 
 ### Added
