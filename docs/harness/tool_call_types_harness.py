@@ -63,7 +63,7 @@ def _debug_enabled() -> bool:
     return os.getenv("HARNESS_DEBUG", "").lower() in {"1", "true", "yes", "on"}
 
 
-def _resolve_provider_and_model() -> OpenAICompatModel:
+def _resolve_provider_and_model() -> OpenAICompatModel | None:
     if os.getenv("OPENROUTER_API_KEY"):
         return OpenAICompatModel(
             provider="openrouter",
@@ -88,9 +88,7 @@ def _resolve_provider_and_model() -> OpenAICompatModel:
             base_url=os.getenv("MINIMAX_BASE_URL", DEFAULT_MINIMAX_BASE_URL),
             max_tokens=int(os.getenv("HARNESS_MAX_TOKENS", str(DEFAULT_HARNESS_MAX_TOKENS))),
         )
-    raise RuntimeError(
-        "Missing OPENROUTER_API_KEY, CHUTES_API_KEY, or MINIMAX_API_KEY in environment/.env"
-    )
+    return None
 
 
 def _resolve_api_key(provider: str) -> str | None:
@@ -155,6 +153,10 @@ async def main() -> None:
     load_dotenv()
 
     model = _resolve_provider_and_model()
+    if model is None:
+        print("SKIPPED: missing OPENROUTER_API_KEY, CHUTES_API_KEY, or MINIMAX_API_KEY")
+        return
+
     assistant_stream_event_types: list[str] = []
     agent_event_types: list[str] = []
     agent_event_class_types: list[str] = []
