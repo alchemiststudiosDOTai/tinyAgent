@@ -253,7 +253,7 @@ class AgentOptions:
 
 **Options**:
 
-- `stream_fn`: Required. The streaming function (e.g., `stream_alchemy_openai_completions`)
+- `stream_fn`: Required. The streaming function (e.g., `stream_alchemy_openai_completions` or `stream_proxy`)
 - `convert_to_llm`: Callback to filter messages before LLM calls
 - `transform_context`: Async callback to modify context before LLM calls
 - `steering_mode`: "one-at-a-time" (default) or "all" - how to process steering queue

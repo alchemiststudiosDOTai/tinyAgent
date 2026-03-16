@@ -1,20 +1,16 @@
-"""Alchemy (Rust) provider for tinyagent.
+"""Compatibility provider for the optional tinyagent-alchemy binding.
 
-This provider uses the Rust crate `alchemy-llm` via the PyO3 extension module
-`tinyagent._alchemy` (implemented in `src/lib.rs`).
+This module keeps the Python-side adapter for the external `tinyagent._alchemy`
+extension. The binding itself is maintained outside this repo:
+
+    https://github.com/tunahorse/tinyagent-alchemy
 
 Important limitations:
-- Rust binding currently dispatches only `openai-completions` and
+- The binding currently dispatches only `openai-completions` and
   `minimax-completions` APIs.
 - Image blocks are not supported yet.
 - Python receives events by calling a blocking `next_event()` method in a thread,
   so it is real-time but has more overhead than a native async generator.
-
-Build/install the binding first (from repo root):
-
-    python -m pip install maturin
-    maturin develop
-
 """
 
 from __future__ import annotations
@@ -123,7 +119,8 @@ def _get_alchemy_module() -> _AlchemyModule:
         except Exception as e:  # pragma: no cover
             raise RuntimeError(
                 "tinyagent._alchemy is not installed. "
-                "Build it via `maturin develop` in the project root"
+                "Install the optional binding from "
+                "https://github.com/tunahorse/tinyagent-alchemy"
             ) from e
         _ALCHEMY_MODULE = cast(_AlchemyModule, module)
     return _ALCHEMY_MODULE

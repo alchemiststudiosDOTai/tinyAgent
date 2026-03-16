@@ -3,6 +3,9 @@
 
 Usage:
   uv run python docs/harness/tool_call_types_harness.py
+
+Requires the optional external `tinyagent._alchemy` binding:
+  https://github.com/tunahorse/tinyagent-alchemy
 """
 
 from __future__ import annotations

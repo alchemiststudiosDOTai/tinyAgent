@@ -2,10 +2,13 @@
 
 LLM provider implementations that satisfy the `StreamFn` protocol.
 
-## Alchemy Provider (Rust, PyO3)
+## Alchemy Provider (Optional External Binding)
 
-TinyAgent currently ships an OpenAI-compatible provider path via the Rust binding in
-`alchemy_provider.py`.
+TinyAgent keeps an OpenAI-compatible provider adapter in `alchemy_provider.py`.
+The underlying `tinyagent._alchemy` extension is optional and maintained in the
+external binding repo:
+
+- `https://github.com/tunahorse/tinyagent-alchemy`
 
 ```python
 from tinyagent.alchemy_provider import OpenAICompatModel, stream_alchemy_openai_completions
@@ -31,7 +34,7 @@ class OpenAICompatModel(Model):
     reasoning: bool | ReasoningEffort = False
 ```
 
-Model configuration for Rust-backed OpenAI-compatible streaming.
+Model configuration for OpenAI-compatible streaming through the optional binding.
 
 `provider`, `api`, and `base_url` are resolved at call time:
 
@@ -49,7 +52,7 @@ async def stream_alchemy_openai_completions(
 ) -> AlchemyStreamResponse
 ```
 
-Stream using the Rust alchemy-llm implementation.
+Stream using the optional `tinyagent._alchemy` implementation.
 
 - `model.provider == "minimax"` or `"minimax-cn"` -> dispatches to minimax API
 - all other providers dispatch to `openai-completions`
@@ -66,6 +69,9 @@ For `stream_alchemy_openai_completions`:
 3. `OPENROUTER_API_KEY` when `model.provider == "openrouter"`
 4. `MINIMAX_API_KEY` when `model.provider == "minimax"`
 5. `MINIMAX_CN_API_KEY` when `model.provider == "minimax-cn"`
+
+If the binding is missing at runtime, `tinyagent.alchemy_provider` raises a
+`RuntimeError` that points to the external repo.
 
 ## Proxy Provider
 

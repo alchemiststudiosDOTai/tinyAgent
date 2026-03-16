@@ -8,7 +8,8 @@ Inspired by [smolagents](https://github.com/huggingface/smolagents) and [Pi](htt
 
 > **Beta** — TinyAgent is usable but not production-ready. APIs may change between minor versions.
 
-> **Note:** Reference copy of alchemy-rs available at `/home/tuna/alchemy-rs-ref`
+> **Note:** The optional `tinyagent._alchemy` binding now lives in
+> `https://github.com/tunahorse/tinyagent-alchemy` and is not built from this repo.
 
 ## Overview
 
@@ -19,10 +20,14 @@ TinyAgent provides a lightweight foundation for creating conversational AI agent
 - **Event-driven**: Subscribe to agent events for real-time UI updates
 - **Provider agnostic**: Works with any OpenAI-compatible `/chat/completions` endpoint (OpenRouter, OpenAI, Chutes, local servers)
 - **Prompt caching**: Reduce token costs and latency with Anthropic-style cache breakpoints
-- **Provider path**: Default built-in Rust (`alchemy_provider`) with optional proxy integration
+- **Provider paths**: Optional external alchemy binding adapter plus proxy integration
 - **Type-safe**: Full type hints throughout
 
 ## Quick Start
+
+This example uses the optional `tinyagent._alchemy` binding via
+`tinyagent.alchemy_provider`. Install that binding from the external repo first,
+or use the proxy path instead.
 
 ```python
 import asyncio
@@ -62,6 +67,12 @@ asyncio.run(main())
 ```bash
 pip install tiny-agent-os
 ```
+
+Optional binding:
+
+- Install/build `tinyagent._alchemy` from `https://github.com/tunahorse/tinyagent-alchemy`
+  if you want `stream_alchemy_openai_completions`
+- Otherwise, use the proxy path in `tinyagent.proxy`
 
 ## Core Concepts
 
@@ -146,117 +157,19 @@ agent = Agent(
 
 Cache breakpoints are automatically placed on user message content blocks so the prompt prefix stays cached across turns. See [Prompt Caching](api/caching.md) for details.
 
-## Rust Binding: `tinyagent._alchemy`
+## Optional Binding: `tinyagent._alchemy`
 
-TinyAgent ships with an optional Rust-based LLM provider implemented in
-`src/lib.rs`. It wraps the [`alchemy-llm`](https://crates.io/crates/alchemy-llm)
-Rust crate and exposes it to Python via [PyO3](https://pyo3.rs) as
-`tinyagent._alchemy`, giving you native-speed OpenAI-compatible streaming without
-leaving the Python process.
+This repo keeps `tinyagent/alchemy_provider.py` as a compatibility adapter for the
+optional external `tinyagent._alchemy` extension. The binding source, build
+instructions, and low-level binding API now live in:
 
-### Why
+- `https://github.com/tunahorse/tinyagent-alchemy`
 
-The pure-Python proxy path (`proxy.py`) remains available, while the Rust path
-provides:
+The compiled path is still useful when you want OpenAI-compatible streaming
+without routing through a separate proxy, but it is no longer bundled or built
+from this repository.
 
-- **Lower per-token overhead** -- SSE parsing, JSON deserialization, and event dispatch all
-  happen in compiled Rust with a multi-threaded Tokio runtime.
-- **Unified provider abstraction** -- `alchemy-llm` normalizes differences across providers
-  (OpenRouter, Anthropic, custom endpoints) behind a single streaming interface.
-- **Full event fidelity** -- text deltas, thinking deltas, tool call deltas, and terminal
-  events are surfaced as TinyAgent event/message models.
-
-### How it works
-
-```
-Python (async)             Rust (Tokio)
-─────────────────          ─────────────────────────
-stream_alchemy_*()  ──>    alchemy_llm::stream()
-                            │
-AlchemyStreamResponse       ├─ SSE parse + deserialize
-  .__anext__()       <──    ├─ event_to_py_value()
-  (asyncio.to_thread)       └─ mpsc channel -> Python
-```
-
-1. Python calls `openai_completions_stream(model, context, options)` which is a `#[pyfunction]`.
-2. The Rust side builds an `alchemy-llm` request, opens an SSE stream on a shared Tokio
-   runtime, and sends events through an `mpsc` channel.
-3. Python reads events by calling the blocking `next_event()` method via
-   `asyncio.to_thread`, making it async-compatible without busy-waiting.
-4. A terminal `done` or `error` event signals the end of the stream. The final
-   `AssistantMessage` dict is available via `result()`.
-
-### Building
-
-Requires a Rust toolchain (1.70+) and [maturin](https://www.maturin.rs/).
-
-```bash
-pip install maturin
-maturin develop            # debug build, installs into current venv
-maturin develop --release  # optimized build
-```
-
-### Python API
-
-Two functions are exposed from the `tinyagent._alchemy` module:
-
-| Function | Description |
-|---|---|
-| `collect_openai_completions(model, context, options?)` | Blocking. Consumes the entire stream and returns `{"events": [...], "final_message": {...}}`. Useful for one-shot calls. |
-| `openai_completions_stream(model, context, options?)` | Returns an `OpenAICompletionsStream` handle for incremental consumption. |
-
-The `OpenAICompletionsStream` handle has two methods:
-
-| Method | Description |
-|---|---|
-| `next_event()` | Blocking. Returns the next event dict, or `None` when the stream ends. |
-| `result()` | Blocking. Returns the final assistant message dict. |
-
-All three arguments are plain Python dicts:
-
-```python
-model = {
-    "id": "anthropic/claude-3.5-sonnet",
-    "base_url": "https://openrouter.ai/api/v1/chat/completions",
-    "provider": "openrouter",          # required for env-key fallback/inference
-    "api": "openai-completions",       # optional; inferred from provider when omitted/blank
-    "headers": {"X-Custom": "val"},   # optional
-    "reasoning": False,                  # optional
-    "context_window": 128000,            # optional
-    "max_tokens": 4096,                  # optional
-}
-
-context = {
-    "system_prompt": "You are helpful.",
-    "messages": [
-        {"role": "user", "content": [{"type": "text", "text": "Hello"}]}
-    ],
-    "tools": [                       # optional
-        {"name": "sum", "description": "Add numbers", "parameters": {...}}
-    ],
-}
-
-options = {
-    "api_key": "sk-...",            # optional
-    "temperature": 0.7,              # optional
-    "max_tokens": 1024,              # optional
-}
-```
-
-**Routing contract (`provider`, `api`, `base_url`)**:
-- `provider`: backend identity used for API-key fallback and provider defaults
-- `api`: alchemy unified API selector (`openai-completions` or `minimax-completions`)
-- `base_url`: concrete HTTP endpoint
-
-If `api` is omitted/blank, the Python side infers:
-- `provider in {"minimax", "minimax-cn"}` => `minimax-completions`
-- otherwise => `openai-completions`
-
-Legacy API aliases are normalized for backward compatibility:
-- `api="openai"` / `api="openai-compatible"` / `api="chat-completions"` => `openai-completions`
-- `api="minimax"` => `minimax-completions`
-
-### Using via TinyAgent (high-level)
+### Using via TinyAgent
 
 You don't need to call the Rust binding directly. Use the `alchemy_provider` module:
 
@@ -303,19 +216,19 @@ agent.set_model(
 )
 ```
 
-Cross-provider tool-call smoke examples:
-- One-agent workflow: `examples/example_tool_calls_three_providers.py`
-- Raw Rust binding workflow (multi-turn tools): `scripts/smoke_rust_tool_calls_three_providers.py`
-  - Command: `uv run python scripts/smoke_rust_tool_calls_three_providers.py`
+Smoke validation after installing the external binding:
+
+- `uv run python scripts/smoke_rust_tool_calls_three_providers.py`
 
 
 ### Limitations
 
-- Rust binding currently dispatches only `openai-completions` and `minimax-completions`.
+- The optional binding currently dispatches only `openai-completions` and
+  `minimax-completions`.
 - Image blocks are not yet supported (text and thinking blocks work).
 - `next_event()` is blocking and runs in a thread via `asyncio.to_thread` -- this adds
   slight overhead compared to a native async generator, but keeps the GIL released during
-  the Rust work.
+  the native work.
 
 ## Documentation
 
@@ -324,7 +237,7 @@ Cross-provider tool-call smoke examples:
 - [Prompt Caching](api/caching.md): Cache breakpoints, cost savings, and provider requirements
 - [OpenAI-Compatible Endpoints](api/openai-compatible-endpoints.md): Using `OpenAICompatModel.base_url` with OpenRouter/OpenAI/Chutes-compatible backends
 - [Usage Semantics](api/usage-semantics.md): Canonical `usage` schema across provider flows
-- [AST Rule: No TypeAlias Shims](ast-grep-no-typealias.md): Structural lint rule banning `TypeAlias` / `TypeAliasType`
+- [Harness Rules](../rules/README.md): ast-grep rules for the live tool-call harness
 - [Changelog](../CHANGELOG.md): Release history
 
 ## Project Structure
@@ -336,7 +249,7 @@ tinyagent/
 ├── agent_tool_execution.py  # Tool execution helpers
 ├── agent_types.py        # Type definitions
 ├── caching.py            # Prompt caching utilities
-├── alchemy_provider.py   # Rust-based provider (PyO3)
+├── alchemy_provider.py   # Adapter for the optional external binding
 ├── proxy.py              # Proxy server integration
 └── proxy_event_handlers.py  # Proxy event parsing
 ```

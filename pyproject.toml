@@ -1,6 +1,6 @@
 [build-system]
-requires = ["maturin>=1.7,<2.0"]
-build-backend = "maturin"
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "tiny-agent-os"
@@ -8,13 +8,12 @@ version = "1.2.7"
 description = "Python agent loop"
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = "MIT"
 authors = [{name = "Fabian"}]
 keywords = ["agent", "llm", "openrouter", "streaming"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -42,10 +41,11 @@ dev = [
     "pylint>=3.0.0",
 ]
 
-[tool.maturin]
-module-name = "tinyagent._alchemy"
-python-source = "."
-bindings = "pyo3"
+[tool.setuptools.packages.find]
+include = ["tinyagent*"]
+
+[tool.setuptools.package-data]
+tinyagent = ["py.typed"]
 
 [tool.ruff]
 line-length = 100

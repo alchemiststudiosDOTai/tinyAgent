@@ -2,7 +2,7 @@
 
 ## Project Overview
 - TinyAgent is maintained here as a Python agent framework centered on `tinyagent/`.
-- The Rust alchemy binding is no longer maintained in this repo; treat any binding-specific files or docs here as legacy context and expect active binding work to live in a separate repo.
+- The Rust alchemy binding is no longer maintained in this repo; active binding work lives at `https://github.com/tunahorse/tinyagent-alchemy`.
 - Primary runtime guidance in this repo should focus on the Python package surface and the proxy/provider glue that remains here.
 - Treat this file as a quick map. For detailed behavior, defer to the docs and tests listed below.
 
@@ -61,6 +61,7 @@
 - Enforced checks: `.pre-commit-config.yaml`, `scripts/*.py`
 - Import boundaries: `tests/architecture/test_import_boundaries.py`
 - Harness-specific rules: `rules/README.md`, `rules/*.yml`
+- External binding repo: `https://github.com/tunahorse/tinyagent-alchemy`
 
 ## Change Guardrails
 - Do not add `.env` loading or `dotenv` imports inside `tinyagent/`.

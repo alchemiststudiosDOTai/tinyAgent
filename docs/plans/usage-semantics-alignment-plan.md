@@ -10,7 +10,7 @@ ontological_relations:
   - affects: [[tinyagent/alchemy_provider.py]]
   - historical_note: `openrouter_provider.py` path was removed during hard cutover
   - affects: [[tinyagent/alchemy_provider.py]]
-  - affects: [[src/lib.rs]]
+  - historical_affects: in-repo `src/lib.rs` binding before extraction to the external binding repo
   - affects: [[alchemy-rs/src/providers/openai_completions.rs]]
 tags:
   - usage
@@ -103,7 +103,7 @@ In `alchemy-rs/src/providers/openai_completions.rs`:
 ## Phase 2 — Align tinyagent Rust binding integration
 
 1. Ensure tinyagent build consumes the updated `alchemy-llm` behavior (path patch or dependency bump).
-2. Confirm `src/lib.rs` needs no semantic change beyond pass-through (it already serializes `Usage` fields directly).
+2. Confirm the former in-repo binding needed no semantic change beyond pass-through at the time (it already serialized `Usage` fields directly).
 3. Rebuild binding and run contract tests.
 
 ## Phase 3 — Harden migration path parity

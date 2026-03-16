@@ -115,11 +115,11 @@ This document describes the architecture of TinyAgent: where components live, wh
 
 **What**: Implement `StreamFn` protocol for specific LLM backends.
 
-**Rust Alchemy Provider**:
-- PyO3-backed provider using `tinyagent._alchemy`
+**Alchemy Provider Compatibility Layer**:
+- Python adapter for the optional external `tinyagent._alchemy` binding
 - OpenAI-compatible request/response model with OpenRouter-style endpoints
 - Structured model/event pipeline and usage contract normalization
-- Streaming via Rust-backed `Async` bridge
+- Streaming via the binding-backed `Async` bridge
 
 **Proxy Provider**:
 - Uses `httpx` to call a relay service
