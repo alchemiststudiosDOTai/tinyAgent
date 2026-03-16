@@ -7,6 +7,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.8] - 2026-03-16
+
 ### Added
 - Added `tinyagent/py.typed` to mark the published Python package as typed.
 
@@ -14,6 +16,9 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Switched the repo build from a local `maturin` mixed Rust/Python package to a pure Python `setuptools` build.
 - Reframed `tinyagent/alchemy_provider.py` as a compatibility adapter for the optional external binding repo at `https://github.com/tunahorse/tinyagent-alchemy`.
 - Updated README, API docs, architecture notes, harness guidance, and `AGENTS.md` to treat the Rust binding as external to this repo.
+
+### Fixed
+- Skipped the live harness test when provider API keys are not configured so the default test suite stays green in clean environments.
 
 ### Removed
 - Removed the in-repo Rust binding manifests and local binding-enforcement lint now that binding ownership has moved out of this repository.
@@ -187,7 +192,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Code quality gates (dead code, duplicates, debt)
 - Rust `alchemy_llm_py` binding documentation
 
-[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.7...HEAD
+[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.8...HEAD
+[1.2.8]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.7...v1.2.8
 [1.2.7]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.6...v1.2.7
 [1.2.6]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.5...v1.2.6
 [1.2.5]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.4...v1.2.5
