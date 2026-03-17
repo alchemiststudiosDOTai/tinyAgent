@@ -7,6 +7,20 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- Refactored `Agent` runtime internals by extracting streaming, event handling, and configuration into separate modules (`agent_streaming.py`, `agent_event_handler.py`, `agent_options.py`, `message_content.py`).
+- Updated ARCHITECTURE.md to reflect new module boundaries and responsibilities.
+
+### Added
+- `HARNESS.md` - Critical enforcement document describing pre-commit hooks, ratchets, and rule entry points.
+- `py-compile` pre-commit hook to catch syntax and import-time compilation errors.
+- `tinyagent-file-length` pre-commit hook with 400-line ratchet for files under `tinyagent/`.
+- `docs/harness/HARNESS.md` - Guardrails for code in `docs/harness/`.
+
+### Docs
+- Updated `AGENTS.md` to reference `HARNESS.md` and document enforcement-first policy.
+- Removed obsolete API entries from `docs/api/agent.md` (replaced by typed `AgentOptions`).
+
 ## [1.2.9] - 2026-03-16
 
 ### Fixed
