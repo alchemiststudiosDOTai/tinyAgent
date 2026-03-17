@@ -7,6 +7,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.10] - 2026-03-17
+
 ### Changed
 - Refactored `Agent` runtime internals by extracting streaming, event handling, and configuration into separate modules (`agent_streaming.py`, `agent_event_handler.py`, `agent_options.py`, `message_content.py`).
 - Updated ARCHITECTURE.md to reflect new module boundaries and responsibilities.
@@ -17,7 +19,7 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `HARNESS.md` - Critical enforcement document describing pre-commit hooks, ratchets, and rule entry points.
 - `py-compile` pre-commit hook to catch syntax and import-time compilation errors.
 - `tinyagent-file-length` pre-commit hook with 400-line ratchet for files under `tinyagent/`.
-- `docs/harness/HARNESS.md` - Guardrails for code in `docs/harness/`.
+- `docs/harness/HARNESS.md` - Guardrails for code in `docs/harness`.
 
 ### Docs
 - Updated `AGENTS.md` to reference `HARNESS.md` and document enforcement-first policy.
@@ -213,7 +215,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Code quality gates (dead code, duplicates, debt)
 - Rust `alchemy_llm_py` binding documentation
 
-[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.9...HEAD
+[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.10...HEAD
+[1.2.10]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.9...v1.2.10
 [1.2.9]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.8...v1.2.9
 [1.2.8]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.7...v1.2.8
 [1.2.7]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.6...v1.2.7
