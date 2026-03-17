@@ -7,6 +7,12 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.11] - 2026-03-17
+
+### Fixed
+- Restored `Agent.replace_messages(...)` and `Agent.append_message(...)` after their accidental removal in `1.2.10`, preserving minor-version source compatibility for downstream integrations.
+- Re-aligned the `tinyagent` package layout and behavior with the pre-regression public API contract used by existing users.
+
 ## [1.2.10] - 2026-03-17
 
 ### Changed
@@ -215,7 +221,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Code quality gates (dead code, duplicates, debt)
 - Rust `alchemy_llm_py` binding documentation
 
-[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.10...HEAD
+[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.11...HEAD
+[1.2.11]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.10...v1.2.11
 [1.2.10]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.9...v1.2.10
 [1.2.9]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.8...v1.2.9
 [1.2.8]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.7...v1.2.8
