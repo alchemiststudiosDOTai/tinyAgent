@@ -239,6 +239,7 @@ Smoke validation after installing the external binding:
 - [Usage Semantics](api/usage-semantics.md): Canonical `usage` schema across provider flows
 - [Harness Rules](../rules/README.md): ast-grep rules for the live tool-call harness
 - [Changelog](../CHANGELOG.md): Release history
+- [Shipping the alchemy binding](docs/releasing-alchemy-binding.md): Release workflow for wheels that include `tinyagent._alchemy`
 
 ## Project Structure
 

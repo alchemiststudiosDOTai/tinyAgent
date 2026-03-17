@@ -24,6 +24,11 @@
 - No dedicated `pre-push` hook is currently configured in this repo.
 - The architecture doc says the same blocking checks used in pre-commit should also run in CI.
 
+## Release
+
+- `release-binding-check`: run `python3 scripts/check_release_binding.py --require-present` before building/publishing wheels that are expected to ship `_alchemy`.
+- This repo still does not own the Rust binding source; build the binary from `https://github.com/tunahorse/tinyagent-alchemy`, then stage the artifact into `tinyagent/` so setuptools packages it.
+
 ## Ratchets
 
 TBD

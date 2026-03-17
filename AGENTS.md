@@ -10,6 +10,7 @@
 - `README.md` — onboarding, install, examples, and current package usage notes.
 - `docs/ARCHITECTURE.md` — module responsibilities, event flow, quality gates, technical-debt policy.
 - `docs/api/README.md` — API reference index.
+- `docs/releasing-alchemy-binding.md` — release workflow for wheels that must ship `tinyagent._alchemy`.
 - `HARNESS.md` — critical enforcement document for this repo: pre-commit hooks, ratchets, and rule entry points.
 - `tests/architecture/test_import_boundaries.py` — enforced layer contract for the Python package.
 
@@ -40,6 +41,8 @@
 - `uv run vulture --min-confidence 80 tinyagent`
 - `uv run pylint --disable=all --enable=duplicate-code tinyagent`
 - `python3 scripts/lint_debt.py`
+- `python3 scripts/check_release_binding.py`
+- `python3 scripts/check_release_binding.py --require-present` — run before building/publishing wheels that are expected to ship `_alchemy`
 - `uv run python docs/harness/tool_call_types_harness.py`
 - `sg scan -r rules/harness_no_duck_typing.yml docs/harness/`
 - `sg scan -r rules/harness_no_thin_protocols.yml docs/harness/`
@@ -58,6 +61,7 @@
 - Product overview and examples: `README.md`
 - Architecture and repo policies: `docs/ARCHITECTURE.md`
 - API details: `docs/api/README.md`, `docs/api/*.md`
+- Alchemy wheel-release workflow: `docs/releasing-alchemy-binding.md`
 - Packaging/build config for this repo: `pyproject.toml`
 - Critical repo enforcement harness: `HARNESS.md`
 - Enforced checks: `.pre-commit-config.yaml`, `scripts/*.py`
@@ -71,6 +75,7 @@
 - No free-form `TODO`/`FIXME`/`HACK`/`XXX`/`DEBT` markers; use the ticketed format documented in `docs/ARCHITECTURE.md` and enforced by `scripts/lint_debt.py`.
 - Keep docs in this repo aligned with the Python package that lives here, and clearly mark any Rust-binding references as external or legacy.
 - Do not add new Rust-binding source, build steps, or "source of truth" claims to this repo.
+- Release wheels may still ship prebuilt `_alchemy` artifacts, but those binaries must be built from the external binding repo and staged into `tinyagent/` before packaging.
 - Treat `HARNESS.md` and the enforcement harness it describes as critical repo infrastructure. They are not optional process notes.
 - If a codebase rule matters, record it in `HARNESS.md` and back it with a typed check, hook, script, test, or rule file.
 - Prefer code-level enforcement over prose-only policy. Important rules should be enforced in `.pre-commit-config.yaml`, `scripts/*.py`, `tests/architecture/`, or `rules/` whenever practical.
@@ -81,6 +86,7 @@
 - Every listed path still exists.
 - Every listed command still matches current config, docs, or scripts.
 - Docs are updated when public API or usage contracts change, and any Rust-binding references make the external ownership clear.
+- Run `python3 scripts/check_release_binding.py --require-present` before building/publishing wheels that are expected to ship `_alchemy`.
 - `HARNESS.md` stays aligned with the actual enforced hooks, ratchets, and rule entry points.
 - Layer checks pass after import changes.
 - `AGENTS.md` stays compact and points outward instead of duplicating docs.

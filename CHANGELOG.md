@@ -10,8 +10,10 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 - Refactored `Agent` runtime internals by extracting streaming, event handling, and configuration into separate modules (`agent_streaming.py`, `agent_event_handler.py`, `agent_options.py`, `message_content.py`).
 - Updated ARCHITECTURE.md to reflect new module boundaries and responsibilities.
+- Configured setuptools to include staged prebuilt `tinyagent._alchemy` extension artifacts in release wheels again when those binaries are copied into `tinyagent/` from the external binding repo.
 
 ### Added
+- `scripts/check_release_binding.py` - release gate for the `_alchemy` wheel contract, plus tests covering package-data and staged-binary checks.
 - `HARNESS.md` - Critical enforcement document describing pre-commit hooks, ratchets, and rule entry points.
 - `py-compile` pre-commit hook to catch syntax and import-time compilation errors.
 - `tinyagent-file-length` pre-commit hook with 400-line ratchet for files under `tinyagent/`.

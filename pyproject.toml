@@ -47,7 +47,7 @@ dev = [
 include = ["tinyagent*"]
 
 [tool.setuptools.package-data]
-tinyagent = ["py.typed"]
+tinyagent = ["py.typed", "_alchemy*.so", "_alchemy*.pyd", "_alchemy*.dylib"]
 
 [tool.ruff]
 line-length = 100
