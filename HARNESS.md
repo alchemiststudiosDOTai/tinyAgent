@@ -9,6 +9,7 @@
 - `check-yaml`: validate YAML syntax.
 - `check-added-large-files`: block oversized files from being committed.
 - `check-merge-conflict`: catch unresolved merge markers.
+- `py-compile`: run `python3 -m py_compile` on staged Python files to catch syntax and import-time compilation errors.
 - `archlint`: run `python3 scripts/lint_architecture.py` to enforce architecture rules.
 - `layer-lock`: run the import-boundary test at `tests/architecture/test_import_boundaries.py`.
 - `mypy`: run static type checking with the repo's configured arguments.
@@ -16,6 +17,7 @@
 - `duplicate-code`: run pylint's duplicate-code detector on `tinyagent/`.
 - `debtlint`: enforce ticketed technical-debt markers.
 - `treelint`: enforce TinyAgent tree hygiene rules.
+- `tinyagent-file-length`: block staged Python files under `tinyagent/` that exceed 400 lines.
 
 ## Pre-push
 
