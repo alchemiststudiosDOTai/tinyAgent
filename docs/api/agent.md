@@ -25,12 +25,6 @@ def set_model(self, model: Model) -> None
 ```
 Configure the LLM model to use.
 
-#### set_thinking_level
-```python
-def set_thinking_level(self, level: ThinkingLevel) -> None
-```
-Set reasoning level (OFF, MINIMAL, LOW, MEDIUM, HIGH, XHIGH).
-
 #### set_tools
 ```python
 def set_tools(self, tools: list[AgentTool]) -> None
@@ -179,18 +173,6 @@ unsubscribe()
 ```
 
 ### State Management
-
-#### replace_messages
-```python
-def replace_messages(self, messages: list[AgentMessage]) -> None
-```
-Replace the entire message history.
-
-#### append_message
-```python
-def append_message(self, message: AgentMessage) -> None
-```
-Append a single message to history.
 
 #### clear_messages
 ```python

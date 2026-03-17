@@ -68,3 +68,9 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+
+      - id: tinyagent-file-length
+        name: tinyagent-file-length (400-line ratchet)
+        entry: python3 scripts/lint_file_length.py --max-lines 400
+        language: system
+        files: ^tinyagent/.*\.py$

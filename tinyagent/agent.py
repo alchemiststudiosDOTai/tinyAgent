@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator, Awaitable, Callable
-from dataclasses import dataclass
-from typing import TypeAlias, TypeGuard
+from collections.abc import AsyncIterator, Callable
+from typing import TypeGuard
 
 from .agent_loop import agent_loop, agent_loop_continue
+from .agent_options import (
+    AgentOptions,
+    ApiKeyResolverCallback,
+    TransformContextCallback,
+)
+from .agent_streaming import process_stream_events, stream_text_deltas
 from .agent_types import (
-    ZERO_USAGE,
     AgentContext,
-    AgentEndEvent,
     AgentEvent,
     AgentLoopConfig,
     AgentMessage,
@@ -19,169 +22,17 @@ from .agent_types import (
     AgentTool,
     AssistantMessage,
     ImageContent,
-    MaybeAwaitable,
     Message,
-    MessageUpdateEvent,
     Model,
     StreamFn,
     TextContent,
     ThinkingBudgets,
-    ThinkingContent,
-    ThinkingLevel,
-    ToolCallContent,
     ToolResultMessage,
     UserMessage,
-    is_message_end_event,
-    is_message_start_or_update_event,
-    is_tool_execution_end_event,
-    is_tool_execution_start_event,
-    is_turn_end_event,
 )
 from .caching import add_cache_breakpoints
 
-
-def _on_message_start_or_update(
-    state: AgentState,
-    event: AgentEvent,
-    partial_holder: list[AgentMessage | None],
-    append_message: Callable[[AgentMessage], None],
-) -> None:
-    if not is_message_start_or_update_event(event):
-        return
-    partial_holder[0] = event.message
-    state.stream_message = partial_holder[0]
-
-
-def _on_message_end(
-    state: AgentState,
-    event: AgentEvent,
-    partial_holder: list[AgentMessage | None],
-    append_message: Callable[[AgentMessage], None],
-) -> None:
-    partial_holder[0] = None
-    state.stream_message = None
-    if not is_message_end_event(event):
-        return
-    if event.message is not None:
-        append_message(event.message)
-
-
-def _update_pending_tool_calls(state: AgentState, tool_call_id: str, *, is_start: bool) -> None:
-    pending = set(state.pending_tool_calls)
-    if is_start:
-        pending.add(tool_call_id)
-    else:
-        pending.discard(tool_call_id)
-    state.pending_tool_calls = pending
-
-
-def _on_tool_execution_start(
-    state: AgentState,
-    event: AgentEvent,
-    partial_holder: list[AgentMessage | None],
-    append_message: Callable[[AgentMessage], None],
-) -> None:
-    if not is_tool_execution_start_event(event):
-        return
-    _update_pending_tool_calls(state, event.tool_call_id, is_start=True)
-
-
-def _on_tool_execution_end(
-    state: AgentState,
-    event: AgentEvent,
-    partial_holder: list[AgentMessage | None],
-    append_message: Callable[[AgentMessage], None],
-) -> None:
-    if not is_tool_execution_end_event(event):
-        return
-    _update_pending_tool_calls(state, event.tool_call_id, is_start=False)
-
-
-def _on_turn_end(
-    state: AgentState,
-    event: AgentEvent,
-    partial_holder: list[AgentMessage | None],
-    append_message: Callable[[AgentMessage], None],
-) -> None:
-    if not is_turn_end_event(event):
-        return
-    if not isinstance(event.message, AssistantMessage):
-        return
-    error_message = event.message.error_message
-    if isinstance(error_message, str) and error_message:
-        state.error = error_message
-
-
-def _on_agent_end(
-    state: AgentState,
-    event: AgentEvent,
-    partial_holder: list[AgentMessage | None],
-    append_message: Callable[[AgentMessage], None],
-) -> None:
-    state.is_streaming = False
-    state.stream_message = None
-
-
-_AGENT_EVENT_HANDLERS: dict[
-    str,
-    Callable[
-        [AgentState, AgentEvent, list[AgentMessage | None], Callable[[AgentMessage], None]], None
-    ],
-] = {
-    "message_start": _on_message_start_or_update,
-    "message_update": _on_message_start_or_update,
-    "message_end": _on_message_end,
-    "tool_execution_start": _on_tool_execution_start,
-    "tool_execution_end": _on_tool_execution_end,
-    "turn_end": _on_turn_end,
-    "agent_end": _on_agent_end,
-}
-
-
-def _handle_agent_event(
-    state: AgentState,
-    event: AgentEvent,
-    partial_holder: list[AgentMessage | None],
-    append_message: Callable[[AgentMessage], None],
-) -> None:
-    """Handle a single agent event, updating state and partial message holder."""
-
-    event_type = event.type
-
-    handler = _AGENT_EVENT_HANDLERS.get(event_type)
-    if handler is None:
-        return
-
-    handler(state, event, partial_holder, append_message)
-
-
-def _is_nonempty_str(value: object) -> bool:
-    return isinstance(value, str) and bool(value.strip())
-
-
-def _assistant_content_item_has_meaningful_content(item: object) -> bool:
-    if not item:
-        return False
-
-    if isinstance(item, ThinkingContent):
-        return _is_nonempty_str(item.thinking)
-    if isinstance(item, TextContent):
-        return _is_nonempty_str(item.text)
-    if isinstance(item, ToolCallContent):
-        return _is_nonempty_str(item.name)
-
-    return False
-
-
-def _has_meaningful_content(partial: AgentMessage | None) -> bool:
-    """Check if partial message has meaningful content worth saving."""
-
-    if not isinstance(partial, AssistantMessage):
-        return False
-    if not partial.content:
-        return False
-
-    return any(_assistant_content_item_has_meaningful_content(item) for item in partial.content)
+__all__ = ["Agent", "AgentOptions", "default_convert_to_llm", "extract_text"]
 
 
 def extract_text(message: AgentMessage | None) -> str:
@@ -199,19 +50,11 @@ def extract_text(message: AgentMessage | None) -> str:
     return "".join(parts)
 
 
-def _create_error_message(model: Model, error: Exception, was_aborted: bool) -> AgentMessage:
-    """Create an error message for the agent."""
-
-    return AssistantMessage(
-        content=[TextContent(text="")],
-        api=model.api,
-        provider=model.provider,
-        model=model.id,
-        usage=ZERO_USAGE,
-        stop_reason="aborted" if was_aborted else "error",
-        error_message=str(error),
-        timestamp=int(asyncio.get_event_loop().time() * 1000),
-    )
+def _find_last_assistant_message(messages: list[AgentMessage]) -> AgentMessage | None:
+    for message in reversed(messages):
+        if message.role == "assistant":
+            return message
+    return None
 
 
 def _is_llm_message(message: AgentMessage) -> TypeGuard[Message]:
@@ -223,14 +66,6 @@ async def default_convert_to_llm(messages: list[AgentMessage]) -> list[Message]:
     """Default convert_to_llm: keep only LLM-compatible messages."""
 
     return [message for message in messages if _is_llm_message(message)]
-
-
-ConvertToLlmCallback: TypeAlias = Callable[[list[AgentMessage]], MaybeAwaitable[list[Message]]]
-TransformContextCallback: TypeAlias = Callable[
-    [list[AgentMessage], asyncio.Event | None],
-    Awaitable[list[AgentMessage]],
-]
-ApiKeyResolverCallback: TypeAlias = Callable[[str], MaybeAwaitable[str | None]]
 
 
 def _build_transform_context(
@@ -251,22 +86,6 @@ def _build_transform_context(
         return await user_transform(messages, signal)
 
     return _composed
-
-
-@dataclass
-class AgentOptions:
-    """Options for configuring the Agent."""
-
-    initial_state: AgentState | None = None
-    convert_to_llm: ConvertToLlmCallback | None = None
-    transform_context: TransformContextCallback | None = None
-    steering_mode: str = "one-at-a-time"  # "all" or "one-at-a-time"
-    follow_up_mode: str = "one-at-a-time"  # "all" or "one-at-a-time"
-    stream_fn: StreamFn | None = None
-    session_id: str | None = None
-    get_api_key: ApiKeyResolverCallback | None = None
-    thinking_budgets: ThinkingBudgets | None = None
-    enable_prompt_caching: bool = False
 
 
 class Agent:
@@ -326,36 +145,14 @@ class Agent:
         self._listeners.add(fn)
         return lambda: self._listeners.discard(fn)
 
-    # State mutators
     def set_system_prompt(self, value: str) -> None:
         self._state.system_prompt = value
 
     def set_model(self, model: Model) -> None:
         self._state.model = model
 
-    def set_thinking_level(self, level: ThinkingLevel) -> None:
-        self._state.thinking_level = level
-
-    def set_steering_mode(self, mode: str) -> None:
-        self._steering_mode = mode
-
-    def get_steering_mode(self) -> str:
-        return self._steering_mode
-
-    def set_follow_up_mode(self, mode: str) -> None:
-        self._follow_up_mode = mode
-
-    def get_follow_up_mode(self) -> str:
-        return self._follow_up_mode
-
     def set_tools(self, tools: list[AgentTool]) -> None:
         self._state.tools = tools
-
-    def replace_messages(self, messages: list[AgentMessage]) -> None:
-        self._state.messages = messages.copy()
-
-    def append_message(self, message: AgentMessage) -> None:
-        self._state.messages = [*self._state.messages, message]
 
     def steer(self, message: AgentMessage) -> None:
         """Queue a steering message to interrupt the agent mid-run."""
@@ -418,11 +215,46 @@ class Agent:
             ]
         return [input_data]
 
-    def _last_assistant_message(self) -> AgentMessage | None:
-        for msg in reversed(self._state.messages):
-            if msg.role == "assistant":
-                return msg
-        return None
+    def _assert_not_streaming(self, message: str) -> None:
+        if self._state.is_streaming:
+            raise RuntimeError(message)
+
+    def _require_model(self) -> Model:
+        model = self._state.model
+        if not model:
+            raise RuntimeError("No model configured")
+        return model
+
+    def _assistant_message_from_new_messages(self, before: int) -> AgentMessage:
+        new_messages = self._state.messages[before:]
+        assistant_message = _find_last_assistant_message(new_messages)
+        if assistant_message is None:
+            raise RuntimeError("No assistant message produced")
+        return assistant_message
+
+    def _prepare_loop(self) -> tuple[Model, AgentContext, AgentLoopConfig]:
+        model = self._require_model()
+        self._setup_run_state()
+        context, config = self._build_loop_context_and_config(model)
+        return model, context, config
+
+    async def _run_and_get_assistant_message(
+        self, messages: list[AgentMessage] | None = None
+    ) -> AgentMessage:
+        before = len(self._state.messages)
+        await self._run_loop(messages)
+        return self._assistant_message_from_new_messages(before)
+
+    def _drain_message_queue(self, queue_attr: str, mode: str) -> list[AgentMessage]:
+        queue = list(getattr(self, queue_attr))
+        if mode == "one-at-a-time":
+            if not queue:
+                return []
+            setattr(self, queue_attr, queue[1:])
+            return [queue[0]]
+
+        setattr(self, queue_attr, [])
+        return queue
 
     async def prompt(
         self,
@@ -431,26 +263,12 @@ class Agent:
     ) -> AgentMessage:
         """Send a prompt and return the final assistant message."""
 
-        if self._state.is_streaming:
-            raise RuntimeError(
-                "Agent is already processing a prompt. Use steer() or follow_up() to queue "
-                "messages, or wait for completion."
-            )
-
-        model = self._state.model
-        if not model:
-            raise RuntimeError("No model configured")
-
-        before = len(self._state.messages)
+        self._assert_not_streaming(
+            "Agent is already processing a prompt. Use steer() or follow_up() to queue "
+            "messages, or wait for completion."
+        )
         msgs = self._build_input_messages(input_data, images)
-        await self._run_loop(msgs)
-
-        new_messages = self._state.messages[before:]
-        for msg in reversed(new_messages):
-            if msg.role == "assistant":
-                return msg
-
-        raise RuntimeError("No assistant message produced")
+        return await self._run_and_get_assistant_message(msgs)
 
     async def prompt_text(
         self,
@@ -467,43 +285,25 @@ class Agent:
         """Stream agent events for a prompt."""
 
         async def _gen() -> AsyncIterator[AgentEvent]:
-            if self._state.is_streaming:
-                raise RuntimeError(
-                    "Agent is already processing a prompt. Use steer() or follow_up() to queue "
-                    "messages, or wait for completion."
-                )
-
-            model = self._state.model
-            if not model:
-                raise RuntimeError("No model configured")
-
+            self._assert_not_streaming(
+                "Agent is already processing a prompt. Use steer() or follow_up() to queue "
+                "messages, or wait for completion."
+            )
             msgs = self._build_input_messages(input_data, images)
+            model, context, config = self._prepare_loop()
 
-            self._setup_run_state()
-            context, config = self._build_loop_context_and_config(model)
-            partial_holder: list[AgentMessage | None] = [None]
+            def _create_stream() -> AsyncIterator[AgentEvent]:
+                return agent_loop(msgs, context, config, self._abort_event, self.stream_fn)
 
-            try:
-                stream_iter = agent_loop(msgs, context, config, self._abort_event, self.stream_fn)
-
-                async for event in stream_iter:
-                    _handle_agent_event(self._state, event, partial_holder, self.append_message)
-                    self._emit(event)
-                    yield event
-
-                self._handle_remaining_partial(partial_holder[0])
-
-            except Exception as err:  # noqa: BLE001
-                was_aborted = bool(self._abort_event and self._abort_event.is_set())
-                error_msg = _create_error_message(model, err, was_aborted)
-                self.append_message(error_msg)
-                self._state.error = str(err)
-                end_event = AgentEndEvent(messages=[error_msg])
-                self._emit(end_event)
-                yield end_event
-
-            finally:
-                self._cleanup_run_state()
+            async for event in process_stream_events(
+                state=self._state,
+                model=model,
+                abort_event=self._abort_event,
+                create_stream=_create_stream,
+                emit=self._emit,
+                cleanup_run_state=self._cleanup_run_state,
+            ):
+                yield event
 
         return _gen()
 
@@ -515,88 +315,44 @@ class Agent:
         """Stream just the assistant text deltas for a prompt."""
 
         async def _gen() -> AsyncIterator[str]:
-            current = ""
-            async for event in self.stream(input_data, images=images):
-                if event.type != "message_update" or not isinstance(event, MessageUpdateEvent):
-                    continue
-
-                msg_obj = event.message
-                if not isinstance(msg_obj, AssistantMessage):
-                    continue
-
-                ame = event.assistant_message_event
-                if ame and ame.type == "text_delta" and ame.delta:
-                    delta = str(ame.delta)
-                    current += delta
-                    yield delta
-                    continue
-
-                new_text = extract_text(msg_obj)
-                delta = new_text[len(current) :] if new_text.startswith(current) else new_text
-                current = new_text
-                if delta:
-                    yield delta
+            async for delta in stream_text_deltas(self.stream(input_data, images=images)):
+                yield delta
 
         return _gen()
 
     async def continue_(self) -> AgentMessage:
         """Continue from current context (for retry after overflow)."""
 
-        if self._state.is_streaming:
-            raise RuntimeError(
-                "Agent is already processing. Wait for completion before continuing.",
-            )
-
-        before = len(self._state.messages)
+        self._assert_not_streaming(
+            "Agent is already processing. Wait for completion before continuing."
+        )
         messages = self._state.messages
         if len(messages) == 0:
             raise RuntimeError("No messages to continue from")
         if messages[-1].role == "assistant":
             raise RuntimeError("Cannot continue from message role: assistant")
 
-        await self._run_loop(None)
-
-        new_messages = self._state.messages[before:]
-        for msg in reversed(new_messages):
-            if msg.role == "assistant":
-                return msg
-
-        raise RuntimeError("No assistant message produced")
+        return await self._run_and_get_assistant_message(None)
 
     async def _run_loop(self, messages: list[AgentMessage] | None = None) -> None:
         """Run the agent loop."""
 
-        model = self._state.model
-        if not model:
-            raise RuntimeError("No model configured")
+        model, context, config = self._prepare_loop()
 
-        self._setup_run_state()
+        def _create_stream() -> AsyncIterator[AgentEvent]:
+            if messages:
+                return agent_loop(messages, context, config, self._abort_event, self.stream_fn)
+            return agent_loop_continue(context, config, self._abort_event, self.stream_fn)
 
-        context, config = self._build_loop_context_and_config(model)
-        partial_holder: list[AgentMessage | None] = [None]
-
-        try:
-            stream_iter = (
-                agent_loop(messages, context, config, self._abort_event, self.stream_fn)
-                if messages
-                else agent_loop_continue(context, config, self._abort_event, self.stream_fn)
-            )
-
-            async for event in stream_iter:
-                _handle_agent_event(self._state, event, partial_holder, self.append_message)
-                self._emit(event)
-
-            self._handle_remaining_partial(partial_holder[0])
-
-        except Exception as err:  # noqa: BLE001
-            was_aborted = bool(self._abort_event and self._abort_event.is_set())
-            error_msg = _create_error_message(model, err, was_aborted)
-            self.append_message(error_msg)
-            self._state.error = str(err)
-            self._emit(AgentEndEvent(messages=[error_msg]))
-
-        finally:
-            self._cleanup_run_state()
+        async for _ in process_stream_events(
+            state=self._state,
+            model=model,
+            abort_event=self._abort_event,
+            create_stream=_create_stream,
+            emit=self._emit,
+            cleanup_run_state=self._cleanup_run_state,
+        ):
+            pass
 
     def _setup_run_state(self) -> None:
         loop = asyncio.get_event_loop()
@@ -624,12 +380,6 @@ class Agent:
 
         return context, config
 
-    def _handle_remaining_partial(self, partial: AgentMessage | None) -> None:
-        if partial and _has_meaningful_content(partial):
-            self.append_message(partial)
-        elif partial and self._abort_event and self._abort_event.is_set():
-            raise RuntimeError("Request was aborted")
-
     def _cleanup_run_state(self) -> None:
         self._state.is_streaming = False
         self._state.stream_message = None
@@ -640,28 +390,10 @@ class Agent:
         self._running_prompt = None
 
     async def _get_steering_messages(self) -> list[AgentMessage]:
-        if self._steering_mode == "one-at-a-time":
-            if self._steering_queue:
-                first = self._steering_queue[0]
-                self._steering_queue = self._steering_queue[1:]
-                return [first]
-            return []
-
-        steering = self._steering_queue.copy()
-        self._steering_queue = []
-        return steering
+        return self._drain_message_queue("_steering_queue", self._steering_mode)
 
     async def _get_follow_up_messages(self) -> list[AgentMessage]:
-        if self._follow_up_mode == "one-at-a-time":
-            if self._follow_up_queue:
-                first = self._follow_up_queue[0]
-                self._follow_up_queue = self._follow_up_queue[1:]
-                return [first]
-            return []
-
-        follow_up = self._follow_up_queue.copy()
-        self._follow_up_queue = []
-        return follow_up
+        return self._drain_message_queue("_follow_up_queue", self._follow_up_mode)
 
     def _emit(self, event: AgentEvent) -> None:
         for listener in self._listeners:

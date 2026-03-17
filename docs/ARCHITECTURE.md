@@ -51,6 +51,23 @@ This document describes the architecture of TinyAgent: where components live, wh
 
 **Design Decision**: Runtime model objects are normalized through typed models and event contracts at boundaries, avoiding parallel dict/model codepaths.
 
+### agent_options.py
+
+**What**: Public configuration surface for `Agent`.
+
+**Contents**:
+- `AgentOptions`: constructor options for state, streaming, provider lookup, and caching
+- callback type aliases used by the `Agent` setup path
+
+### agent_streaming.py
+
+**What**: Internal streaming runtime helpers used by `Agent`.
+
+**Responsibilities**:
+- Process streamed `AgentEvent` values and apply state updates
+- Convert runtime failures into terminal `AgentEndEvent` objects
+- Derive text deltas for `stream_text()`
+
 ### agent_loop.py
 
 **What**: Core agent execution loop. Single responsibility: orchestrate LLM calls and tool execution.
@@ -104,7 +121,7 @@ This document describes the architecture of TinyAgent: where components live, wh
 - `steer()`: Queue a steering message that redirects the next turn
 - `follow_up()`: Queue a message for after current run
 
-**Event Handling**: Internal handlers update state on events:
+**Event Handling**: `Agent` delegates stream-event processing to `agent_streaming.py`, which updates state on events:
 - `message_start/update`: Update `stream_message` in state
 - `message_end`: Append message to history
 - `tool_execution_start/end`: Track pending tool calls
@@ -209,7 +226,7 @@ The model includes:
 - `pending_tool_calls`: active tool call IDs
 - `error`: latest error text (if any)
 
-State is mutated only by internal event handlers in the Agent class, keeping side effects centralized.
+State is mutated only by internal agent event handlers, keeping side effects centralized.
 
 ## Concurrency Model
 

@@ -6,10 +6,12 @@ layer map.
 
 Layer map (top to bottom -- higher may import lower, never reverse):
 
-    Layer 3: agent                                      (orchestration)
-    Layer 2: agent_loop, proxy                          (coordination)
-    Layer 1: agent_tool_execution,
-             alchemy_provider, proxy_event_handlers     (leaf services)
+    Layer 4: agent                                      (orchestration)
+    Layer 3: agent_loop, proxy, agent_streaming         (coordination)
+    Layer 2: agent_tool_execution,
+             alchemy_provider, proxy_event_handlers,
+                                                    (leaf services)
+    Layer 1: agent_options                              (configuration)
     Layer 0: agent_types                                (foundation)
 
 Sibling modules within the same layer are independent (cannot import each
@@ -29,14 +31,16 @@ PKG = "tinyagent"
 # independent=True means siblings within a layer cannot import each other.
 LAYERS = [
     grimp.Layer("agent"),
-    grimp.Layer("agent_loop", "proxy", independent=True),
+    grimp.Layer("agent_loop", "proxy", "agent_streaming", independent=True),
     grimp.Layer(
         "agent_tool_execution",
         "alchemy_provider",
         "proxy_event_handlers",
         "caching",
+        "utils",
         independent=True,
     ),
+    grimp.Layer("agent_options"),
     grimp.Layer("agent_types"),
 ]
 
@@ -46,10 +50,15 @@ GOVERNED_MODULES = {
     f"{PKG}.agent_loop",
     f"{PKG}.agent_tool_execution",
     f"{PKG}.agent_types",
+    f"{PKG}.agent_options",
+    f"{PKG}.agent_streaming",
     f"{PKG}.alchemy_provider",
     f"{PKG}.proxy",
     f"{PKG}.proxy_event_handlers",
     f"{PKG}.caching",
+    f"{PKG}.utils",
+    f"{PKG}.utils.agent_event_handler",
+    f"{PKG}.utils.message_content",
 }
 
 
