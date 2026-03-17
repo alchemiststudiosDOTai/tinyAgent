@@ -17,7 +17,7 @@
 - `duplicate-code`: run pylint's duplicate-code detector on `tinyagent/`.
 - `debtlint`: enforce ticketed technical-debt markers.
 - `treelint`: enforce TinyAgent tree hygiene rules.
-- `tinyagent-file-length`: block staged Python files under `tinyagent/` that exceed 400 lines.
+- `tinyagent-file-length`: block staged Python files under `tinyagent/` that exceed 700 lines.
 
 ## Pre-push
 

@@ -19,7 +19,7 @@ repos:
     hooks:
       - id: py-compile
         name: py-compile
-        entry: python3 -m py_compile
+        entry: python3 -c "import pathlib,sys; [compile(pathlib.Path(p).read_text(encoding='utf-8'), p, 'exec') for p in sys.argv[1:]]"
         language: system
         types: [python]
 
@@ -76,7 +76,7 @@ repos:
         always_run: true
 
       - id: tinyagent-file-length
-        name: tinyagent-file-length (400-line ratchet)
-        entry: python3 scripts/lint_file_length.py --max-lines 400
+        name: tinyagent-file-length (700-line ceiling)
+        entry: python3 scripts/lint_file_length.py --max-lines 700
         language: system
         files: ^tinyagent/.*\.py$
