@@ -18,4 +18,5 @@ tokio-stream = "0.1"
 tokio-util = "0.7"
 
 [dev-dependencies]
+dotenv = "0.15"
 serial_test = "3.2"
