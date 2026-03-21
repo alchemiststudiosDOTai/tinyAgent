@@ -24,6 +24,7 @@ Complete API documentation for the tinyagent package.
 |--------|-------------|
 | [providers](providers.md) | Optional alchemy binding adapter and Proxy providers |
 | [openai-compatible-endpoints](openai-compatible-endpoints.md) | Using `OpenAICompatModel.base_url` with OpenAI-compatible endpoints |
+| [minimax-single-tool-example](minimax-single-tool-example.md) | One minimal live MiniMax tool-call example |
 | [usage-semantics](usage-semantics.md) | Canonical `usage` schema, field mapping, and precedence rules |
 
 ## Quick Reference
