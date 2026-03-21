@@ -10,7 +10,7 @@ def _write_pyproject(path: Path, package_data: list[str]) -> None:
         "\n".join(
             [
                 "[tool.setuptools.package-data]",
-                "tinyagent = [" + ", ".join(f'\"{value}\"' for value in package_data) + "]",
+                "tinyagent = [" + ", ".join(f'"{value}"' for value in package_data) + "]",
                 "",
             ]
         ),
@@ -53,6 +53,5 @@ def test_release_binding_check_reports_missing_package_patterns(tmp_path: Path) 
     errors = check(pyproject_path=pyproject, package_dir=package_dir)
 
     assert errors == [
-        "pyproject.toml missing tinyagent package-data pattern(s): "
-        "_alchemy*.dylib, _alchemy*.pyd"
+        "pyproject.toml missing tinyagent package-data pattern(s): _alchemy*.dylib, _alchemy*.pyd"
     ]

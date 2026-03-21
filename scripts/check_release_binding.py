@@ -14,7 +14,7 @@ from pathlib import Path
 try:
     import tomllib
 except ImportError:  # pragma: no cover
-    import tomli as tomllib  # type: ignore[no-redef]
+    import tomli as tomllib
 
 ROOT = Path(__file__).resolve().parent.parent
 PYPROJECT = ROOT / "pyproject.toml"
@@ -25,10 +25,7 @@ EXPECTED_PATTERNS = frozenset({"_alchemy*.so", "_alchemy*.pyd", "_alchemy*.dylib
 def _load_tinyagent_package_data(pyproject_path: Path = PYPROJECT) -> set[str]:
     data = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
     tinyagent_data = (
-        data.get("tool", {})
-        .get("setuptools", {})
-        .get("package-data", {})
-        .get("tinyagent", [])
+        data.get("tool", {}).get("setuptools", {}).get("package-data", {}).get("tinyagent", [])
     )
     if not isinstance(tinyagent_data, list):
         return set()

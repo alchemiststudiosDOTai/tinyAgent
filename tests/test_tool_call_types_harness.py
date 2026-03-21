@@ -49,9 +49,7 @@ def test_tool_call_types_harness_runs_end_to_end() -> None:
     )
 
     assert completed.returncode == 0, (
-        "Harness failed\n"
-        f"stdout:\n{completed.stdout}\n"
-        f"stderr:\n{completed.stderr}\n"
+        f"Harness failed\nstdout:\n{completed.stdout}\nstderr:\n{completed.stderr}\n"
     )
 
     lines = [line.strip() for line in completed.stdout.splitlines() if line.strip()]

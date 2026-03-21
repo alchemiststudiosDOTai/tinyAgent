@@ -37,6 +37,7 @@ dev = [
     "pre-commit>=4.0.0",
     "pytest>=8.0.0",
     "pytest-asyncio>=0.25.0",
+    "hypothesis>=6.0.0",
     "python-dotenv>=1.0.0",
     "grimp>=3.0",
     "vulture>=2.11.0",
