@@ -22,6 +22,7 @@ Complete API documentation for the tinyagent package.
 
 | Module | Description |
 |--------|-------------|
+| [../alchemy-binding](../alchemy-binding.md) | Single source of truth for the Rust-backed alchemy integration and Python/Rust runtime flow |
 | [providers](providers.md) | Optional alchemy binding adapter and Proxy providers |
 | [openai-compatible-endpoints](openai-compatible-endpoints.md) | Using `OpenAICompatModel.base_url` with OpenAI-compatible endpoints |
 | [usage-semantics](usage-semantics.md) | Canonical `usage` schema, field mapping, and precedence rules |

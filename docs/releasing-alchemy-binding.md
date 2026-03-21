@@ -1,5 +1,10 @@
 # Shipping the `tinyagent._alchemy` Binding in Release Wheels
 
+For the complete binding overview, including runtime ownership and the
+Python/Rust request flow, use:
+
+- [Alchemy Binding Integration](alchemy-binding.md)
+
 This document captures the release task we completed to make `tiny-agent-os`
 ship the prebuilt `tinyagent._alchemy` binary again when a release wheel is
 built.

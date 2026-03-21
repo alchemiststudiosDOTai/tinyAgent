@@ -159,15 +159,15 @@ Cache breakpoints are automatically placed on user message content blocks so the
 
 ## Optional Binding: `tinyagent._alchemy`
 
-This repo keeps `tinyagent/alchemy_provider.py` as a compatibility adapter for the
-optional external `tinyagent._alchemy` extension. The binding source, build
-instructions, and low-level binding API now live in:
+The single source of truth for the Rust-backed alchemy integration is:
 
-- `https://github.com/tunahorse/tinyagent-alchemy`
+- [Alchemy Binding Integration](alchemy-binding.md)
 
-The compiled path is still useful when you want OpenAI-compatible streaming
-without routing through a separate proxy, but it is no longer bundled or built
-from this repository.
+In short:
+
+- the binding implementation lives in `https://github.com/tunahorse/tinyagent-alchemy`
+- this repo keeps `tinyagent/alchemy_provider.py` as the Python compatibility adapter
+- release wheels may stage a prebuilt `_alchemy` artifact into `tinyagent/`
 
 ### Using via TinyAgent
 
@@ -233,6 +233,7 @@ Smoke validation after installing the external binding:
 ## Documentation
 
 - [Architecture](ARCHITECTURE.md): System design and component interactions
+- [Alchemy Binding Integration](alchemy-binding.md): Single source of truth for where the Rust binding lives, how the Python/Rust flow works, and how packaged wheels include `_alchemy`
 - [API Reference](api/): Detailed module documentation
 - [Prompt Caching](api/caching.md): Cache breakpoints, cost savings, and provider requirements
 - [OpenAI-Compatible Endpoints](api/openai-compatible-endpoints.md): Using `OpenAICompatModel.base_url` with OpenRouter/OpenAI/Chutes-compatible backends

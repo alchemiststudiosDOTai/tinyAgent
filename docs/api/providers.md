@@ -2,6 +2,11 @@
 
 LLM provider implementations that satisfy the `StreamFn` protocol.
 
+For the complete Rust-binding story, including ownership, Python/Rust boundary
+flow, packaging, and validation anchors, use:
+
+- [Alchemy Binding Integration](../alchemy-binding.md)
+
 ## Alchemy Provider (Optional External Binding)
 
 TinyAgent keeps an OpenAI-compatible provider adapter in `alchemy_provider.py`.
