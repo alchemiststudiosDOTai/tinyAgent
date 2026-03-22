@@ -23,9 +23,7 @@ def _find_binding_members(wheel_path: Path) -> list[str]:
         members = []
         for name in wheel.namelist():
             parts = PurePosixPath(name).parts
-            if not parts or not _is_binding_name(parts[-1]):
-                continue
-            if len(parts) == 1 or (len(parts) == 2 and parts[0] == "tinyagent"):
+            if parts and _is_binding_name(parts[-1]):
                 members.append(name)
     return sorted(members)
 

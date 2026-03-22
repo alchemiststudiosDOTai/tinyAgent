@@ -59,6 +59,18 @@ def test_stage_binding_accepts_top_level_binding_member(tmp_path: Path) -> None:
     assert staged.read_bytes() == b"root-binary"
 
 
+def test_stage_binding_accepts_binding_package_layout(tmp_path: Path) -> None:
+    package_dir = tmp_path / "tinyagent"
+    package_dir.mkdir()
+    wheel_path = tmp_path / "tinyagent_alchemy-1.2.7.whl"
+    _write_wheel(wheel_path, {"_alchemy/_alchemy.abi3.so": b"package-binary"})
+
+    staged = stage_binding(wheel_path, package_dir=package_dir)
+
+    assert staged == package_dir / "_alchemy.abi3.so"
+    assert staged.read_bytes() == b"package-binary"
+
+
 def test_stage_binding_rejects_missing_binding(tmp_path: Path) -> None:
     package_dir = tmp_path / "tinyagent"
     package_dir.mkdir()
