@@ -16,4 +16,7 @@ class TinyAgentDistribution(Distribution):  # type: ignore[misc]
         return bool(super().has_ext_modules())
 
 
-setup(distclass=TinyAgentDistribution)
+setup(
+    distclass=TinyAgentDistribution,
+    options={"bdist_wheel": {"py_limited_api": "cp310"}},
+)

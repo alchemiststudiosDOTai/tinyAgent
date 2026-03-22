@@ -7,6 +7,21 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.12] - 2026-03-22
+
+### Added
+- Added `examples/minimax_tool_contract_examples.py` back as the runnable/property-tested MiniMax contract example module consumed by the test suite.
+- Added `.github/workflows/release-platform-wheels.yml` to build and publish macOS and Windows wheels with the staged external `tinyagent._alchemy` binding.
+
+### Fixed
+- Restored the missing MiniMax example module so the hypothesis-based contract test suite collects and passes again.
+- Improved optional alchemy-binding import failures to preserve the original loader error, making release-time binding mismatches diagnosable.
+- Hardened the release binding check to reject staged `_alchemy` binaries that do not match the host platform format before packaging.
+- Tagged staged-binding Linux wheels as `cp310-abi3` instead of interpreter-specific `cp310-cp310`, so the release wheel installs correctly across supported CPython versions.
+
+### Docs
+- Added the dedicated MiniMax single-tool example page and documented the staged-binding release workflow for cross-platform wheels.
+
 ## [1.2.11] - 2026-03-17
 
 ### Fixed
@@ -221,7 +236,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Code quality gates (dead code, duplicates, debt)
 - Rust `alchemy_llm_py` binding documentation
 
-[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.11...HEAD
+[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.12...HEAD
+[1.2.12]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.11...v1.2.12
 [1.2.11]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.10...v1.2.11
 [1.2.10]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.9...v1.2.10
 [1.2.9]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.8...v1.2.9
