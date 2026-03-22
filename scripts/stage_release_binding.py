@@ -23,7 +23,9 @@ def _find_binding_members(wheel_path: Path) -> list[str]:
         members = []
         for name in wheel.namelist():
             parts = PurePosixPath(name).parts
-            if len(parts) >= 2 and parts[-2] == "tinyagent" and _is_binding_name(parts[-1]):
+            if not parts or not _is_binding_name(parts[-1]):
+                continue
+            if len(parts) == 1 or (len(parts) == 2 and parts[0] == "tinyagent"):
                 members.append(name)
     return sorted(members)
 
@@ -53,10 +55,10 @@ def resolve_wheel_path(path: Path) -> Path:
 def stage_binding(wheel_path: Path, package_dir: Path = PACKAGE_DIR) -> Path:
     members = _find_binding_members(wheel_path)
     if not members:
-        raise RuntimeError(f"{wheel_path} does not contain tinyagent/_alchemy")
+        raise RuntimeError(f"{wheel_path} does not contain a supported `_alchemy` wheel member")
     if len(members) != 1:
         raise RuntimeError(
-            f"{wheel_path} contains multiple tinyagent/_alchemy candidates: {', '.join(members)}"
+            f"{wheel_path} contains multiple `_alchemy` candidates: {', '.join(members)}"
         )
 
     member = members[0]

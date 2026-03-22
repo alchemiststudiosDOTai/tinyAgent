@@ -47,13 +47,25 @@ def test_stage_binding_replaces_existing_binding(tmp_path: Path) -> None:
     assert not old_binding.exists()
 
 
+def test_stage_binding_accepts_top_level_binding_member(tmp_path: Path) -> None:
+    package_dir = tmp_path / "tinyagent"
+    package_dir.mkdir()
+    wheel_path = tmp_path / "tinyagent_alchemy-1.2.7.whl"
+    _write_wheel(wheel_path, {"_alchemy.abi3.so": b"root-binary"})
+
+    staged = stage_binding(wheel_path, package_dir=package_dir)
+
+    assert staged == package_dir / "_alchemy.abi3.so"
+    assert staged.read_bytes() == b"root-binary"
+
+
 def test_stage_binding_rejects_missing_binding(tmp_path: Path) -> None:
     package_dir = tmp_path / "tinyagent"
     package_dir.mkdir()
     wheel_path = tmp_path / "tinyagent_alchemy-1.2.7.whl"
     _write_wheel(wheel_path, {"tinyagent/__init__.py": b""})
 
-    with pytest.raises(RuntimeError, match="does not contain tinyagent/_alchemy"):
+    with pytest.raises(RuntimeError, match="does not contain a supported `_alchemy` wheel member"):
         stage_binding(wheel_path, package_dir=package_dir)
 
 
@@ -69,5 +81,5 @@ def test_stage_binding_rejects_multiple_candidates(tmp_path: Path) -> None:
         },
     )
 
-    with pytest.raises(RuntimeError, match="multiple tinyagent/_alchemy candidates"):
+    with pytest.raises(RuntimeError, match="multiple `_alchemy` candidates"):
         stage_binding(wheel_path, package_dir=package_dir)

@@ -7,6 +7,12 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.13] - 2026-03-22
+
+### Fixed
+- Accepted both `tinyagent/_alchemy...` and top-level `_alchemy...` wheel layouts when staging the external binding for release packaging, so the macOS release job can consume the built binding wheel.
+- Switched the Windows release job to Strawberry Perl before building the vendored OpenSSL dependency, avoiding the broken runner Perl that blocked the wheel build.
+
 ## [1.2.12] - 2026-03-22
 
 ### Added
@@ -236,7 +242,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Code quality gates (dead code, duplicates, debt)
 - Rust `alchemy_llm_py` binding documentation
 
-[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.12...HEAD
+[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.13...HEAD
+[1.2.13]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.12...v1.2.13
 [1.2.12]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.11...v1.2.12
 [1.2.11]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.10...v1.2.11
 [1.2.10]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.9...v1.2.10
