@@ -35,12 +35,23 @@ before packaging so the final wheel includes it.
 - `scripts/check_release_binding.py`
   - validates that package-data is configured to include `_alchemy`
   - can require that a staged binary is actually present
+  - rejects staged binaries whose file format does not match the current host
+    platform (for example, ELF on macOS)
+- `scripts/stage_release_binding.py`
+  - extracts `tinyagent/_alchemy...` from a built `tinyagent-alchemy` wheel
+  - removes stale staged binding files before copying the new platform artifact in
 - `tests/test_release_binding.py`
   - regression tests for the release check
+- `tests/test_stage_release_binding.py`
+  - regression tests for wheel extraction/staging behavior
 - `AGENTS.md`
   - documents the release command and staging requirement
 - `HARNESS.md`
   - records the release gate for wheels expected to ship `_alchemy`
+- `.github/workflows/release-platform-wheels.yml`
+  - builds macOS and Windows release wheels from a fresh external binding build
+  - smoke-tests the built wheel in a clean virtualenv before uploading assets
+  - publishes the built distributions to PyPI on tag builds
 
 ## Release workflow
 
@@ -69,6 +80,13 @@ Example:
 cp /path/to/built/_alchemy.abi3.so tinyagent/
 ```
 
+If you built a `tinyagent-alchemy` wheel instead of a loose extension file, stage
+it with:
+
+```bash
+python3 scripts/stage_release_binding.py /path/to/tinyagent-alchemy-wheel-dir
+```
+
 ### 3. Run the release check
 
 ```bash
@@ -77,6 +95,10 @@ python3 scripts/check_release_binding.py --require-present
 
 This must pass before building/publishing wheels that are expected to ship the
 binding.
+
+Run it on the same platform family you are about to publish for. A passing check
+now means the staged artifact both exists and has the expected host binary
+format.
 
 ## 4. Build the wheel
 
@@ -107,6 +129,42 @@ The `uv build` output from this task showed:
 
 After verification, publish the built wheel(s) as the release artifacts.
 
+## Automated macOS + Windows release path
+
+This repo now includes `.github/workflows/release-platform-wheels.yml`.
+
+On tag pushes or manual dispatch, it:
+
+- checks out this repo
+- checks out `tunahorse/tinyagent-alchemy` at a pinned ref
+- builds the binding on `macos-14` and `windows-latest`
+- stages the binding into `tinyagent/` via `scripts/stage_release_binding.py`
+- runs `python3 scripts/check_release_binding.py --require-present`
+- builds the `tiny-agent-os` wheel
+- installs that wheel into a fresh virtualenv and smoke-tests `import tinyagent._alchemy`
+- uploads the resulting wheels and source distribution as artifacts
+- attaches them to the GitHub release on tag builds
+- publishes them to PyPI on tag builds, or on manual dispatch when `publish_to_pypi=true`
+
+That automation is the supported path for getting macOS and Windows wheels from
+the correct native binding, instead of relying on whatever `_alchemy` file
+happened to be present in a local checkout.
+
+## PyPI setup required once
+
+GitHub can only publish from this workflow after the `tiny-agent-os` project on
+PyPI is configured to trust this repository/workflow as a Trusted Publisher.
+
+Configure PyPI to trust:
+
+- owner/repo: `tunahorse/tinyAgent`
+- workflow: `release-platform-wheels.yml`
+- environment: none required by this workflow
+
+After that one-time setup, pushing a version tag such as `v1.2.12` will build
+the macOS and Windows wheels and upload the distributions to PyPI under the same
+release version so installers can choose the correct file for each user platform.
+
 ## Why this approach
 
 This keeps the repository split clean:
@@ -123,6 +181,8 @@ This keeps the repository split clean:
   as platform-specific.
 - The release check is the explicit safeguard that prevents publishing a wheel
   meant to include alchemy without the actual binary.
+- The release check also catches obvious staging mistakes such as copying a
+  Linux ELF artifact into a macOS wheel build.
 
 ## Commands added for this workflow
 

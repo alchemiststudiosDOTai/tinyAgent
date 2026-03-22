@@ -104,10 +104,10 @@ def test_get_alchemy_module_falls_back_to_top_level_package(
 
     def fake_import_module(name: str) -> object:
         imported.append(name)
-        if name == "tinyagent._alchemy":
-            raise ModuleNotFoundError(name)
         if name == "_alchemy":
             return fallback_module
+        if name == "tinyagent._alchemy":
+            raise ModuleNotFoundError(name)
         raise AssertionError(f"unexpected import: {name}")
 
     monkeypatch.setattr("tinyagent.alchemy_provider._ALCHEMY_MODULE", None)
@@ -116,7 +116,31 @@ def test_get_alchemy_module_falls_back_to_top_level_package(
     resolved = _get_alchemy_module()
 
     assert resolved is fallback_module
-    assert imported == ["tinyagent._alchemy", "_alchemy"]
+    assert imported == ["_alchemy"]
+
+
+def test_get_alchemy_module_reports_original_import_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    imported: list[str] = []
+
+    def fake_import_module(name: str) -> object:
+        imported.append(name)
+        if name == "_alchemy":
+            raise ModuleNotFoundError(name)
+        if name == "tinyagent._alchemy":
+            raise ImportError("invalid Mach-O image")
+        raise AssertionError(f"unexpected import: {name}")
+
+    monkeypatch.setattr("tinyagent.alchemy_provider._ALCHEMY_MODULE", None)
+    monkeypatch.setattr("tinyagent.alchemy_provider.importlib.import_module", fake_import_module)
+
+    with pytest.raises(RuntimeError, match="Import failures") as exc_info:
+        _get_alchemy_module()
+
+    assert imported == ["_alchemy", "tinyagent._alchemy"]
+    assert "invalid Mach-O image" in str(exc_info.value)
+    assert isinstance(exc_info.value.__cause__, ImportError)
 
 
 class _FakeHandle:

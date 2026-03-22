@@ -9,6 +9,7 @@ before packaging.
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 try:
@@ -39,6 +40,34 @@ def _find_staged_binding_files(package_dir: Path = PACKAGE_DIR) -> list[Path]:
     return sorted(files)
 
 
+def _detect_binary_format(path: Path) -> str:
+    with path.open("rb") as handle:
+        header = handle.read(64)
+    if header.startswith(b"\x7fELF"):
+        return "ELF"
+    if header.startswith((b"\xfe\xed\xfa\xce", b"\xfe\xed\xfa\xcf")):
+        return "Mach-O"
+    if header.startswith((b"\xce\xfa\xed\xfe", b"\xcf\xfa\xed\xfe")):
+        return "Mach-O"
+    if header.startswith((b"\xca\xfe\xba\xbe", b"\xca\xfe\xba\xbf")):
+        return "Mach-O"
+    if header.startswith((b"\xbe\xba\xfe\xca", b"\xbf\xba\xfe\xca")):
+        return "Mach-O"
+    if header.startswith(b"MZ"):
+        return "PE"
+    return "unknown"
+
+
+def _expected_binary_format() -> str | None:
+    if sys.platform.startswith("linux"):
+        return "ELF"
+    if sys.platform == "darwin":
+        return "Mach-O"
+    if sys.platform.startswith("win"):
+        return "PE"
+    return None
+
+
 def check(
     *,
     pyproject_path: Path = PYPROJECT,
@@ -62,6 +91,18 @@ def check(
             "Build the binding from the external tinyagent-alchemy repo and copy "
             "the resulting artifact into tinyagent/ before building release wheels."
         )
+
+    expected_format = _expected_binary_format()
+    if expected_format is not None:
+        for path in staged_files:
+            actual_format = _detect_binary_format(path)
+            if actual_format != expected_format:
+                errors.append(
+                    "Staged `_alchemy` binary is incompatible with this host platform: "
+                    f"{path.relative_to(package_dir.parent)} is {actual_format}, expected "
+                    f"{expected_format}. Build/copy the binding artifact for this platform "
+                    "before packaging release wheels."
+                )
 
     return errors
 

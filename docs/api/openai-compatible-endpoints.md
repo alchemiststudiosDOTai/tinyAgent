@@ -155,5 +155,7 @@ blocks.
   - pass `options.api_key` explicitly or use correct env var for the provider.
 - model errors at runtime
   - verify model ID and endpoint compatibility with the target backend.
-- `tinyagent._alchemy is not installed`
+- alchemy binding import failures
   - install/build the optional binding from `https://github.com/tunahorse/tinyagent-alchemy`.
+  - if the binding is already present, inspect the original import error now included in the
+    raised `RuntimeError` to catch platform or loader mismatches.

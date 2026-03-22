@@ -1,0 +1,171 @@
+name: release-platform-wheels
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      publish_to_pypi:
+        description: "Publish downloaded artifacts to PyPI after successful builds"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  build-sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Build source distribution
+        shell: bash
+        run: uv build --sdist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tiny-agent-os-sdist
+          path: dist/*.tar.gz
+
+  build-platform-wheel:
+    needs: build-sdist
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            artifact_name: tiny-agent-os-macos-wheel
+          - os: windows-latest
+            artifact_name: tiny-agent-os-windows-wheel
+    runs-on: ${{ matrix.os }}
+    env:
+      PYTHON_VERSION: "3.12"
+      TINYAGENT_ALCHEMY_REF: "3e7a1d59b029f26ef6b3400216b3446d18d5c02a"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: astral-sh/setup-uv@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/checkout@v4
+        with:
+          repository: tunahorse/tinyagent-alchemy
+          ref: ${{ env.TINYAGENT_ALCHEMY_REF }}
+          path: .external/tinyagent-alchemy
+
+      - name: Patch external binding checkout for current alchemy-llm API
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path(".external/tinyagent-alchemy/src/lib.rs")
+          text = path.read_text(encoding="utf-8")
+          needle = "        headers: None,\n"
+          replacement = "        headers: None,\n        zai: None,\n"
+
+          if "zai:" not in text and needle in text:
+              path.write_text(text.replace(needle, replacement, 1), encoding="utf-8")
+          PY
+
+      - name: Build external binding wheel
+        working-directory: .external/tinyagent-alchemy
+        shell: bash
+        run: uv tool run maturin build --release --interpreter python
+
+      - name: Stage platform binding into tinyagent
+        shell: bash
+        run: python scripts/stage_release_binding.py .external/tinyagent-alchemy/target/wheels
+
+      - name: Verify staged binding matches runner platform
+        shell: bash
+        run: python scripts/check_release_binding.py --require-present
+
+      - name: Build tiny-agent-os wheel
+        shell: bash
+        run: uv build --wheel
+
+      - name: Smoke test built wheel
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          import subprocess
+          import venv
+          from pathlib import Path
+
+          wheel = next(Path("dist").glob("*.whl"))
+          venv_dir = Path(".venv-smoke")
+          venv.EnvBuilder(with_pip=True).create(venv_dir)
+          scripts_dir = "Scripts" if os.name == "nt" else "bin"
+          python_name = "python.exe" if os.name == "nt" else "python"
+          smoke_python = venv_dir / scripts_dir / python_name
+
+          subprocess.run([str(smoke_python), "-m", "pip", "install", str(wheel)], check=True)
+          subprocess.run(
+              [
+                  str(smoke_python),
+                  "-c",
+                  (
+                      "import tinyagent._alchemy; "
+                      "import tinyagent.alchemy_provider as ap; "
+                      "ap._ALCHEMY_MODULE = None; "
+                      "print(ap._get_alchemy_module().__name__)"
+                  ),
+              ],
+              check=True,
+          )
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist/*.whl
+
+  attach-release-assets:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs:
+      - build-sdist
+      - build-platform-wheel
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/**/*.whl
+            dist/**/*.tar.gz
+
+  publish-pypi:
+    if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.publish_to_pypi)
+    needs:
+      - build-sdist
+      - build-platform-wheel
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
