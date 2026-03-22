@@ -7,6 +7,12 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.15] - 2026-03-22
+
+### Fixed
+- Pinned the Windows release workflow to `C:\Strawberry\perl\bin\perl.exe` via `OPENSSL_SRC_PERL` and `PERL`, so vendored `openssl-src` no longer depends on runner `PATH` ordering during the external binding build.
+- Corrected the release guidance to document the verified external wheel layout (`_alchemy/_alchemy...`) and the current staging contract.
+
 ## [1.2.14] - 2026-03-22
 
 ### Fixed

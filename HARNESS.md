@@ -31,9 +31,13 @@
   platform binary format, so run it on the target release platform before packaging.
 - `stage-release-binding`: run `python3 scripts/stage_release_binding.py <tinyagent-alchemy wheel-or-wheel-dir>`
   to replace any stale local `_alchemy` artifact with the wheel-built binding before packaging.
+  The current external wheel layout is `_alchemy/_alchemy.abi3.so`, and the staging script
+  accepts that packaged layout.
 - `.github/workflows/release-platform-wheels.yml` is the release path for macOS and Windows wheels:
   it builds the external binding per-platform, stages it into `tinyagent/`, runs the release check,
-  builds the TinyAgent wheel, smoke-tests `import tinyagent._alchemy` from a clean venv, and
+  pins `OPENSSL_SRC_PERL` and `PERL` to `C:\Strawberry\perl\bin\perl.exe` on Windows so vendored
+  OpenSSL does not depend on runner PATH ordering, builds the TinyAgent wheel, smoke-tests
+  `import tinyagent._alchemy` from a clean venv, and
   publishes the release artifacts to PyPI on tag builds after a one-time PyPI trusted-publisher setup.
 - This repo still does not own the Rust binding source; build the binary from `https://github.com/tunahorse/tinyagent-alchemy`, then stage the artifact into `tinyagent/` so setuptools packages it.
 

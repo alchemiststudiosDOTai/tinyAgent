@@ -38,7 +38,7 @@ before packaging so the final wheel includes it.
   - rejects staged binaries whose file format does not match the current host
     platform (for example, ELF on macOS)
 - `scripts/stage_release_binding.py`
-  - extracts `tinyagent/_alchemy...` from a built `tinyagent-alchemy` wheel
+  - extracts the single `_alchemy...` binary member from a built `tinyagent-alchemy` wheel
   - removes stale staged binding files before copying the new platform artifact in
 - `tests/test_release_binding.py`
   - regression tests for the release check
@@ -61,12 +61,23 @@ Build the correct prebuilt artifact from:
 
 - `https://github.com/tunahorse/tinyagent-alchemy`
 
-Expected staged filenames include one of:
+Expected staged destination filenames in `tinyagent/` include one of:
 
 - `tinyagent/_alchemy.abi3.so`
 - `tinyagent/_alchemy.<platform>.so`
 - `tinyagent/_alchemy.pyd`
 - `tinyagent/_alchemy.dylib`
+
+The built `tinyagent-alchemy` wheel does not have to store that binary under the
+same package path. `scripts/stage_release_binding.py` matches supported
+`_alchemy` binary members by basename and stages the compiled artifact into
+`tinyagent/`.
+
+The currently verified external wheel layout at the workflow's pinned
+`tinyagent-alchemy` ref is:
+
+- `_alchemy/__init__.py`
+- `_alchemy/_alchemy.abi3.so`
 
 ### 2. Stage the artifact into this repo
 
@@ -138,6 +149,7 @@ On tag pushes or manual dispatch, it:
 - checks out this repo
 - checks out `tunahorse/tinyagent-alchemy` at a pinned ref
 - builds the binding on `macos-14` and `windows-latest`
+- pins `OPENSSL_SRC_PERL` and `PERL` to `C:\Strawberry\perl\bin\perl.exe` on Windows so vendored `openssl-src` does not depend on runner PATH ordering
 - stages the binding into `tinyagent/` via `scripts/stage_release_binding.py`
 - runs `python3 scripts/check_release_binding.py --require-present`
 - builds the `tiny-agent-os` wheel
