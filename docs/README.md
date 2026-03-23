@@ -70,9 +70,11 @@ pip install tiny-agent-os
 
 Optional binding:
 
+- PyPI wheels may include the compiled `tinyagent._alchemy` extension for supported platforms,
+  but the source distribution does not.
 - Install/build `tinyagent._alchemy` from `https://github.com/tunahorse/tinyagent-alchemy`
-  if you want `stream_alchemy_openai_completions`
-- Otherwise, use the proxy path in `tinyagent.proxy`
+  if you want `stream_alchemy_openai_completions` and no matching wheel is available.
+- Otherwise, use the proxy path in `tinyagent.proxy`.
 
 ## Core Concepts
 

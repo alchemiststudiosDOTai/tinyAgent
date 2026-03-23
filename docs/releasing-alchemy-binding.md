@@ -49,9 +49,9 @@ before packaging so the final wheel includes it.
 - `HARNESS.md`
   - records the release gate for wheels expected to ship `_alchemy`
 - `.github/workflows/release-platform-wheels.yml`
-  - builds macOS and Windows release wheels from a fresh external binding build
-  - smoke-tests the built wheel in a clean virtualenv before uploading assets
-  - publishes the built distributions to PyPI on tag builds
+  - builds Linux, macOS, and Windows release wheels from a fresh external binding build
+  - smoke-tests each built wheel in a clean virtualenv before uploading assets
+  - publishes the built distributions to PyPI on tag builds with the repo `PYPI_TOKEN` secret
 
 ## Release workflow
 
@@ -140,7 +140,7 @@ The `uv build` output from this task showed:
 
 After verification, publish the built wheel(s) as the release artifacts.
 
-## Automated macOS + Windows release path
+## Automated Linux + macOS + Windows release path
 
 This repo now includes `.github/workflows/release-platform-wheels.yml`.
 
@@ -148,7 +148,7 @@ On tag pushes or manual dispatch, it:
 
 - checks out this repo
 - checks out `tunahorse/tinyagent-alchemy` at a pinned ref
-- builds the binding on `macos-14` and `windows-latest`
+- builds the binding on `ubuntu-latest`, `macos-14`, and `windows-latest`
 - pins `OPENSSL_SRC_PERL` and `PERL` to `C:\Strawberry\perl\bin\perl.exe` on Windows so vendored `openssl-src` does not depend on runner PATH ordering
 - stages the binding into `tinyagent/` via `scripts/stage_release_binding.py`
 - runs `python3 scripts/check_release_binding.py --require-present`
@@ -156,26 +156,26 @@ On tag pushes or manual dispatch, it:
 - installs that wheel into a fresh virtualenv and smoke-tests `import tinyagent._alchemy`
 - uploads the resulting wheels and source distribution as artifacts
 - attaches them to the GitHub release on tag builds
-- publishes them to PyPI on tag builds, or on manual dispatch when `publish_to_pypi=true`
+- publishes them to PyPI on tag builds, or on manual dispatch when `publish_to_pypi=true`, using the repo `PYPI_TOKEN` secret
 
-That automation is the supported path for getting macOS and Windows wheels from
-the correct native binding, instead of relying on whatever `_alchemy` file
-happened to be present in a local checkout.
+That automation is the supported path for getting Linux, macOS, and Windows
+wheels from the correct native binding, instead of relying on whatever
+`_alchemy` file happened to be present in a local checkout.
 
 ## PyPI setup required once
 
-GitHub can only publish from this workflow after the `tiny-agent-os` project on
-PyPI is configured to trust this repository/workflow as a Trusted Publisher.
+Store a PyPI API token for the `tiny-agent-os` project in this repository as:
 
-Configure PyPI to trust:
+- repository secret: `PYPI_TOKEN`
 
-- owner/repo: `tunahorse/tinyAgent`
-- workflow: `release-platform-wheels.yml`
-- environment: none required by this workflow
+The workflow publishes with:
 
-After that one-time setup, pushing a version tag such as `v1.2.12` will build
-the macOS and Windows wheels and upload the distributions to PyPI under the same
-release version so installers can choose the correct file for each user platform.
+- username: `__token__`
+- password: `${{ secrets.PYPI_TOKEN }}`
+
+After that one-time setup, pushing a version tag such as `v1.2.16` will build
+Linux, macOS, and Windows wheels plus the source distribution, then upload the
+artifacts to PyPI under the same release version.
 
 ## Why this approach
 
