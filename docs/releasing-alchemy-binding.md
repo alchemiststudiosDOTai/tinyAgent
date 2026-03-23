@@ -37,11 +37,15 @@ before packaging so the final wheel includes it.
   - can require that a staged binary is actually present
   - rejects staged binaries whose file format does not match the current host
     platform (for example, ELF on macOS)
+- `scripts/check_release_wheels.py`
+  - rejects generic `linux_*` wheel tags that PyPI will not accept for Linux uploads
 - `scripts/stage_release_binding.py`
   - extracts the single `_alchemy...` binary member from a built `tinyagent-alchemy` wheel
   - removes stale staged binding files before copying the new platform artifact in
 - `tests/test_release_binding.py`
   - regression tests for the release check
+- `tests/test_release_wheels.py`
+  - regression tests for Linux wheel tag validation
 - `tests/test_stage_release_binding.py`
   - regression tests for wheel extraction/staging behavior
 - `AGENTS.md`
@@ -50,6 +54,7 @@ before packaging so the final wheel includes it.
   - records the release gate for wheels expected to ship `_alchemy`
 - `.github/workflows/release-platform-wheels.yml`
   - builds Linux, macOS, and Windows release wheels from a fresh external binding build
+  - repairs the Linux wheel into a PyPI-acceptable `manylinux` artifact before upload
   - smoke-tests each built wheel in a clean virtualenv before uploading assets
   - publishes the built distributions to PyPI on tag builds with the repo `PYPI_TOKEN` secret
 
@@ -122,21 +127,41 @@ uv build --wheel
 Because the staged binary is present, the produced wheel should be
 platform-specific.
 
-Example verified output from this task:
+Example pre-repair Linux wheel output from this task:
 
-- `tiny_agent_os-1.2.9-cp310-cp310-linux_x86_64.whl`
+- `tiny_agent_os-1.2.16-cp310-abi3-linux_x86_64.whl`
 
-## 5. Verify wheel contents
+## 5. Repair Linux wheels for PyPI
+
+On Linux, `uv build --wheel` still emits a generic `linux_x86_64` wheel tag. PyPI
+expects a `manylinux_*` or `musllinux_*` Linux tag instead, so repair the built
+wheel before publishing:
+
+```bash
+mkdir -p wheelhouse
+uv tool run auditwheel repair --wheel-dir wheelhouse dist/*.whl
+rm dist/*.whl
+mv wheelhouse/*.whl dist/
+python3 scripts/check_release_wheels.py dist
+```
+
+macOS and Windows wheels do not need this step.
+
+Example repaired Linux wheel output from this task:
+
+- `tiny_agent_os-1.2.16-cp310-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl`
+
+## 6. Verify wheel contents
 
 Confirm the built wheel contains the binding artifact:
 
 - `tinyagent/_alchemy.abi3.so`
 
-The `uv build` output from this task showed:
+The wheel build output from this task showed:
 
 - `adding 'tinyagent/_alchemy.abi3.so'`
 
-## 6. Publish the wheel
+## 7. Publish the wheel
 
 After verification, publish the built wheel(s) as the release artifacts.
 
@@ -153,6 +178,8 @@ On tag pushes or manual dispatch, it:
 - stages the binding into `tinyagent/` via `scripts/stage_release_binding.py`
 - runs `python3 scripts/check_release_binding.py --require-present`
 - builds the `tiny-agent-os` wheel
+- repairs Linux wheels with `uv tool run auditwheel repair`
+- runs `python3 scripts/check_release_wheels.py dist`
 - installs that wheel into a fresh virtualenv and smoke-tests `import tinyagent._alchemy`
 - uploads the resulting wheels and source distribution as artifacts
 - attaches them to the GitHub release on tag builds
@@ -195,11 +222,14 @@ This keeps the repository split clean:
   meant to include alchemy without the actual binary.
 - The release check also catches obvious staging mistakes such as copying a
   Linux ELF artifact into a macOS wheel build.
+- The release wheel check blocks generic `linux_*` tags, which PyPI does not
+  accept for Linux uploads.
 
 ## Commands added for this workflow
 
 - `python3 scripts/check_release_binding.py`
 - `python3 scripts/check_release_binding.py --require-present`
+- `python3 scripts/check_release_wheels.py dist`
 - `uv build --wheel`
 
 ## Files involved
@@ -207,7 +237,9 @@ This keeps the repository split clean:
 - `pyproject.toml`
 - `setup.py`
 - `scripts/check_release_binding.py`
+- `scripts/check_release_wheels.py`
 - `tests/test_release_binding.py`
+- `tests/test_release_wheels.py`
 - `AGENTS.md`
 - `HARNESS.md`
 - `CHANGELOG.md`
@@ -220,5 +252,6 @@ The release contract is now:
 2. copy it into `tinyagent/`
 3. run `python3 scripts/check_release_binding.py --require-present`
 4. build the wheel with `uv build --wheel`
-5. verify the wheel contains `tinyagent/_alchemy...`
-6. publish
+5. on Linux, repair the wheel with `auditwheel` and run `python3 scripts/check_release_wheels.py dist`
+6. verify the wheel contains `tinyagent/_alchemy...`
+7. publish

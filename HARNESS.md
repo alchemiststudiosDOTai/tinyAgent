@@ -29,12 +29,16 @@
 - `release-binding-check`: run `python3 scripts/check_release_binding.py --require-present` before building/publishing wheels that are expected to ship `_alchemy`.
 - `release-binding-check` also verifies that any staged `_alchemy` artifact matches the host
   platform binary format, so run it on the target release platform before packaging.
+- `release-wheel-check`: run `python3 scripts/check_release_wheels.py dist` before publishing.
+  Linux wheels must not keep a generic `linux_*` tag; repair them with `auditwheel`
+  until the wheel metadata reports `manylinux_*` or `musllinux_*` instead.
 - `stage-release-binding`: run `python3 scripts/stage_release_binding.py <tinyagent-alchemy wheel-or-wheel-dir>`
   to replace any stale local `_alchemy` artifact with the wheel-built binding before packaging.
   The current external wheel layout is `_alchemy/_alchemy.abi3.so`, and the staging script
   accepts that packaged layout.
 - `.github/workflows/release-platform-wheels.yml` is the release path for Linux, macOS, and Windows wheels:
   it builds the external binding per-platform, stages it into `tinyagent/`, runs the release check,
+  repairs Linux wheels with `auditwheel` so PyPI receives a `manylinux` artifact,
   pins `OPENSSL_SRC_PERL` and `PERL` to `C:\Strawberry\perl\bin\perl.exe` on Windows so vendored
   OpenSSL does not depend on runner PATH ordering, builds the TinyAgent wheel, smoke-tests
   `import tinyagent._alchemy` from a clean venv, and

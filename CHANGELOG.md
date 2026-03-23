@@ -7,6 +7,13 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.17] - 2026-03-23
+
+### Fixed
+- Repaired Linux release wheels with `auditwheel` in CI so published artifacts use PyPI-compatible `manylinux` tags instead of generic `linux_x86_64`.
+- Added a release-wheel tag check that blocks generic Linux wheel tags before smoke test and publish.
+- Updated the release docs and harness guidance to document the repaired Linux wheel path and the new wheel-tag gate.
+
 ## [1.2.16] - 2026-03-23
 
 ### Fixed

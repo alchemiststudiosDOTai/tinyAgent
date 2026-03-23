@@ -111,6 +111,19 @@ jobs:
         shell: bash
         run: uv build --wheel
 
+      - name: Repair Linux wheel for PyPI
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mkdir -p wheelhouse
+          uv tool run auditwheel repair --wheel-dir wheelhouse dist/*.whl
+          rm dist/*.whl
+          mv wheelhouse/*.whl dist/
+
+      - name: Verify release wheel tags
+        shell: bash
+        run: python scripts/check_release_wheels.py dist
+
       - name: Smoke test built wheel
         shell: bash
         run: |
@@ -184,3 +197,4 @@ jobs:
           packages-dir: dist
           user: __token__
           password: ${{ secrets.PYPI_TOKEN }}
+          attestations: false
