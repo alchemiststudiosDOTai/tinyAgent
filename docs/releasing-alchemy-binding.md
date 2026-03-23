@@ -46,6 +46,10 @@ before packaging so the final wheel includes it.
   - regression tests for the release check
 - `tests/test_release_wheels.py`
   - regression tests for Linux wheel tag validation
+- `scripts/build_release_debug_artifact.py`
+  - captures wheel metadata, staged-binding state, and file listings into a `.artifact` debug bundle
+- `tests/test_release_debug_artifact.py`
+  - regression tests for the release debug bundle contents
 - `tests/test_stage_release_binding.py`
   - regression tests for wheel extraction/staging behavior
 - `AGENTS.md`
@@ -55,6 +59,7 @@ before packaging so the final wheel includes it.
 - `.github/workflows/release-platform-wheels.yml`
   - builds Linux, macOS, and Windows release wheels from a fresh external binding build
   - repairs the Linux wheel into a PyPI-acceptable `manylinux` artifact before upload
+  - uploads a `.artifact` debug bundle per platform even if the job fails
   - smoke-tests each built wheel in a clean virtualenv before uploading assets
   - publishes the built distributions to PyPI on tag builds with the repo `PYPI_TOKEN` secret
 
@@ -181,6 +186,7 @@ On tag pushes or manual dispatch, it:
 - repairs Linux wheels with `uv tool run auditwheel repair`
 - runs `python3 scripts/check_release_wheels.py dist`
 - installs that wheel into a fresh virtualenv and smoke-tests `import tinyagent._alchemy`
+- uploads a `.artifact` debug bundle containing wheel metadata, staged binding files, and any built wheel files for CI triage
 - uploads the resulting wheels and source distribution as artifacts
 - attaches them to the GitHub release on tag builds
 - publishes them to PyPI on tag builds, or on manual dispatch when `publish_to_pypi=true`, using the repo `PYPI_TOKEN` secret
@@ -224,12 +230,15 @@ This keeps the repository split clean:
   Linux ELF artifact into a macOS wheel build.
 - The release wheel check blocks generic `linux_*` tags, which PyPI does not
   accept for Linux uploads.
+- The debug artifact is uploaded even for failed platform jobs so wheel metadata
+  and staging state can be inspected without re-running locally.
 
 ## Commands added for this workflow
 
 - `python3 scripts/check_release_binding.py`
 - `python3 scripts/check_release_binding.py --require-present`
 - `python3 scripts/check_release_wheels.py dist`
+- `python3 scripts/build_release_debug_artifact.py --output-dir .artifact/release-debug`
 - `uv build --wheel`
 
 ## Files involved
@@ -238,8 +247,10 @@ This keeps the repository split clean:
 - `setup.py`
 - `scripts/check_release_binding.py`
 - `scripts/check_release_wheels.py`
+- `scripts/build_release_debug_artifact.py`
 - `tests/test_release_binding.py`
 - `tests/test_release_wheels.py`
+- `tests/test_release_debug_artifact.py`
 - `AGENTS.md`
 - `HARNESS.md`
 - `CHANGELOG.md`

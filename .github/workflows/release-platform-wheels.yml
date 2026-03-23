@@ -111,6 +111,13 @@ jobs:
         shell: bash
         run: uv build --wheel
 
+      - name: Preserve raw Linux wheel for debug artifact
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mkdir -p .artifact/raw-wheel
+          cp dist/*.whl .artifact/raw-wheel/
+
       - name: Repair Linux wheel for PyPI
         if: runner.os == 'Linux'
         shell: bash
@@ -160,6 +167,23 @@ jobs:
         with:
           name: ${{ matrix.artifact_name }}
           path: dist/*.whl
+
+      - name: Build release debug artifact
+        if: always()
+        shell: bash
+        run: python scripts/build_release_debug_artifact.py --output-dir .artifact/release-debug
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ matrix.artifact_name }}-debug
+          if-no-files-found: ignore
+          path: |
+            .artifact/release-debug/**
+            .artifact/raw-wheel/*.whl
+            dist/*.whl
+            wheelhouse/*.whl
+            .external/tinyagent-alchemy/target/wheels/*.whl
 
   attach-release-assets:
     if: startsWith(github.ref, 'refs/tags/')

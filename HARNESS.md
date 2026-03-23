@@ -41,7 +41,8 @@
   repairs Linux wheels with `auditwheel` so PyPI receives a `manylinux` artifact,
   pins `OPENSSL_SRC_PERL` and `PERL` to `C:\Strawberry\perl\bin\perl.exe` on Windows so vendored
   OpenSSL does not depend on runner PATH ordering, builds the TinyAgent wheel, smoke-tests
-  `import tinyagent._alchemy` from a clean venv, and
+  `import tinyagent._alchemy` from a clean venv, uploads a `.artifact` debug bundle per platform,
+  and
   publishes the release artifacts to PyPI on tag builds or manual dispatch via the repo `PYPI_TOKEN` secret.
 - This repo still does not own the Rust binding source; build the binary from `https://github.com/tunahorse/tinyagent-alchemy`, then stage the artifact into `tinyagent/` so setuptools packages it.
 

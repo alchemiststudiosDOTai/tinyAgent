@@ -7,6 +7,9 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- The release workflow now uploads a `.artifact` debug bundle per platform with wheel metadata, staged-binding state, and built wheel files for CI triage.
+
 ## [1.2.17] - 2026-03-23
 
 ### Fixed
