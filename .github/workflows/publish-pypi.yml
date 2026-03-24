@@ -51,12 +51,7 @@ jobs:
               cargo build --release --manifest-path rust/Cargo.toml
               cp rust/target/release/lib_alchemy.so tinyagent/_alchemy.abi3.so
 
-              "${PYBIN}/python" - <<'"'"'PY'"'"'
-              import sys
-
-              sys.path.insert(0, "tinyagent")
-              import _alchemy
-              PY
+              "${PYBIN}/python" -c "import sys; sys.path.insert(0, \"tinyagent\"); import _alchemy"
               "${PYBIN}/python" scripts/check_release_binding.py --require-present
 
               mkdir -p dist wheelhouse
@@ -64,23 +59,7 @@ jobs:
               auditwheel repair --plat manylinux_2_28_x86_64 --wheel-dir wheelhouse dist/*.whl
 
               "${PYBIN}/python" scripts/check_release_wheels.py wheelhouse
-
-              "${PYBIN}/python" - <<'"'"'PY'"'"'
-              import os
-              import subprocess
-              import venv
-              from pathlib import Path
-
-              wheel = next(Path("wheelhouse").glob("*.whl"))
-              venv_dir = Path(".venv-smoke")
-              venv.EnvBuilder(with_pip=True).create(venv_dir)
-              scripts_dir = "Scripts" if os.name == "nt" else "bin"
-              python_name = "python.exe" if os.name == "nt" else "python"
-              smoke_python = venv_dir / scripts_dir / python_name
-
-              subprocess.run([str(smoke_python), "-m", "pip", "install", str(wheel)], check=True)
-              subprocess.run([str(smoke_python), "-c", "import tinyagent._alchemy"], check=True)
-              PY
+              "${PYBIN}/python" scripts/smoke_test_built_wheel.py wheelhouse
             '
 
       - name: Upload wheel artifact
@@ -147,22 +126,7 @@ jobs:
 
       - name: Smoke test built wheel
         run: |
-          python - <<'PY'
-          import os
-          import subprocess
-          import venv
-          from pathlib import Path
-
-          wheel = next(Path("dist").glob("*.whl"))
-          venv_dir = Path(".venv-smoke")
-          venv.EnvBuilder(with_pip=True).create(venv_dir)
-          scripts_dir = "Scripts" if os.name == "nt" else "bin"
-          python_name = "python.exe" if os.name == "nt" else "python"
-          smoke_python = venv_dir / scripts_dir / python_name
-
-          subprocess.run([str(smoke_python), "-m", "pip", "install", str(wheel)], check=True)
-          subprocess.run([str(smoke_python), "-c", "import tinyagent._alchemy"], check=True)
-          PY
+          python scripts/smoke_test_built_wheel.py dist
 
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
@@ -235,22 +199,7 @@ jobs:
       - name: Smoke test built wheel
         shell: bash
         run: |
-          python - <<'PY'
-          import os
-          import subprocess
-          import venv
-          from pathlib import Path
-
-          wheel = next(Path("dist").glob("*.whl"))
-          venv_dir = Path(".venv-smoke")
-          venv.EnvBuilder(with_pip=True).create(venv_dir)
-          scripts_dir = "Scripts" if os.name == "nt" else "bin"
-          python_name = "python.exe" if os.name == "nt" else "python"
-          smoke_python = venv_dir / scripts_dir / python_name
-
-          subprocess.run([str(smoke_python), "-m", "pip", "install", str(wheel)], check=True)
-          subprocess.run([str(smoke_python), "-c", "import tinyagent._alchemy"], check=True)
-          PY
+          python scripts/smoke_test_built_wheel.py dist
 
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4

@@ -9,6 +9,11 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+## [1.2.24] - 2026-03-24
+
+### Fixed
+- Fixed Linux wheel CI scripting by replacing inline Python heredocs in the release workflow with a checked-in smoke-test script, removing the shell indentation and quoting failures from the manylinux path.
+
 ## [1.2.23] - 2026-03-24
 
 ### Fixed
