@@ -51,7 +51,12 @@ jobs:
               cargo build --release --manifest-path rust/Cargo.toml
               cp rust/target/release/lib_alchemy.so tinyagent/_alchemy.abi3.so
 
-              "${PYBIN}/python" -c "import sys; sys.path.insert(0,'tinyagent'); import _alchemy"
+              "${PYBIN}/python" - <<'"'"'PY'"'"'
+              import sys
+
+              sys.path.insert(0, "tinyagent")
+              import _alchemy
+              PY
               "${PYBIN}/python" scripts/check_release_binding.py --require-present
 
               mkdir -p dist wheelhouse

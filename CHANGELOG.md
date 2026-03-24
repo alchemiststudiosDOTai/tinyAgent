@@ -9,6 +9,11 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+## [1.2.23] - 2026-03-24
+
+### Fixed
+- Fixed the Linux release workflow import check by replacing the inline `python -c` command with a heredoc so shell quoting cannot strip `"tinyagent"` from `sys.path.insert(...)`.
+
 ## [1.2.22] - 2026-03-24
 
 ### Fixed
