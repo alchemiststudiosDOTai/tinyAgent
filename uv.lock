@@ -819,7 +819,7 @@ wheels = [
 
 [[package]]
 name = "tiny-agent-os"
-version = "1.2.19"
+version = "1.2.20"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },

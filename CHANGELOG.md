@@ -9,6 +9,12 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+## [1.2.20] - 2026-03-24
+
+### Fixed
+- Fixed Linux wheel builds by installing the missing Perl `IPC::Cmd` module dependency required for the vendored OpenSSL compile in manylinux.
+- Fixed macOS/Windows wheel builds by validating the staged `_alchemy` binary without importing `tinyagent/__init__.py` (avoids missing runtime deps like `pydantic` in CI).
+
 ## [1.2.19] - 2026-03-24
 
 ### Fixed
