@@ -8,8 +8,8 @@ Inspired by [smolagents](https://github.com/huggingface/smolagents) and [Pi](htt
 
 > **Beta** — TinyAgent is usable but not production-ready. APIs may change between minor versions.
 
-> **Note:** The optional `tinyagent._alchemy` binding now lives in
-> `https://github.com/tunahorse/tinyagent-alchemy` and is not built from this repo.
+> **Note:** The optional `tinyagent._alchemy` binding is built from the in-repo
+> Rust crate and shipped in supported PyPI wheels.
 
 ## Overview
 
@@ -20,14 +20,14 @@ TinyAgent provides a lightweight foundation for creating conversational AI agent
 - **Event-driven**: Subscribe to agent events for real-time UI updates
 - **Provider agnostic**: Works with any OpenAI-compatible `/chat/completions` endpoint (OpenRouter, OpenAI, Chutes, local servers)
 - **Prompt caching**: Reduce token costs and latency with Anthropic-style cache breakpoints
-- **Provider paths**: Optional external alchemy binding adapter plus proxy integration
+- **Provider paths**: Optional in-repo alchemy binding plus proxy integration
 - **Type-safe**: Full type hints throughout
 
 ## Quick Start
 
 This example uses the optional `tinyagent._alchemy` binding via
-`tinyagent.alchemy_provider`. Install that binding from the external repo first,
-or use the proxy path instead.
+`tinyagent.alchemy_provider`. Install a wheel that includes the binding for your
+platform, or use the proxy path instead.
 
 ```python
 import asyncio
@@ -72,8 +72,8 @@ Optional binding:
 
 - PyPI wheels may include the compiled `tinyagent._alchemy` extension for supported platforms,
   but the source distribution does not.
-- Install/build `tinyagent._alchemy` from `https://github.com/tunahorse/tinyagent-alchemy`
-  if you want `stream_alchemy_openai_completions` and no matching wheel is available.
+- Build `tinyagent._alchemy` from the in-repo `rust/` crate if you want
+  `stream_alchemy_openai_completions` and no matching wheel is available.
 - Otherwise, use the proxy path in `tinyagent.proxy`.
 
 ## Core Concepts
@@ -161,15 +161,11 @@ Cache breakpoints are automatically placed on user message content blocks so the
 
 ## Optional Binding: `tinyagent._alchemy`
 
-This repo keeps `tinyagent/alchemy_provider.py` as a compatibility adapter for the
-optional external `tinyagent._alchemy` extension. The binding source, build
-instructions, and low-level binding API now live in:
+This repo keeps `tinyagent/alchemy_provider.py` as the Python adapter for the
+optional `tinyagent._alchemy` extension built from the in-repo `rust/` crate.
 
-- `https://github.com/tunahorse/tinyagent-alchemy`
-
-The compiled path is still useful when you want OpenAI-compatible streaming
-without routing through a separate proxy, but it is no longer bundled or built
-from this repository.
+The compiled path is useful when you want OpenAI-compatible streaming without
+routing through a separate proxy.
 
 ### Using via TinyAgent
 
@@ -218,7 +214,7 @@ agent.set_model(
 )
 ```
 
-Smoke validation after installing the external binding:
+Smoke validation after installing a wheel with the binding:
 
 - `uv run python scripts/smoke_rust_tool_calls_three_providers.py`
 
@@ -252,7 +248,7 @@ tinyagent/
 ├── agent_tool_execution.py  # Tool execution helpers
 ├── agent_types.py        # Type definitions
 ├── caching.py            # Prompt caching utilities
-├── alchemy_provider.py   # Adapter for the optional external binding
+├── alchemy_provider.py   # Adapter for the optional Rust binding
 ├── proxy.py              # Proxy server integration
 └── proxy_event_handlers.py  # Proxy event parsing
 ```

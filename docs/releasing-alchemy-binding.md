@@ -52,7 +52,7 @@ platform wheels.
 - `HARNESS.md`
   - records the release gate for wheels expected to ship `_alchemy`
 - `.github/workflows/publish-pypi.yml`
-  - builds Linux (manylinux), macOS, and Windows release wheels from the in-repo binding
+  - builds one Python 3.10 `abi3` wheel per platform from the in-repo binding
   - repairs Linux wheels into PyPI-acceptable `manylinux` artifacts before upload
   - smoke-tests each built wheel in a clean virtualenv before publishing
   - publishes the built distributions to PyPI with the repo `PYPI_TOKEN` secret
@@ -150,6 +150,7 @@ On GitHub release publish or manual dispatch, it:
 
 - checks out this repo
 - builds the in-repo binding on `ubuntu-latest` (manylinux), `macos-latest`, and `windows-latest`
+- uses Python 3.10 once per platform so the `cp310-abi3` wheel filename is unique and stable
 - stages the binding into `tinyagent/`
 - runs `python3 scripts/check_release_binding.py --require-present`
 - builds the `tiny-agent-os` wheel
@@ -227,7 +228,7 @@ This keeps the release contract simple:
 
 The release contract is now:
 
-1. build `_alchemy` from the external binding repo
+1. build `_alchemy` from the in-repo `rust/` crate
 2. copy it into `tinyagent/`
 3. run `python3 scripts/check_release_binding.py --require-present`
 4. build the wheel with `uv build --wheel`

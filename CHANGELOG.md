@@ -9,6 +9,13 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+## [1.2.26] - 2026-03-24
+
+### Fixed
+- Fixed the PyPI release workflow to build exactly one Python 3.10 `cp310-abi3` wheel per platform, eliminating duplicate wheel filenames with different binary contents from the old per-version matrix.
+- Made the PyPI publish step rerunnable by skipping files that already exist, which prevents partial uploads from blocking a release retry.
+- Updated the package metadata and release docs to describe the restored in-repo Rust binding instead of the retired external-binding flow.
+
 ## [1.2.25] - 2026-03-24
 
 ### Fixed

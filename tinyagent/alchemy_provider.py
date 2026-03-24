@@ -1,9 +1,7 @@
-"""Compatibility provider for the optional tinyagent-alchemy binding.
+"""Compatibility provider for the optional tinyagent._alchemy binding.
 
-This module keeps the Python-side adapter for the external `tinyagent._alchemy`
-extension. The binding itself is maintained outside this repo:
-
-    https://github.com/tunahorse/tinyagent-alchemy
+This module keeps the Python-side adapter for the in-repo `tinyagent._alchemy`
+extension built from `rust/`.
 
 Important limitations:
 - The binding currently dispatches only `openai-completions` and
@@ -132,9 +130,8 @@ def _get_alchemy_module() -> _AlchemyModule:
             )
             raise RuntimeError(
                 "Failed to import the optional alchemy binding. "
-                "Install the optional binding from "
-                "https://github.com/tunahorse/tinyagent-alchemy if it is not "
-                "already installed. "
+                "Install a wheel that includes tinyagent._alchemy or build the "
+                "binding from the in-repo rust crate if it is not already installed. "
                 f"Import failures: {import_failures}"
             ) from cause
     return _ALCHEMY_MODULE
