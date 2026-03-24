@@ -9,6 +9,11 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+## [1.2.21] - 2026-03-24
+
+### Fixed
+- Fixed Linux manylinux wheel builds by disabling vendored-OpenSSL-from-source (use system OpenSSL + auditwheel repair to avoid CI Perl module dependency churn).
+
 ## [1.2.20] - 2026-03-24
 
 ### Fixed

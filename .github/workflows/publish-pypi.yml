@@ -40,13 +40,14 @@ jobs:
               PYBIN="/opt/python/${PYTHON_TAG}/bin"
               export PYO3_PYTHON="${PYBIN}/python"
 
-              yum install -y curl gcc gcc-c++ make patchelf perl perl-IPC-Cmd
+              yum install -y curl gcc gcc-c++ make patchelf openssl-devel pkgconfig
               curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal
               source /root/.cargo/env
 
               "${PYBIN}/python" -m pip install --upgrade pip
               "${PYBIN}/python" -m pip install auditwheel build tomli
 
+              export OPENSSL_NO_VENDOR=1
               cargo build --release --manifest-path rust/Cargo.toml
               cp rust/target/release/lib_alchemy.so tinyagent/_alchemy.abi3.so
 
