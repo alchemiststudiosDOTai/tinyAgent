@@ -1,16 +1,11 @@
 # AGENTS.md
 
-## Project Overview
-- TinyAgent is maintained here as a Python agent framework centered on `tinyagent/`.
-- The Rust alchemy binding is no longer maintained in this repo; active binding work lives at `https://github.com/tunahorse/tinyagent-alchemy`.
-- Primary runtime guidance in this repo should focus on the Python package surface and the proxy/provider glue that remains here.
-- Treat this file as a quick map. For detailed behavior, defer to the docs and tests listed below.
-
+we are in the middle of bringing the rust binding back into this repo because the external split has caused too many issues
 ## Where To Start
 - `README.md` — onboarding, install, examples, and current package usage notes.
 - `docs/ARCHITECTURE.md` — module responsibilities, event flow, quality gates, technical-debt policy.
 - `docs/api/README.md` — API reference index.
-- `docs/releasing-alchemy-binding.md` — release workflow for wheels that must ship `tinyagent._alchemy`.
+- `docs/releasing-alchemy-binding.md` — current release workflow and migration notes for wheels that ship `tinyagent._alchemy`.
 - `HARNESS.md` — critical enforcement document for this repo: pre-commit hooks, ratchets, and rule entry points.
 - `tests/architecture/test_import_boundaries.py` — enforced layer contract for the Python package.
 
@@ -21,7 +16,7 @@
   - `agent_loop.py` — orchestration loop.
   - `agent_tool_execution.py` — concurrent tool execution.
   - `agent_types.py` — shared message, event, and state models.
-  - `alchemy_provider.py` — provider bridge kept here for package compatibility; do not treat this repo as the active home of the Rust implementation behind it.
+  - `alchemy_provider.py` — Python bridge for the `tinyagent._alchemy` provider path.
   - `proxy.py`, `proxy_event_handlers.py` — proxy streaming path.
   - `caching.py` — prompt caching helpers.
 - `tests/` — unit and contract tests.
@@ -54,7 +49,8 @@
   - Layer 1: `agent_tool_execution`, `alchemy_provider`, `proxy_event_handlers`, `caching`
   - Layer 0: `agent_types`
 - `agent_types.py` must remain the leaf module among governed TinyAgent modules.
-- Do not reintroduce Rust binding implementation work in this repo; binding-specific changes belong in the separate binding repo.
+- Rust binding implementation work is allowed in this repo as part of the migration back from the external split.
+- Keep Rust binding changes isolated from the core Python layer boundaries unless a cross-layer change is required.
 - `tinyagent/__init__.py` is the public package surface; keep exports aligned with `scripts/lint_architecture.py` constraints.
 
 ## Sources Of Truth
@@ -67,15 +63,15 @@
 - Enforced checks: `.pre-commit-config.yaml`, `scripts/*.py`
 - Import boundaries: `tests/architecture/test_import_boundaries.py`
 - Harness-specific rules: `rules/README.md`, `rules/*.yml`
-- External binding repo: `https://github.com/tunahorse/tinyagent-alchemy`
+- External binding repo: `https://github.com/tunahorse/tinyagent-alchemy` (historical reference during migration; not the required source of truth)
 
 ## Change Guardrails
 - Do not add `.env` loading or `dotenv` imports inside `tinyagent/`.
 - Provider modules must not mutate `os.environ`.
 - No free-form `TODO`/`FIXME`/`HACK`/`XXX`/`DEBT` markers; use the ticketed format documented in `docs/ARCHITECTURE.md` and enforced by `scripts/lint_debt.py`.
-- Keep docs in this repo aligned with the Python package that lives here, and clearly mark any Rust-binding references as external or legacy.
-- Do not add new Rust-binding source, build steps, or "source of truth" claims to this repo.
-- Release wheels may still ship prebuilt `_alchemy` artifacts, but those binaries must be built from the external binding repo and staged into `tinyagent/` before packaging.
+- Keep docs in this repo aligned with the Python package and the in-repo Rust binding migration status.
+- Rust-binding source, build steps, and release rules may now live in this repo when they are part of restoring the binding here.
+- During the migration, prefer keeping the Python-facing `tinyagent._alchemy` contract stable even if the build/release internals change.
 - Treat `HARNESS.md` and the enforcement harness it describes as critical repo infrastructure. They are not optional process notes.
 - If a codebase rule matters, record it in `HARNESS.md` and back it with a typed check, hook, script, test, or rule file.
 - Prefer code-level enforcement over prose-only policy. Important rules should be enforced in `.pre-commit-config.yaml`, `scripts/*.py`, `tests/architecture/`, or `rules/` whenever practical.
@@ -85,8 +81,8 @@
 ## Validation Checklist
 - Every listed path still exists.
 - Every listed command still matches current config, docs, or scripts.
-- Docs are updated when public API or usage contracts change, and any Rust-binding references make the external ownership clear.
-- Run `python3 scripts/check_release_binding.py --require-present` before building/publishing wheels that are expected to ship `_alchemy`.
+- Docs are updated when public API, usage contracts, or Rust-binding ownership/build rules change.
+- Release/build instructions match the actual binding workflow used by this repo.
 - `HARNESS.md` stays aligned with the actual enforced hooks, ratchets, and rule entry points.
 - Layer checks pass after import changes.
 - `AGENTS.md` stays compact and points outward instead of duplicating docs.
