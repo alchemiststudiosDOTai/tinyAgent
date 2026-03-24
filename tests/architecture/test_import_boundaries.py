@@ -33,6 +33,7 @@ LAYERS = [
     grimp.Layer(
         "agent_tool_execution",
         "alchemy_provider",
+        "rust_binding_provider",
         "proxy_event_handlers",
         "caching",
         independent=True,
@@ -47,6 +48,7 @@ GOVERNED_MODULES = {
     f"{PKG}.agent_tool_execution",
     f"{PKG}.agent_types",
     f"{PKG}.alchemy_provider",
+    f"{PKG}.rust_binding_provider",
     f"{PKG}.proxy",
     f"{PKG}.proxy_event_handlers",
     f"{PKG}.caching",
