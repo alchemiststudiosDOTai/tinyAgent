@@ -33,7 +33,7 @@ jobs:
             -e PYTHON_TAG="${PYTHON_TAG}" \
             -v "${GITHUB_WORKSPACE}:/work" \
             -w /work \
-            quay.io/pypa/manylinux2014_x86_64 \
+            quay.io/pypa/manylinux_2_28_x86_64 \
             bash -lc '
               set -euxo pipefail
 
@@ -56,7 +56,7 @@ jobs:
 
               mkdir -p dist wheelhouse
               "${PYBIN}/python" -m build --wheel --outdir dist
-              auditwheel repair --plat manylinux2014_x86_64 --wheel-dir wheelhouse dist/*.whl
+              auditwheel repair --plat manylinux_2_28_x86_64 --wheel-dir wheelhouse dist/*.whl
 
               "${PYBIN}/python" scripts/check_release_wheels.py wheelhouse
 

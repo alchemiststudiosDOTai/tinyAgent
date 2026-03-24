@@ -9,6 +9,11 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+## [1.2.22] - 2026-03-24
+
+### Fixed
+- Fixed Linux wheel builds by moving the manylinux Docker build from `manylinux2014` (OpenSSL 1.0.2) to `manylinux_2_28`, which satisfies the `openssl-sys` minimum supported OpenSSL version.
+
 ## [1.2.21] - 2026-03-24
 
 ### Fixed
