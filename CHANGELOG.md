@@ -8,7 +8,16 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
-- The release workflow now uploads a `.artifact` debug bundle per platform with wheel metadata, staged-binding state, and built wheel files for CI triage.
+
+## [1.2.18] - 2026-03-24
+
+### Added
+- Restored the Rust `_alchemy` binding in-repo and added a typed Python adapter for it.
+- Added a new PyPI publish workflow that builds the binding per platform and uploads the resulting wheels.
+- The release workflow now uploads a `.artifact` debug bundle per platform with wheel metadata and staged-binding state for CI triage.
+
+### Fixed
+- Avoided system OpenSSL dependencies in Linux wheel builds by switching the TLS stack to a vendored build.
 
 ## [1.2.17] - 2026-03-23
 
