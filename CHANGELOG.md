@@ -9,6 +9,12 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+## [1.2.19] - 2026-03-24
+
+### Fixed
+- Fixed Linux wheel builds in CI by running the manylinux build inside Docker (avoids Node/glibc mismatch from job-level containers).
+- Fixed macOS Rust binding builds by enabling the `-undefined dynamic_lookup` link args so pyo3 can resolve Python symbols at runtime on arm64.
+
 ## [1.2.18] - 2026-03-24
 
 ### Added

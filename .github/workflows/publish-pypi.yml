@@ -13,7 +13,6 @@ jobs:
   build-linux:
     name: Build Linux wheels (${{ matrix.python-tag }})
     runs-on: ubuntu-latest
-    container: quay.io/pypa/manylinux2014_x86_64
     strategy:
       fail-fast: false
       matrix:
@@ -22,63 +21,61 @@ jobs:
           - cp311-cp311
           - cp312-cp312
     env:
-      CARGO_HOME: /root/.cargo
-      PYBIN: /opt/python/${{ matrix.python-tag }}/bin
-      PYO3_PYTHON: /opt/python/${{ matrix.python-tag }}/bin/python
-      RUSTUP_HOME: /root/.rustup
+      PYTHON_TAG: ${{ matrix.python-tag }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Install system dependencies
+      - name: Build and repair the wheel (manylinux)
         run: |
-          yum install -y curl gcc gcc-c++ make patchelf perl
+          set -euxo pipefail
+          docker run --rm \
+            -e PYTHON_TAG="${PYTHON_TAG}" \
+            -v "${GITHUB_WORKSPACE}:/work" \
+            -w /work \
+            quay.io/pypa/manylinux2014_x86_64 \
+            bash -lc '
+              set -euxo pipefail
 
-      - name: Install Rust toolchain
-        run: |
-          curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal
+              PYBIN="/opt/python/${PYTHON_TAG}/bin"
+              export PYO3_PYTHON="${PYBIN}/python"
 
-      - name: Install Python build tooling
-        run: |
-          "${PYBIN}/python" -m pip install --upgrade pip
-          "${PYBIN}/python" -m pip install auditwheel build tomli
+              yum install -y curl gcc gcc-c++ make patchelf perl
+              curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal
+              source /root/.cargo/env
 
-      - name: Build and stage the binding
-        run: |
-          source "${CARGO_HOME}/env"
-          cargo build --release --manifest-path rust/Cargo.toml
-          cp rust/target/release/lib_alchemy.so tinyagent/_alchemy.abi3.so
-          "${PYBIN}/python" -c "import sys; sys.path.insert(0,'.'); import tinyagent._alchemy"
-          "${PYBIN}/python" scripts/check_release_binding.py --require-present
+              "${PYBIN}/python" -m pip install --upgrade pip
+              "${PYBIN}/python" -m pip install auditwheel build tomli
 
-      - name: Build and repair the wheel
-        run: |
-          mkdir -p dist wheelhouse
-          "${PYBIN}/python" -m build --wheel --outdir dist
-          auditwheel repair --plat manylinux2014_x86_64 --wheel-dir wheelhouse dist/*.whl
+              cargo build --release --manifest-path rust/Cargo.toml
+              cp rust/target/release/lib_alchemy.so tinyagent/_alchemy.abi3.so
 
-      - name: Verify wheel tags
-        run: |
-          "${PYBIN}/python" scripts/check_release_wheels.py wheelhouse
+              "${PYBIN}/python" -c "import sys; sys.path.insert(0,'.'); import tinyagent._alchemy"
+              "${PYBIN}/python" scripts/check_release_binding.py --require-present
 
-      - name: Smoke test built wheel
-        run: |
-          "${PYBIN}/python" - <<'PY'
-          import os
-          import subprocess
-          import venv
-          from pathlib import Path
+              mkdir -p dist wheelhouse
+              "${PYBIN}/python" -m build --wheel --outdir dist
+              auditwheel repair --plat manylinux2014_x86_64 --wheel-dir wheelhouse dist/*.whl
 
-          wheel = next(Path("wheelhouse").glob("*.whl"))
-          venv_dir = Path(".venv-smoke")
-          venv.EnvBuilder(with_pip=True).create(venv_dir)
-          scripts_dir = "Scripts" if os.name == "nt" else "bin"
-          python_name = "python.exe" if os.name == "nt" else "python"
-          smoke_python = venv_dir / scripts_dir / python_name
+              "${PYBIN}/python" scripts/check_release_wheels.py wheelhouse
 
-          subprocess.run([str(smoke_python), "-m", "pip", "install", str(wheel)], check=True)
-          subprocess.run([str(smoke_python), "-c", "import tinyagent._alchemy"], check=True)
-          PY
+              "${PYBIN}/python" - <<'"'"'PY'"'"'
+              import os
+              import subprocess
+              import venv
+              from pathlib import Path
+
+              wheel = next(Path("wheelhouse").glob("*.whl"))
+              venv_dir = Path(".venv-smoke")
+              venv.EnvBuilder(with_pip=True).create(venv_dir)
+              scripts_dir = "Scripts" if os.name == "nt" else "bin"
+              python_name = "python.exe" if os.name == "nt" else "python"
+              smoke_python = venv_dir / scripts_dir / python_name
+
+              subprocess.run([str(smoke_python), "-m", "pip", "install", str(wheel)], check=True)
+              subprocess.run([str(smoke_python), "-c", "import tinyagent._alchemy"], check=True)
+              PY
+            '
 
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
@@ -117,6 +114,9 @@ jobs:
       - name: Build and stage the binding
         run: |
           export PYO3_PYTHON="$(python -c 'import sys; print(sys.executable)')"
+          # pyo3 builds need macOS to allow unresolved Python symbols at link time.
+          # Without this, ld fails with "__Py_NoneStruct" and similar missing symbols.
+          export RUSTFLAGS="-C link-arg=-undefined -C link-arg=dynamic_lookup"
           cargo build --release --manifest-path rust/Cargo.toml
           if [ -f rust/target/release/lib_alchemy.dylib ]; then
             cp rust/target/release/lib_alchemy.dylib tinyagent/_alchemy.abi3.so
