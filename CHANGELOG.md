@@ -9,6 +9,11 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+## [1.2.25] - 2026-03-24
+
+### Fixed
+- Fixed Linux PyPI wheel uploads by patching the in-repo Rust binding's `alchemy-llm` dependency to use Rustls instead of native OpenSSL, removing bundled `libssl` and `libcrypto` from the Linux wheel.
+
 ## [1.2.24] - 2026-03-24
 
 ### Fixed

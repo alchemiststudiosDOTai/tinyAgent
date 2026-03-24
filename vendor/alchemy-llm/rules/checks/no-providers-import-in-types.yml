@@ -1,0 +1,11 @@
+id: no-providers-import-in-types
+language: Rust
+severity: error
+message: Types layer must not import from crate::providers.
+files:
+  - src/types/**/*.rs
+rule:
+  pattern: use $X;
+constraints:
+  X:
+    regex: '^crate::.*\\bproviders::'

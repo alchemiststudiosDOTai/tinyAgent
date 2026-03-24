@@ -1,0 +1,10 @@
+# Cargo configuration for Alchemy
+
+[build]
+# Enable all clippy warnings by default
+rustflags = [
+    "-W", "clippy::cognitive_complexity",
+    "-W", "clippy::too_many_lines",
+    "-W", "clippy::too_many_arguments",
+    "-W", "clippy::type_complexity",
+]

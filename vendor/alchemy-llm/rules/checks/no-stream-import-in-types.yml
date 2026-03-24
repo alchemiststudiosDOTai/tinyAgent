@@ -1,0 +1,11 @@
+id: no-stream-import-in-types
+language: Rust
+severity: error
+message: Types layer must not import from crate::stream.
+files:
+  - src/types/**/*.rs
+rule:
+  pattern: use $X;
+constraints:
+  X:
+    regex: '^crate::.*\\bstream::'
