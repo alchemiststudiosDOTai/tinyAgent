@@ -192,6 +192,18 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install build tomli
 
+      - name: Pin Strawberry Perl for vendored OpenSSL
+        shell: pwsh
+        run: |
+          $perl = 'C:\Strawberry\perl\bin\perl.exe'
+          if (Test-Path $perl) {
+            "OPENSSL_SRC_PERL=$perl" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            "PERL=$perl" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            & $perl -e "print $^X"
+          } else {
+            throw 'Strawberry Perl not found at C:\Strawberry\perl\bin\perl.exe'
+          }
+
       - name: Build and stage the binding
         shell: pwsh
         run: |
