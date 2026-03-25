@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::str::FromStr;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Mutex, OnceLock};
 use std::thread;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use alchemy_llm::providers::openai_completions::ReasoningEffort;
 use alchemy_llm::types::{
@@ -24,6 +25,66 @@ use tokio::runtime::Builder;
 type BindingResult<T> = Result<T, String>;
 type EventItem = BindingResult<Option<Value>>;
 type ResultItem = BindingResult<Value>;
+
+static STREAM_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
+static BINDING_DEBUG_ENABLED: OnceLock<bool> = OnceLock::new();
+
+fn binding_debug_enabled() -> bool {
+    *BINDING_DEBUG_ENABLED.get_or_init(|| {
+        std::env::var("TINYAGENT_ALCHEMY_DEBUG")
+            .map(|value| {
+                matches!(
+                    value.to_ascii_lowercase().as_str(),
+                    "1" | "true" | "yes" | "on"
+                )
+            })
+            .unwrap_or(false)
+    })
+}
+
+fn binding_debug_log(stream_id: u64, args: std::fmt::Arguments<'_>) {
+    if binding_debug_enabled() {
+        eprintln!("tinyagent._alchemy stream={stream_id} {args}");
+    }
+}
+
+macro_rules! binding_debug {
+    ($stream_id:expr, $($arg:tt)*) => {
+        binding_debug_log($stream_id, format_args!($($arg)*))
+    };
+}
+
+fn elapsed_ms(started_at: Instant) -> f64 {
+    started_at.elapsed().as_secs_f64() * 1000.0
+}
+
+fn event_name(event: &AlchemyEvent) -> &'static str {
+    match event {
+        AlchemyEvent::Start { .. } => "start",
+        AlchemyEvent::TextStart { .. } => "text_start",
+        AlchemyEvent::TextDelta { .. } => "text_delta",
+        AlchemyEvent::TextEnd { .. } => "text_end",
+        AlchemyEvent::ThinkingStart { .. } => "thinking_start",
+        AlchemyEvent::ThinkingDelta { .. } => "thinking_delta",
+        AlchemyEvent::ThinkingEnd { .. } => "thinking_end",
+        AlchemyEvent::ToolCallStart { .. } => "tool_call_start",
+        AlchemyEvent::ToolCallDelta { .. } => "tool_call_delta",
+        AlchemyEvent::ToolCallEnd { .. } => "tool_call_end",
+        AlchemyEvent::Done { .. } => "done",
+        AlchemyEvent::Error { .. } => "error",
+    }
+}
+
+fn event_item_name<'a>(item: &'a EventItem) -> &'a str {
+    match item {
+        Ok(Some(value)) => value
+            .get("type")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown"),
+        Ok(None) => "end_of_stream",
+        Err(_) => "error",
+    }
+}
 
 #[derive(Debug, Deserialize)]
 struct PyModelInput {
@@ -177,6 +238,8 @@ struct PyToolInput {
 
 #[pyclass]
 struct StreamHandle {
+    stream_id: u64,
+    opened_at: Instant,
     event_rx: Mutex<std::sync::mpsc::Receiver<EventItem>>,
     result_rx: Mutex<Option<std::sync::mpsc::Receiver<ResultItem>>>,
     cached_result: Mutex<Option<Value>>,
@@ -185,12 +248,29 @@ struct StreamHandle {
 #[pymethods]
 impl StreamHandle {
     fn next_event(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        let wait_started_at = Instant::now();
+        binding_debug!(
+            self.stream_id,
+            "next_event_wait_start thread={:?} since_open={:.1}ms",
+            thread::current().id(),
+            elapsed_ms(self.opened_at),
+        );
+
         let next = self
             .event_rx
             .lock()
             .map_err(|_| PyRuntimeError::new_err("event stream lock poisoned"))?
             .recv()
             .map_err(|_| PyRuntimeError::new_err("event stream closed unexpectedly"))?;
+
+        binding_debug!(
+            self.stream_id,
+            "next_event_wait_end thread={:?} waited={:.1}ms since_open={:.1}ms outcome={}",
+            thread::current().id(),
+            wait_started_at.elapsed().as_secs_f64() * 1000.0,
+            elapsed_ms(self.opened_at),
+            event_item_name(&next),
+        );
 
         match next {
             Ok(Some(value)) => Ok(Some(json_value_to_py(py, &value)?)),
@@ -206,6 +286,12 @@ impl StreamHandle {
             .map_err(|_| PyRuntimeError::new_err("result cache lock poisoned"))?
             .clone()
         {
+            binding_debug!(
+                self.stream_id,
+                "result_cached thread={:?} since_open={:.1}ms",
+                thread::current().id(),
+                elapsed_ms(self.opened_at),
+            );
             return json_value_to_py(py, &value);
         }
 
@@ -216,10 +302,26 @@ impl StreamHandle {
             .take()
             .ok_or_else(|| PyRuntimeError::new_err("result() already called"))?;
 
+        let wait_started_at = Instant::now();
+        binding_debug!(
+            self.stream_id,
+            "result_wait_start thread={:?} since_open={:.1}ms",
+            thread::current().id(),
+            elapsed_ms(self.opened_at),
+        );
+
         let value = receiver
             .recv()
             .map_err(|_| PyRuntimeError::new_err("result channel closed unexpectedly"))?
             .map_err(PyRuntimeError::new_err)?;
+
+        binding_debug!(
+            self.stream_id,
+            "result_wait_end thread={:?} waited={:.1}ms since_open={:.1}ms",
+            thread::current().id(),
+            wait_started_at.elapsed().as_secs_f64() * 1000.0,
+            elapsed_ms(self.opened_at),
+        );
 
         *self
             .cached_result
@@ -241,12 +343,25 @@ fn openai_completions_stream(
     let model_input: PyModelInput = py_json_arg(py, model, "model")?;
     let context_input: PyContextInput = py_json_arg(py, context, "context")?;
     let options_input: Value = py_json_arg(py, options, "options")?;
+    let stream_id = STREAM_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let opened_at = Instant::now();
 
     let (event_tx, event_rx) = std::sync::mpsc::channel();
     let (result_tx, result_rx) = std::sync::mpsc::channel();
 
+    binding_debug!(
+        stream_id,
+        "open provider={} api={} model={} thread={:?}",
+        model_input.provider,
+        model_input.api,
+        model_input.id,
+        thread::current().id(),
+    );
+
     thread::spawn(move || {
         run_stream_thread(
+            stream_id,
+            opened_at,
             model_input,
             context_input,
             options_input,
@@ -256,6 +371,8 @@ fn openai_completions_stream(
     });
 
     Ok(StreamHandle {
+        stream_id,
+        opened_at,
         event_rx: Mutex::new(event_rx),
         result_rx: Mutex::new(Some(result_rx)),
         cached_result: Mutex::new(None),
@@ -263,19 +380,45 @@ fn openai_completions_stream(
 }
 
 fn run_stream_thread(
+    stream_id: u64,
+    opened_at: Instant,
     model_input: PyModelInput,
     context_input: PyContextInput,
     options_input: Value,
     event_tx: std::sync::mpsc::Sender<EventItem>,
     result_tx: std::sync::mpsc::Sender<ResultItem>,
 ) {
-    let outcome = run_stream_thread_inner(model_input, context_input, options_input, &event_tx);
+    binding_debug!(
+        stream_id,
+        "worker_start thread={:?} since_open={:.1}ms",
+        thread::current().id(),
+        elapsed_ms(opened_at),
+    );
+    let outcome = run_stream_thread_inner(
+        stream_id,
+        opened_at,
+        model_input,
+        context_input,
+        options_input,
+        &event_tx,
+    );
 
     match outcome {
         Ok(message) => {
+            binding_debug!(
+                stream_id,
+                "worker_result_ready since_open={:.1}ms",
+                elapsed_ms(opened_at),
+            );
             let _ = result_tx.send(Ok(message));
         }
         Err(error) => {
+            binding_debug!(
+                stream_id,
+                "worker_error since_open={:.1}ms error={}",
+                elapsed_ms(opened_at),
+                error,
+            );
             let _ = event_tx.send(Err(error.clone()));
             let _ = result_tx.send(Err(error));
         }
@@ -283,6 +426,8 @@ fn run_stream_thread(
 }
 
 fn run_stream_thread_inner(
+    stream_id: u64,
+    opened_at: Instant,
     model_input: PyModelInput,
     context_input: PyContextInput,
     options_input: Value,
@@ -295,13 +440,41 @@ fn run_stream_thread_inner(
 
     runtime.block_on(async {
         let mut stream = build_stream(model_input, context_input, options_input)?;
+        let mut event_count: usize = 0;
+        let mut last_event_at = opened_at;
+
+        binding_debug!(
+            stream_id,
+            "provider_stream_ready since_open={:.1}ms",
+            elapsed_ms(opened_at),
+        );
 
         while let Some(event) = stream.next().await {
+            let now = Instant::now();
+            let gap_ms = now.duration_since(last_event_at).as_secs_f64() * 1000.0;
+            event_count += 1;
+            binding_debug!(
+                stream_id,
+                "provider_event type={} count={} gap={:.1}ms since_open={:.1}ms",
+                event_name(&event),
+                event_count,
+                gap_ms,
+                elapsed_ms(opened_at),
+            );
+
             let payload = event_to_json(&event)?;
             if event_tx.send(Ok(Some(payload))).is_err() {
                 return Err("event stream receiver dropped".to_string());
             }
+            last_event_at = now;
         }
+
+        binding_debug!(
+            stream_id,
+            "provider_stream_end events={} since_open={:.1}ms",
+            event_count,
+            elapsed_ms(opened_at),
+        );
 
         let message = stream
             .result()
@@ -310,6 +483,11 @@ fn run_stream_thread_inner(
 
         let payload = assistant_message_to_json(&message)?;
         let _ = event_tx.send(Ok(None));
+        binding_debug!(
+            stream_id,
+            "provider_result_sent since_open={:.1}ms",
+            elapsed_ms(opened_at),
+        );
         Ok(payload)
     })
 }
