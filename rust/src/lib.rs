@@ -256,12 +256,17 @@ impl StreamHandle {
             elapsed_ms(self.opened_at),
         );
 
-        let next = self
-            .event_rx
-            .lock()
-            .map_err(|_| PyRuntimeError::new_err("event stream lock poisoned"))?
-            .recv()
-            .map_err(|_| PyRuntimeError::new_err("event stream closed unexpectedly"))?;
+        let next = py
+            .detach(|| {
+                let receiver = self
+                    .event_rx
+                    .lock()
+                    .map_err(|_| "event stream lock poisoned".to_string())?;
+                receiver
+                    .recv()
+                    .map_err(|_| "event stream closed unexpectedly".to_string())
+            })
+            .map_err(PyRuntimeError::new_err)?;
 
         binding_debug!(
             self.stream_id,
@@ -310,9 +315,13 @@ impl StreamHandle {
             elapsed_ms(self.opened_at),
         );
 
-        let value = receiver
-            .recv()
-            .map_err(|_| PyRuntimeError::new_err("result channel closed unexpectedly"))?
+        let value = py
+            .detach(move || {
+                receiver
+                    .recv()
+                    .map_err(|_| "result channel closed unexpectedly".to_string())
+            })
+            .map_err(PyRuntimeError::new_err)?
             .map_err(PyRuntimeError::new_err)?;
 
         binding_debug!(

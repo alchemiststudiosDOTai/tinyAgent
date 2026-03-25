@@ -9,6 +9,11 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+## [1.2.27] - 2026-03-25
+
+### Fixed
+- Restored GIL release while the Rust `_alchemy` binding blocks waiting for streamed events and final results, fixing Python scheduling stalls introduced by the re-integrated in-repo binding.
+
 ## [1.2.26] - 2026-03-24
 
 ### Fixed
