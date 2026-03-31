@@ -33,6 +33,121 @@ Start by mirroring the shared runtime type surface in Rust. This phase is about 
 
 The source of truth here is `tinyagent/agent_types.py`, with the public export surface anchored by `tinyagent/__init__.py`. The Rust side must also match the binding payload shapes already present in `rust/src/lib.rs` and the vendored type system in `vendor/alchemy-llm/`.
 
+The implementation target for this phase is `rust/src/types.rs`. `rust/src/lib.rs` should only translate between Python payloads, the local Rust types, and `vendor/alchemy-llm/` types without inventing new shapes.
+
+### Phase 1A: JSON helpers and constants
+
+Mirror the base value layer first so every later struct can reuse the same shapes.
+
+- `JsonPrimitive`, `JsonValue`, `JsonObject`
+- zero-usage equivalent for `ZERO_USAGE`
+- `StopReason` and `STOP_REASONS`
+- `ThinkingLevel`
+- `STREAM_UPDATE_EVENTS`
+
+Requirements:
+
+- Serialized field names and literal values must match Python exactly.
+- The Rust default/constructor path for zero usage must preserve the current `usage` payload shape.
+- Snake-case enum serialization must match the Python literals accepted today.
+
+### Phase 1B: Content and message shapes
+
+Build the content/message family next.
+
+- `ThinkingBudgets`
+- `CacheControl`
+- `TextContent`
+- `ImageContent`
+- `ThinkingContent`
+- `ToolCallContent` / `ToolCall`
+- `AssistantContent`
+- Rust-only helper unions for user/tool-result content payloads
+- `UserMessage`
+- `AssistantMessage`
+- `ToolResultMessage`
+- `CustomAgentMessage`
+- `Message`
+- `AgentMessage`
+
+Requirements:
+
+- `AssistantMessage.content` must remain `list[AssistantContent | None]` in shape, including `null` entries.
+- `ToolCallContent.arguments` and `ToolResultMessage.details` must stay open JSON objects.
+- `AssistantMessage.usage` must preserve the current Python-visible payload contract.
+- Rust-side enums/unions must deserialize the same tagged payloads the Python models accept now.
+
+### Phase 1C: Tool, context, and model shapes
+
+Once the message layer is stable, add the shared runtime structs that wrap it.
+
+- `AgentToolResult`
+- `Tool`
+- `AgentTool`
+- `Context`
+- `AgentContext`
+- `Model`
+- `SimpleStreamOptions`
+
+Requirements:
+
+- `AgentTool` in Rust is shape-only during this phase. Its callable `execute` path stays non-serialized and non-parity-blocking until contracts/components.
+- Sensitive runtime fields such as `SimpleStreamOptions.api_key` should stay debuggable without leaking secrets.
+- The Rust structs must preserve the fields the Python adapters already expect when they serialize/deserialize across the binding.
+
+### Phase 1D: Assistant stream and agent event shapes
+
+After the shared data models exist, mirror the event payloads exactly.
+
+- `AssistantMessageEvent`
+- `AgentStartEvent`
+- `AgentEndEvent`
+- `TurnStartEvent`
+- `TurnEndEvent`
+- `MessageStartEvent`
+- `MessageUpdateEvent`
+- `MessageEndEvent`
+- `ToolExecutionStartEvent`
+- `ToolExecutionUpdateEvent`
+- `ToolExecutionEndEvent`
+- `AgentEvent`
+- `AgentState`
+- wakeup/result-stream queue items used by the event stream implementation
+
+Requirements:
+
+- `AssistantMessageEvent.type` literals must match the current streaming contract exactly.
+- `AssistantMessageEvent.content` and `AssistantMessageEvent.error` must remain permissive enough to carry the current Python payloads.
+- `AgentState.pending_tool_calls` must preserve set semantics.
+- Event structs must serialize to the same public payloads the Python runtime emits today.
+
+### Phase 1E: Explicit deferrals
+
+The following names live in `tinyagent/agent_types.py`, but they are not plain Rust data models and should not be treated as blockers for finishing the shape pass:
+
+- `ModelDumpable`
+- `dump_model_dumpable()`
+- `MaybeAwaitable`
+- `ConvertToLlmFn`
+- `TransformContextFn`
+- `ApiKeyResolver`
+- `AgentMessageProvider`
+- `AgentToolUpdateCallback`
+- `StreamFn`
+- `StreamResponse`
+- type-guard helpers such as `is_agent_end_event()`
+- the behavioral implementation of `EventStream`
+- `AgentLoopConfig` because it is mostly callback contract, not stable serialized data
+
+Those items belong to Phase 2 or Phase 3 unless a Rust-only helper is needed to support an already-approved shape in Phase 1.
+
+### Phase 1 completion checklist
+
+- Every Python-visible data shape in `tinyagent/agent_types.py` that crosses a binding or serialization boundary has a Rust equivalent in `rust/src/types.rs`.
+- `rust/src/lib.rs` conversions use those local Rust types instead of ad hoc payload structs where practical.
+- Serialization tests cover the literal/tagged cases that are easy to drift on: roles, content `type`, stop reasons, assistant event `type`, nullable assistant content entries, and zero-usage payloads.
+- Nothing in this phase changes runtime control flow, provider selection, proxy behavior, or tool execution semantics.
+
 Exit criteria:
 
 - Rust-native representations exist for every Python-visible runtime shape that matters to the current library.
