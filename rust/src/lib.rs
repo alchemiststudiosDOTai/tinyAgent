@@ -1,3 +1,5 @@
+pub mod types;
+
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicU64, Ordering};
