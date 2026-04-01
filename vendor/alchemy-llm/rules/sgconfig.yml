@@ -1,6 +1,0 @@
-ruleDirs:
-  - checks
-testConfigs:
-  - testDir: rule-tests
-utilDirs:
-  - utils
