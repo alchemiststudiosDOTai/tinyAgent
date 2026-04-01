@@ -4,9 +4,10 @@ use std::sync::Arc;
 
 use tokio::sync::Notify;
 
+use crate::agent_tool_execution::{ToolExecutionError, execute_tool_calls};
 use crate::types::{
     AgentContext, AgentEndEvent, AgentEvent, AgentLoopConfig, AgentMessage, AgentMessageProvider,
-    AgentStartEvent, AssistantContent, AssistantMessage, AssistantMessageEventType, Context,
+    AgentStartEvent, AssistantMessage, AssistantMessageEventType, Context,
     EventStream, Message, MessageEndEvent, MessageStartEvent, MessageUpdateEvent,
     SimpleStreamOptions, StopReason, StreamFn, TurnEndEvent, TurnStartEvent,
     event_stream_error, is_agent_end_event,
@@ -22,7 +23,7 @@ pub enum AgentLoopError {
     CannotContinueFromAssistant,
     MissingAssistantEventPartial(AssistantMessageEventType),
     AssistantUpdateBeforeStart(AssistantMessageEventType),
-    ToolExecutionNotImplemented,
+    ToolExecution(ToolExecutionError),
 }
 
 impl fmt::Display for AgentLoopError {
@@ -47,14 +48,18 @@ impl fmt::Display for AgentLoopError {
                     "assistant stream event '{event_type:?}' arrived before a start event"
                 )
             }
-            Self::ToolExecutionNotImplemented => {
-                f.write_str("tool execution is not wired into the Rust loop yet")
-            }
+            Self::ToolExecution(error) => write!(f, "{error}"),
         }
     }
 }
 
 impl Error for AgentLoopError {}
+
+impl From<ToolExecutionError> for AgentLoopError {
+    fn from(value: ToolExecutionError) -> Self {
+        Self::ToolExecution(value)
+    }
+}
 
 #[derive(Debug, Clone, Default)]
 struct ResponseStreamState {
@@ -364,8 +369,14 @@ async fn process_turn(
 
     emit_pending_messages(pending_messages, current_context, new_messages, stream);
 
-    let message =
-        stream_assistant_response(current_context, config, signal, stream, stream_fn).await?;
+    let message = stream_assistant_response(
+        current_context,
+        config,
+        signal.clone(),
+        stream,
+        stream_fn,
+    )
+    .await?;
     let agent_message = AgentMessage::Message(Message::Assistant(message.clone()));
     new_messages.push(agent_message.clone());
 
@@ -389,19 +400,38 @@ async fn process_turn(
         });
     }
 
-    if assistant_message_has_tool_calls(&message) {
-        return Err(AgentLoopError::ToolExecutionNotImplemented);
+    let tool_execution = execute_tool_calls(
+        current_context.tools.as_deref(),
+        &message,
+        signal,
+        stream,
+        get_steering_fn.clone(),
+    )
+    .await?;
+
+    let tool_results = tool_execution.tool_results;
+    let has_more_tool_calls = !tool_results.is_empty();
+    let steering_after_tools = tool_execution.steering_messages.unwrap_or_default();
+
+    for result in tool_results.iter().cloned() {
+        let tool_result_message = AgentMessage::Message(Message::ToolResult(result.clone()));
+        current_context.messages.push(tool_result_message.clone());
+        new_messages.push(tool_result_message);
     }
 
     stream.push(AgentEvent::TurnEnd(TurnEndEvent {
         message: Some(agent_message),
-        tool_results: Vec::new(),
+        tool_results: tool_results.clone(),
         ..Default::default()
     }));
 
     Ok(TurnProcessingResult {
-        pending_messages: take_messages(get_steering_fn.as_ref()).await,
-        has_more_tool_calls: false,
+        pending_messages: if has_more_tool_calls {
+            steering_after_tools
+        } else {
+            take_messages(get_steering_fn.as_ref()).await
+        },
+        has_more_tool_calls,
         first_turn,
         should_continue: true,
     })
@@ -432,14 +462,6 @@ async fn take_messages(provider: Option<&AgentMessageProvider>) -> Vec<AgentMess
         Some(provider) => provider().await,
         None => Vec::new(),
     }
-}
-
-fn assistant_message_has_tool_calls(message: &AssistantMessage) -> bool {
-    matches!(message.stop_reason, Some(StopReason::ToolUse))
-        || message
-            .content
-            .iter()
-            .any(|content| matches!(content, Some(AssistantContent::ToolCall(_))))
 }
 
 fn spawn_join_reporter(
