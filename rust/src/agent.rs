@@ -8,12 +8,12 @@ use tokio::sync::Notify;
 
 use crate::agent_loop::{AgentEventStream, agent_loop, agent_loop_continue};
 use crate::types::{
-    AgentContext, AgentEvent, AgentLoopConfig, AgentMessage, AgentState, AgentTool,
-    AgentMessageProvider, ApiKeyResolver, AssistantContent, AssistantMessage, Context,
-    ConvertToLlmFn, ImageContent, MaybeAwaitable, Message, MessageEndEvent, MessageStartEvent,
-    MessageUpdateEvent, Model, SimpleStreamOptions, StopReason, StreamFn, TextContent,
-    ThinkingBudgets, ThinkingLevel, ThinkingContent, ToolExecutionEndEvent,
-    ToolExecutionStartEvent, TransformContextFn, UserContent, UserMessage, zero_usage,
+    AgentContext, AgentEvent, AgentLoopConfig, AgentMessage, AgentMessageProvider, AgentState,
+    AgentTool, ApiKeyResolver, AssistantContent, AssistantMessage, Context, ConvertToLlmFn,
+    ImageContent, MaybeAwaitable, Message, MessageEndEvent, MessageStartEvent, Model,
+    SimpleStreamOptions, StopReason, StreamFn, TextContent, ThinkingBudgets, ThinkingContent,
+    ThinkingLevel, ToolExecutionEndEvent, ToolExecutionStartEvent, TransformContextFn, UserContent,
+    UserMessage, zero_usage,
 };
 
 pub type AgentListener = Arc<dyn Fn(&AgentEvent) + Send + Sync>;
@@ -122,7 +122,10 @@ impl std::fmt::Debug for AgentOptions {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AgentOptions")
             .field("initial_state", &self.initial_state)
-            .field("convert_to_llm", &self.convert_to_llm.as_ref().map(|_| "<callback>"))
+            .field(
+                "convert_to_llm",
+                &self.convert_to_llm.as_ref().map(|_| "<callback>"),
+            )
             .field(
                 "transform_context",
                 &self.transform_context.as_ref().map(|_| "<callback>"),
@@ -131,7 +134,10 @@ impl std::fmt::Debug for AgentOptions {
             .field("follow_up_mode", &self.follow_up_mode)
             .field("stream_fn", &self.stream_fn.as_ref().map(|_| "<callback>"))
             .field("session_id", &self.session_id)
-            .field("get_api_key", &self.get_api_key.as_ref().map(|_| "<callback>"))
+            .field(
+                "get_api_key",
+                &self.get_api_key.as_ref().map(|_| "<callback>"),
+            )
             .field("thinking_budgets", &self.thinking_budgets)
             .field("enable_prompt_caching", &self.enable_prompt_caching)
             .finish()
@@ -207,7 +213,10 @@ impl std::fmt::Debug for Agent {
             .field("follow_up_mode", &self.follow_up_mode)
             .field("stream_fn", &self.stream_fn.as_ref().map(|_| "<callback>"))
             .field("session_id", &self.session_id)
-            .field("get_api_key", &self.get_api_key.as_ref().map(|_| "<callback>"))
+            .field(
+                "get_api_key",
+                &self.get_api_key.as_ref().map(|_| "<callback>"),
+            )
             .field("thinking_budgets", &self.thinking_budgets)
             .field("enable_prompt_caching", &self.enable_prompt_caching)
             .finish()
@@ -437,10 +446,14 @@ impl Agent {
     }
 
     pub fn last_assistant_message(&self) -> Option<&AssistantMessage> {
-        self.state.messages.iter().rev().find_map(|message| match message {
-            AgentMessage::Message(Message::Assistant(message)) => Some(message),
-            _ => None,
-        })
+        self.state
+            .messages
+            .iter()
+            .rev()
+            .find_map(|message| match message {
+                AgentMessage::Message(Message::Assistant(message)) => Some(message),
+                _ => None,
+            })
     }
 
     pub fn take_steering_messages(&mut self) -> Vec<AgentMessage> {
@@ -490,7 +503,10 @@ impl Agent {
         }
     }
 
-    pub async fn prompt(&mut self, input: impl Into<AgentInput>) -> AgentRunResult<AssistantMessage> {
+    pub async fn prompt(
+        &mut self,
+        input: impl Into<AgentInput>,
+    ) -> AgentRunResult<AssistantMessage> {
         self.prompt_with_images(input, Vec::new()).await
     }
 
@@ -505,12 +521,21 @@ impl Agent {
 
     pub async fn prompt_text(&mut self, input: impl Into<AgentInput>) -> AgentRunResult<String> {
         let response = self.prompt(input).await?;
-        Ok(extract_text(&AgentMessage::Message(Message::Assistant(response))))
+        Ok(extract_text(&AgentMessage::Message(Message::Assistant(
+            response,
+        ))))
     }
 
     pub async fn continue_(&mut self) -> AgentRunResult<AssistantMessage> {
-        let model = self.state.model.clone().ok_or(AgentRunError::MissingModel)?;
-        let stream_fn = self.stream_fn.clone().ok_or(AgentRunError::MissingStreamFn)?;
+        let model = self
+            .state
+            .model
+            .clone()
+            .ok_or(AgentRunError::MissingModel)?;
+        let stream_fn = self
+            .stream_fn
+            .clone()
+            .ok_or(AgentRunError::MissingStreamFn)?;
         let signal = self.begin_run();
         let context = self.build_agent_context();
         let config = self
@@ -522,9 +547,19 @@ impl Agent {
         self.consume_stream(stream, &model).await
     }
 
-    async fn run_prompts(&mut self, prompts: Vec<AgentMessage>) -> AgentRunResult<AssistantMessage> {
-        let model = self.state.model.clone().ok_or(AgentRunError::MissingModel)?;
-        let stream_fn = self.stream_fn.clone().ok_or(AgentRunError::MissingStreamFn)?;
+    async fn run_prompts(
+        &mut self,
+        prompts: Vec<AgentMessage>,
+    ) -> AgentRunResult<AssistantMessage> {
+        let model = self
+            .state
+            .model
+            .clone()
+            .ok_or(AgentRunError::MissingModel)?;
+        let stream_fn = self
+            .stream_fn
+            .clone()
+            .ok_or(AgentRunError::MissingStreamFn)?;
         let signal = self.begin_run();
         let context = self.build_agent_context();
         let config = self
@@ -598,7 +633,10 @@ impl Agent {
         self.emit(&event);
     }
 
-    pub fn handle_remaining_partial(&mut self, partial: Option<AgentMessage>) -> Result<(), String> {
+    pub fn handle_remaining_partial(
+        &mut self,
+        partial: Option<AgentMessage>,
+    ) -> Result<(), String> {
         match partial {
             Some(message) if has_meaningful_content(&message) => {
                 self.append_message(message);
@@ -617,11 +655,14 @@ impl Agent {
 
     fn apply_event(&mut self, event: &AgentEvent) {
         match event {
-            AgentEvent::MessageStart(MessageStartEvent { message, .. })
-            | AgentEvent::MessageUpdate(MessageUpdateEvent { message, .. }) => {
+            AgentEvent::MessageStart(MessageStartEvent { message, .. }) => {
                 self.state.stream_message = message.clone();
             }
+            AgentEvent::MessageUpdate(message_update) => {
+                self.state.stream_message = message_update.message.clone();
+            }
             AgentEvent::MessageEnd(MessageEndEvent { message, .. }) => {
+                self.state.stream_message = message.clone();
                 self.state.stream_message = None;
                 if let Some(message) = message.clone() {
                     self.append_message(message);
@@ -639,12 +680,10 @@ impl Agent {
             }
             AgentEvent::TurnEnd(turn_end) => {
                 if let Some(AgentMessage::Message(Message::Assistant(message))) = &turn_end.message
+                    && let Some(error_message) = &message.error_message
+                    && !error_message.trim().is_empty()
                 {
-                    if let Some(error_message) = &message.error_message {
-                        if !error_message.trim().is_empty() {
-                            self.state.error = Some(error_message.clone());
-                        }
-                    }
+                    self.state.error = Some(error_message.clone());
                 }
             }
             AgentEvent::AgentEnd(_) => {
@@ -733,7 +772,9 @@ pub fn has_meaningful_content(message: &AgentMessage) -> bool {
     }
 
     message.content.iter().any(|item| match item {
-        Some(AssistantContent::Text(TextContent { text: Some(text), .. })) => !text.trim().is_empty(),
+        Some(AssistantContent::Text(TextContent {
+            text: Some(text), ..
+        })) => !text.trim().is_empty(),
         Some(AssistantContent::Thinking(ThinkingContent {
             thinking: Some(thinking),
             ..
@@ -756,14 +797,8 @@ fn take_once_provider(messages: Vec<AgentMessage>) -> Option<AgentMessageProvide
         let shared = Arc::clone(&shared);
         Box::pin(async move {
             match shared.lock() {
-                Ok(mut guard) => match guard.take() {
-                    Some(messages) => messages,
-                    None => Vec::new(),
-                },
-                Err(poisoned) => match poisoned.into_inner().take() {
-                    Some(messages) => messages,
-                    None => Vec::new(),
-                },
+                Ok(mut guard) => guard.take().unwrap_or_default(),
+                Err(poisoned) => poisoned.into_inner().take().unwrap_or_default(),
             }
         })
     }))
@@ -781,8 +816,7 @@ mod tests {
     use super::*;
     use crate::types::{
         AgentEndEvent, MessageStartEventType, ToolExecutionEndEventType,
-        ToolResultMessage,
-        ToolExecutionStartEventType,
+        ToolExecutionStartEventType, ToolResultMessage,
     };
     use serde_json::json;
 
@@ -923,7 +957,9 @@ mod tests {
 
     #[test]
     fn meaningful_content_detects_text_thinking_and_tool_calls() {
-        assert!(has_meaningful_content(&assistant_message_with_text("hello")));
+        assert!(has_meaningful_content(&assistant_message_with_text(
+            "hello"
+        )));
 
         let thinking = AgentMessage::Message(Message::Assistant(AssistantMessage {
             content: vec![Some(AssistantContent::Thinking(ThinkingContent {
@@ -935,11 +971,13 @@ mod tests {
         assert!(has_meaningful_content(&thinking));
 
         let tool_call = AgentMessage::Message(Message::Assistant(AssistantMessage {
-            content: vec![Some(AssistantContent::ToolCall(crate::types::ToolCallContent {
-                name: Some("search".to_string()),
-                arguments: json!({}).as_object().cloned().expect("json object"),
-                ..Default::default()
-            }))],
+            content: vec![Some(AssistantContent::ToolCall(
+                crate::types::ToolCallContent {
+                    name: Some("search".to_string()),
+                    arguments: json!({}).as_object().cloned().expect("json object"),
+                    ..Default::default()
+                },
+            ))],
             ..Default::default()
         }));
         assert!(has_meaningful_content(&tool_call));

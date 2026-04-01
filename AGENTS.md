@@ -27,6 +27,9 @@
 - `docs/` — rewrite docs for types, backend seam, ingress contracts, and the real agent.
 
 ## Commands
+- `make quality-quick`
+- `make quality-full`
+- `make install-hooks`
 - `cargo test --manifest-path rust/Cargo.toml`
 - `cargo test --manifest-path rust/Cargo.toml agent::tests`
 - `cargo test --manifest-path rust/Cargo.toml alchemy_backend::tests`

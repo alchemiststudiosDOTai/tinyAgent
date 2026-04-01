@@ -61,21 +61,16 @@ pub const STOP_REASONS: &[StopReason] = &[
     StopReason::Aborted,
 ];
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ThinkingLevel {
+    #[default]
     Off,
     Minimal,
     Low,
     Medium,
     High,
     Xhigh,
-}
-
-impl Default for ThinkingLevel {
-    fn default() -> Self {
-        Self::Off
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -595,7 +590,7 @@ pub struct MessageEndEvent {
 #[serde(untagged)]
 pub enum MessageEvent {
     Start(MessageStartEvent),
-    Update(MessageUpdateEvent),
+    Update(Box<MessageUpdateEvent>),
     End(MessageEndEvent),
 }
 
@@ -655,7 +650,7 @@ pub enum AgentEvent {
     TurnStart(TurnStartEvent),
     TurnEnd(TurnEndEvent),
     MessageStart(MessageStartEvent),
-    MessageUpdate(MessageUpdateEvent),
+    MessageUpdate(Box<MessageUpdateEvent>),
     MessageEnd(MessageEndEvent),
     ToolExecutionStart(ToolExecutionStartEvent),
     ToolExecutionUpdate(ToolExecutionUpdateEvent),
@@ -773,7 +768,7 @@ pub struct WakeupSignal;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum EventStreamQueueItem {
-    Event(AgentEvent),
+    Event(Box<AgentEvent>),
     Wakeup(WakeupSignal),
 }
 
@@ -867,7 +862,7 @@ impl EventStream {
         }
 
         let mut queue = self.lock_queue();
-        queue.push_back(EventStreamQueueItem::Event(event));
+        queue.push_back(EventStreamQueueItem::Event(Box::new(event)));
         drop(queue);
         self.notify.notify_one();
     }
@@ -914,6 +909,7 @@ impl EventStream {
                         continue;
                     }
                     EventStreamQueueItem::Event(event) => {
+                        let event = *event;
                         if (self.is_end_event)(&event) {
                             let result = (self.get_result)(&event);
                             let mut stored_result = self.lock_result();
@@ -1122,7 +1118,7 @@ mod tests {
                 (false, false, true, false, true, false, false, false),
             ),
             (
-                AgentEvent::MessageUpdate(MessageUpdateEvent::default()),
+                AgentEvent::MessageUpdate(Box::default()),
                 (false, false, true, false, true, false, false, false),
             ),
             (

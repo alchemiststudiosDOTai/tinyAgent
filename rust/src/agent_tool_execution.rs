@@ -3,8 +3,8 @@ use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use futures::future::join_all;
 use futures::FutureExt;
+use futures::future::join_all;
 use tokio::sync::Notify;
 
 use crate::agent_loop::AgentEventStream;
@@ -242,7 +242,10 @@ async fn execute_single_tool(
                     Err(_) => (
                         AgentToolResult {
                             content: vec![ToolResultContent::Text(TextContent {
-                                text: Some(format!("Tool {} panicked during execution", tool_call.name)),
+                                text: Some(format!(
+                                    "Tool {} panicked during execution",
+                                    tool_call.name
+                                )),
                                 ..Default::default()
                             })],
                             details: JsonObject::new(),

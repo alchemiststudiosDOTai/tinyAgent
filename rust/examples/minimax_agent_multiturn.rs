@@ -1,6 +1,6 @@
 use std::error::Error;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use alchemy_llm::minimax_m2_7;
 use serde_json::{Map, Value, json};

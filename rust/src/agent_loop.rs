@@ -7,10 +7,9 @@ use tokio::sync::Notify;
 use crate::agent_tool_execution::{ToolExecutionError, execute_tool_calls};
 use crate::types::{
     AgentContext, AgentEndEvent, AgentEvent, AgentLoopConfig, AgentMessage, AgentMessageProvider,
-    AgentStartEvent, AssistantMessage, AssistantMessageEventType, Context,
-    EventStream, Message, MessageEndEvent, MessageStartEvent, MessageUpdateEvent,
-    SimpleStreamOptions, StopReason, StreamFn, TurnEndEvent, TurnStartEvent,
-    event_stream_error, is_agent_end_event,
+    AgentStartEvent, AssistantMessage, AssistantMessageEventType, Context, EventStream, Message,
+    MessageEndEvent, MessageStartEvent, MessageUpdateEvent, SimpleStreamOptions, StopReason,
+    StreamFn, TurnEndEvent, TurnStartEvent, event_stream_error, is_agent_end_event,
 };
 
 pub type AgentEventStream = Arc<EventStream>;
@@ -72,6 +71,18 @@ struct TurnProcessingResult {
     has_more_tool_calls: bool,
     first_turn: bool,
     should_continue: bool,
+}
+
+struct ProcessTurnInput<'a> {
+    current_context: &'a mut AgentContext,
+    new_messages: &'a mut Vec<AgentMessage>,
+    pending_messages: Vec<AgentMessage>,
+    config: &'a AgentLoopConfig,
+    signal: Option<Arc<Notify>>,
+    stream: &'a AgentEventStream,
+    first_turn: bool,
+    stream_fn: Option<StreamFn>,
+    get_steering_fn: Option<AgentMessageProvider>,
 }
 
 pub fn create_agent_stream() -> AgentEventStream {
@@ -193,11 +204,11 @@ pub async fn stream_assistant_response(
                     *last_message = partial_agent_message.clone();
                 }
 
-                stream.push(AgentEvent::MessageUpdate(MessageUpdateEvent {
+                stream.push(AgentEvent::MessageUpdate(Box::new(MessageUpdateEvent {
                     message: Some(partial_agent_message),
                     assistant_message_event: Some(event),
                     ..Default::default()
-                }));
+                })));
             }
         }
     }
@@ -221,17 +232,17 @@ pub async fn run_loop(
         let mut has_more_tool_calls = true;
 
         while has_more_tool_calls || !pending_messages.is_empty() {
-            let turn_result = process_turn(
+            let turn_result = process_turn(ProcessTurnInput {
                 current_context,
                 new_messages,
                 pending_messages,
                 config,
-                signal.clone(),
+                signal: signal.clone(),
                 stream,
                 first_turn,
-                stream_fn.clone(),
-                get_steering_fn.clone(),
-            )
+                stream_fn: stream_fn.clone(),
+                get_steering_fn: get_steering_fn.clone(),
+            })
             .await?;
 
             if !turn_result.should_continue {
@@ -349,17 +360,18 @@ pub fn agent_loop_continue(
     Ok(stream)
 }
 
-async fn process_turn(
-    current_context: &mut AgentContext,
-    new_messages: &mut Vec<AgentMessage>,
-    pending_messages: Vec<AgentMessage>,
-    config: &AgentLoopConfig,
-    signal: Option<Arc<Notify>>,
-    stream: &AgentEventStream,
-    first_turn: bool,
-    stream_fn: Option<StreamFn>,
-    get_steering_fn: Option<AgentMessageProvider>,
-) -> AgentLoopResult<TurnProcessingResult> {
+async fn process_turn(input: ProcessTurnInput<'_>) -> AgentLoopResult<TurnProcessingResult> {
+    let ProcessTurnInput {
+        current_context,
+        new_messages,
+        pending_messages,
+        config,
+        signal,
+        stream,
+        first_turn,
+        stream_fn,
+        get_steering_fn,
+    } = input;
     let mut first_turn = first_turn;
     if first_turn {
         first_turn = false;
@@ -369,18 +381,16 @@ async fn process_turn(
 
     emit_pending_messages(pending_messages, current_context, new_messages, stream);
 
-    let message = stream_assistant_response(
-        current_context,
-        config,
-        signal.clone(),
-        stream,
-        stream_fn,
-    )
-    .await?;
+    let message =
+        stream_assistant_response(current_context, config, signal.clone(), stream, stream_fn)
+            .await?;
     let agent_message = AgentMessage::Message(Message::Assistant(message.clone()));
     new_messages.push(agent_message.clone());
 
-    if matches!(message.stop_reason, Some(StopReason::Error | StopReason::Aborted)) {
+    if matches!(
+        message.stop_reason,
+        Some(StopReason::Error | StopReason::Aborted)
+    ) {
         stream.push(AgentEvent::TurnEnd(TurnEndEvent {
             message: Some(agent_message),
             tool_results: Vec::new(),
@@ -413,7 +423,7 @@ async fn process_turn(
     let has_more_tool_calls = !tool_results.is_empty();
     let steering_after_tools = tool_execution.steering_messages.unwrap_or_default();
 
-    for result in tool_results.iter().cloned() {
+    for result in &tool_results {
         let tool_result_message = AgentMessage::Message(Message::ToolResult(result.clone()));
         current_context.messages.push(tool_result_message.clone());
         new_messages.push(tool_result_message);

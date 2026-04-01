@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+echo "pre-push: running Rust rewrite gate"
+make pre-push
+
+if git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' >/dev/null 2>&1; then
+    if git diff --name-only '@{upstream}'..HEAD -- vendor/alchemy-llm | grep -q .; then
+        echo "pre-push: vendor/alchemy-llm changed, running vendor tests"
+        make vendor-test
+    fi
+else
+    echo "pre-push: no upstream configured, running vendor tests to be safe"
+    make vendor-test
+fi
+

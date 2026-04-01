@@ -3,20 +3,22 @@ use std::error::Error;
 use std::fmt;
 use std::str::FromStr;
 
-use alchemy_llm::providers::openai_completions::{OpenAICompletionsOptions, ReasoningEffort, ToolChoice};
-use futures::StreamExt;
+use alchemy_llm::providers::openai_completions::{
+    OpenAICompletionsOptions, ReasoningEffort, ToolChoice,
+};
 use alchemy_llm::types::{
     self as alchemy_types, Api as AlchemyApi, ApiType, AssistantMessage as AlchemyAssistantMessage,
-    AssistantMessageEvent as AlchemyAssistantMessageEvent,
-    Content as AlchemyContent, Context as AlchemyContext, Cost as AlchemyCost,
-    ImageContent as AlchemyImageContent, InputType, Message as AlchemyMessage, Model as AlchemyModel,
-    ModelCost, Provider as AlchemyProvider, StopReason as AlchemyStopReason, Tool as AlchemyTool,
-    ToolCall as AlchemyToolCall, ToolResultContent as AlchemyToolResultContent,
-    ToolResultMessage as AlchemyToolResultMessage, Usage as AlchemyUsage,
-    UserContent as AlchemyUserContent, UserContentBlock as AlchemyUserContentBlock,
-    UserMessage as AlchemyUserMessage, ZaiChatCompletionsOptions,
+    AssistantMessageEvent as AlchemyAssistantMessageEvent, Content as AlchemyContent,
+    Context as AlchemyContext, Cost as AlchemyCost, ImageContent as AlchemyImageContent, InputType,
+    Message as AlchemyMessage, Model as AlchemyModel, ModelCost, Provider as AlchemyProvider,
+    StopReason as AlchemyStopReason, Tool as AlchemyTool, ToolCall as AlchemyToolCall,
+    ToolResultContent as AlchemyToolResultContent, ToolResultMessage as AlchemyToolResultMessage,
+    Usage as AlchemyUsage, UserContent as AlchemyUserContent,
+    UserContentBlock as AlchemyUserContentBlock, UserMessage as AlchemyUserMessage,
+    ZaiChatCompletionsOptions,
 };
 use base64::Engine;
+use futures::StreamExt;
 use tokio::sync::{mpsc, oneshot};
 
 use crate::types::{
@@ -64,10 +66,16 @@ impl fmt::Display for AlchemyContractError {
         match self {
             Self::MissingField(field) => write!(f, "missing required field: {field}"),
             Self::ApiMismatch { runtime, typed } => {
-                write!(f, "runtime api '{runtime}' does not match typed api '{typed}'")
+                write!(
+                    f,
+                    "runtime api '{runtime}' does not match typed api '{typed}'"
+                )
             }
             Self::ModelIdMismatch { runtime, typed } => {
-                write!(f, "runtime model '{runtime}' does not match typed model '{typed}'")
+                write!(
+                    f,
+                    "runtime model '{runtime}' does not match typed model '{typed}'"
+                )
             }
             Self::ProviderMismatch { runtime, typed } => {
                 write!(
@@ -282,11 +290,11 @@ where
             Err(error) => return send_backend_error(&event_sender, &runtime_model, error),
         };
 
-        let mut stream = match alchemy_llm::stream(&request.model, &request.context, Some(request.options))
-        {
-            Ok(stream) => stream,
-            Err(error) => return send_backend_error(&event_sender, &runtime_model, error),
-        };
+        let mut stream =
+            match alchemy_llm::stream(&request.model, &request.context, Some(request.options)) {
+                Ok(stream) => stream,
+                Err(error) => return send_backend_error(&event_sender, &runtime_model, error),
+            };
 
         while let Some(event) = stream.next().await {
             let converted_event = match AssistantMessageEvent::try_from_alchemy(&event) {
@@ -340,7 +348,12 @@ impl AlchemyStreamResponse {
 
         tokio::spawn(async move {
             let message = backend
-                .run_stream(runtime_model, runtime_context, runtime_options, event_sender)
+                .run_stream(
+                    runtime_model,
+                    runtime_context,
+                    runtime_options,
+                    event_sender,
+                )
                 .await;
             let _ = result_sender.send(message);
         });
@@ -376,7 +389,9 @@ impl StreamResponse for AlchemyStreamResponse {
         })
     }
 
-    fn next_event<'a>(&'a mut self) -> futures::future::BoxFuture<'a, Option<AssistantMessageEvent>> {
+    fn next_event<'a>(
+        &'a mut self,
+    ) -> futures::future::BoxFuture<'a, Option<AssistantMessageEvent>> {
         Box::pin(async move { self.event_receiver.recv().await })
     }
 }
@@ -529,7 +544,10 @@ fn alchemy_stop_reason_string(reason: AlchemyStopReason) -> String {
     .to_string()
 }
 
-fn parse_data_url(url: &str, mime_type: Option<&str>) -> Result<(Vec<u8>, String), AlchemyContractError> {
+fn parse_data_url(
+    url: &str,
+    mime_type: Option<&str>,
+) -> Result<(Vec<u8>, String), AlchemyContractError> {
     let Some(rest) = url.strip_prefix("data:") else {
         return Err(AlchemyContractError::UnsupportedImageUrl(url.to_string()));
     };
@@ -752,7 +770,7 @@ impl TryFromAlchemy<AlchemyContent> for AssistantContent {
                 Self::ToolCall(ToolCallContent::try_from_alchemy(inner)?)
             }
             AlchemyContent::Image { .. } => {
-                return Err(AlchemyContractError::UnsupportedAssistantContent("image"))
+                return Err(AlchemyContractError::UnsupportedAssistantContent("image"));
             }
         })
     }
@@ -761,12 +779,8 @@ impl TryFromAlchemy<AlchemyContent> for AssistantContent {
 impl TryIntoAlchemy<AlchemyUserContentBlock> for UserContent {
     fn try_into_alchemy(&self) -> Result<AlchemyUserContentBlock, AlchemyContractError> {
         Ok(match self {
-            Self::Text(content) => {
-                AlchemyUserContentBlock::Text(content.try_into_alchemy()?)
-            }
-            Self::Image(content) => {
-                AlchemyUserContentBlock::Image(content.try_into_alchemy()?)
-            }
+            Self::Text(content) => AlchemyUserContentBlock::Text(content.try_into_alchemy()?),
+            Self::Image(content) => AlchemyUserContentBlock::Image(content.try_into_alchemy()?),
         })
     }
 }
@@ -810,7 +824,9 @@ impl TryIntoAlchemy<AlchemyUserMessage> for UserMessage {
     fn try_into_alchemy(&self) -> Result<AlchemyUserMessage, AlchemyContractError> {
         let content = if self.content.len() == 1 {
             match &self.content[0] {
-                UserContent::Text(text) => AlchemyUserContent::Text(text.text.clone().unwrap_or_default()),
+                UserContent::Text(text) => {
+                    AlchemyUserContent::Text(text.text.clone().unwrap_or_default())
+                }
                 _ => AlchemyUserContent::Multi(
                     self.content
                         .iter()
@@ -866,29 +882,36 @@ impl TryIntoAlchemy<AlchemyAssistantMessage> for AssistantMessage {
         let provider = self
             .provider
             .as_deref()
-            .ok_or(AlchemyContractError::MissingField("assistant_message.provider"))?;
+            .ok_or(AlchemyContractError::MissingField(
+                "assistant_message.provider",
+            ))?;
         let model = self
             .model
             .clone()
-            .ok_or(AlchemyContractError::MissingField("assistant_message.model"))?;
+            .ok_or(AlchemyContractError::MissingField(
+                "assistant_message.model",
+            ))?;
         let usage = self
             .usage
             .as_ref()
-            .ok_or(AlchemyContractError::MissingField("assistant_message.usage"))?;
-        let stop_reason = self
-            .stop_reason
-            .ok_or(AlchemyContractError::MissingField("assistant_message.stop_reason"))?;
-        let timestamp = self
-            .timestamp
-            .ok_or(AlchemyContractError::MissingField("assistant_message.timestamp"))?;
+            .ok_or(AlchemyContractError::MissingField(
+                "assistant_message.usage",
+            ))?;
+        let stop_reason = self.stop_reason.ok_or(AlchemyContractError::MissingField(
+            "assistant_message.stop_reason",
+        ))?;
+        let timestamp = self.timestamp.ok_or(AlchemyContractError::MissingField(
+            "assistant_message.timestamp",
+        ))?;
 
         let api = AlchemyApi::from_str(api)
             .map_err(|_| AlchemyContractError::UnknownApi(api.to_string()))?;
-        let provider = AlchemyProvider::from_str(provider)
-            .map_err(|_| AlchemyContractError::ProviderMismatch {
+        let provider = AlchemyProvider::from_str(provider).map_err(|_| {
+            AlchemyContractError::ProviderMismatch {
                 runtime: provider.to_string(),
                 typed: provider.to_string(),
-            })?;
+            }
+        })?;
         let content = self
             .content
             .iter()
@@ -936,7 +959,9 @@ impl TryIntoAlchemy<AlchemyToolResultMessage> for ToolResultMessage {
         let tool_call_id = self
             .tool_call_id
             .clone()
-            .ok_or(AlchemyContractError::MissingField("tool_result.tool_call_id"))?;
+            .ok_or(AlchemyContractError::MissingField(
+                "tool_result.tool_call_id",
+            ))?;
         let tool_name = self
             .tool_name
             .clone()
@@ -1097,123 +1122,185 @@ impl TryFromAlchemy<AlchemyAssistantMessageEvent> for AssistantMessageEvent {
         value: &AlchemyAssistantMessageEvent,
     ) -> Result<Self, AlchemyContractError> {
         Ok(match value {
-            AlchemyAssistantMessageEvent::Start { partial } => Self {
-                event_type: Some(AssistantMessageEventType::Start),
-                partial: Some(AssistantMessage::try_from_alchemy(partial)?),
-                ..Default::default()
-            },
+            AlchemyAssistantMessageEvent::Start { partial } => {
+                assistant_partial_event(AssistantMessageEventType::Start, None, partial)?
+            }
             AlchemyAssistantMessageEvent::TextStart {
                 content_index,
                 partial,
-            } => Self {
-                event_type: Some(AssistantMessageEventType::TextStart),
-                content_index: Some(*content_index),
-                partial: Some(AssistantMessage::try_from_alchemy(partial)?),
-                ..Default::default()
-            },
+            } => assistant_partial_event(
+                AssistantMessageEventType::TextStart,
+                Some(*content_index),
+                partial,
+            )?,
             AlchemyAssistantMessageEvent::TextDelta {
                 content_index,
                 delta,
                 partial,
-            } => Self {
-                event_type: Some(AssistantMessageEventType::TextDelta),
-                content_index: Some(*content_index),
-                delta: Some(delta.clone()),
-                partial: Some(AssistantMessage::try_from_alchemy(partial)?),
-                ..Default::default()
-            },
+            } => assistant_delta_event(
+                AssistantMessageEventType::TextDelta,
+                *content_index,
+                delta,
+                partial,
+            )?,
             AlchemyAssistantMessageEvent::TextEnd {
                 content_index,
                 content,
                 partial,
-            } => Self {
-                event_type: Some(AssistantMessageEventType::TextEnd),
-                content_index: Some(*content_index),
-                content: Some(AssistantEventContent::Text(content.clone())),
-                partial: Some(AssistantMessage::try_from_alchemy(partial)?),
-                ..Default::default()
-            },
+            } => assistant_text_end_event(*content_index, content, partial)?,
             AlchemyAssistantMessageEvent::ThinkingStart {
                 content_index,
                 partial,
-            } => Self {
-                event_type: Some(AssistantMessageEventType::ThinkingStart),
-                content_index: Some(*content_index),
-                partial: Some(AssistantMessage::try_from_alchemy(partial)?),
-                ..Default::default()
-            },
+            } => assistant_partial_event(
+                AssistantMessageEventType::ThinkingStart,
+                Some(*content_index),
+                partial,
+            )?,
             AlchemyAssistantMessageEvent::ThinkingDelta {
                 content_index,
                 delta,
                 partial,
-            } => Self {
-                event_type: Some(AssistantMessageEventType::ThinkingDelta),
-                content_index: Some(*content_index),
-                delta: Some(delta.clone()),
-                partial: Some(AssistantMessage::try_from_alchemy(partial)?),
-                ..Default::default()
-            },
+            } => assistant_delta_event(
+                AssistantMessageEventType::ThinkingDelta,
+                *content_index,
+                delta,
+                partial,
+            )?,
             AlchemyAssistantMessageEvent::ThinkingEnd {
                 content_index,
                 content,
                 partial,
-            } => Self {
-                event_type: Some(AssistantMessageEventType::ThinkingEnd),
-                content_index: Some(*content_index),
-                content: Some(AssistantEventContent::ThinkingBlock(ThinkingContent {
-                    thinking: Some(content.clone()),
-                    ..Default::default()
-                })),
-                partial: Some(AssistantMessage::try_from_alchemy(partial)?),
-                ..Default::default()
-            },
+            } => assistant_thinking_end_event(*content_index, content, partial)?,
             AlchemyAssistantMessageEvent::ToolCallStart {
                 content_index,
                 partial,
-            } => Self {
-                event_type: Some(AssistantMessageEventType::ToolCallStart),
-                content_index: Some(*content_index),
-                partial: Some(AssistantMessage::try_from_alchemy(partial)?),
-                ..Default::default()
-            },
+            } => assistant_partial_event(
+                AssistantMessageEventType::ToolCallStart,
+                Some(*content_index),
+                partial,
+            )?,
             AlchemyAssistantMessageEvent::ToolCallDelta {
                 content_index,
                 delta,
                 partial,
-            } => Self {
-                event_type: Some(AssistantMessageEventType::ToolCallDelta),
-                content_index: Some(*content_index),
-                delta: Some(delta.clone()),
-                partial: Some(AssistantMessage::try_from_alchemy(partial)?),
-                ..Default::default()
-            },
+            } => assistant_delta_event(
+                AssistantMessageEventType::ToolCallDelta,
+                *content_index,
+                delta,
+                partial,
+            )?,
             AlchemyAssistantMessageEvent::ToolCallEnd {
                 content_index,
                 tool_call,
                 partial,
-            } => Self {
-                event_type: Some(AssistantMessageEventType::ToolCallEnd),
-                content_index: Some(*content_index),
-                tool_call: Some(ToolCallContent::try_from_alchemy(tool_call)?),
-                partial: Some(AssistantMessage::try_from_alchemy(partial)?),
-                ..Default::default()
-            },
-            AlchemyAssistantMessageEvent::Done { reason, message } => Self {
-                event_type: Some(AssistantMessageEventType::Done),
-                reason: Some(alchemy_stop_reason_string((*reason).into())),
-                message: Some(AssistantMessage::try_from_alchemy(message)?),
-                ..Default::default()
-            },
-            AlchemyAssistantMessageEvent::Error { reason, error } => Self {
-                event_type: Some(AssistantMessageEventType::Error),
-                reason: Some(alchemy_stop_reason_string((*reason).into())),
-                error: Some(AssistantEventError::Message(AssistantMessage::try_from_alchemy(
-                    error,
-                )?)),
-                ..Default::default()
-            },
+            } => assistant_tool_call_end_event(*content_index, tool_call, partial)?,
+            AlchemyAssistantMessageEvent::Done { reason, message } => {
+                assistant_done_event(*reason, message)?
+            }
+            AlchemyAssistantMessageEvent::Error { reason, error } => {
+                assistant_error_event(*reason, error)?
+            }
         })
     }
+}
+
+fn assistant_partial_event(
+    event_type: AssistantMessageEventType,
+    content_index: Option<usize>,
+    partial: &AlchemyAssistantMessage,
+) -> Result<AssistantMessageEvent, AlchemyContractError> {
+    Ok(AssistantMessageEvent {
+        event_type: Some(event_type),
+        content_index,
+        partial: Some(AssistantMessage::try_from_alchemy(partial)?),
+        ..Default::default()
+    })
+}
+
+fn assistant_delta_event(
+    event_type: AssistantMessageEventType,
+    content_index: usize,
+    delta: &str,
+    partial: &AlchemyAssistantMessage,
+) -> Result<AssistantMessageEvent, AlchemyContractError> {
+    Ok(AssistantMessageEvent {
+        event_type: Some(event_type),
+        content_index: Some(content_index),
+        delta: Some(delta.to_string()),
+        partial: Some(AssistantMessage::try_from_alchemy(partial)?),
+        ..Default::default()
+    })
+}
+
+fn assistant_text_end_event(
+    content_index: usize,
+    content: &str,
+    partial: &AlchemyAssistantMessage,
+) -> Result<AssistantMessageEvent, AlchemyContractError> {
+    Ok(AssistantMessageEvent {
+        event_type: Some(AssistantMessageEventType::TextEnd),
+        content_index: Some(content_index),
+        content: Some(AssistantEventContent::Text(content.to_string())),
+        partial: Some(AssistantMessage::try_from_alchemy(partial)?),
+        ..Default::default()
+    })
+}
+
+fn assistant_thinking_end_event(
+    content_index: usize,
+    content: &str,
+    partial: &AlchemyAssistantMessage,
+) -> Result<AssistantMessageEvent, AlchemyContractError> {
+    Ok(AssistantMessageEvent {
+        event_type: Some(AssistantMessageEventType::ThinkingEnd),
+        content_index: Some(content_index),
+        content: Some(AssistantEventContent::ThinkingBlock(ThinkingContent {
+            thinking: Some(content.to_string()),
+            ..Default::default()
+        })),
+        partial: Some(AssistantMessage::try_from_alchemy(partial)?),
+        ..Default::default()
+    })
+}
+
+fn assistant_tool_call_end_event(
+    content_index: usize,
+    tool_call: &AlchemyToolCall,
+    partial: &AlchemyAssistantMessage,
+) -> Result<AssistantMessageEvent, AlchemyContractError> {
+    Ok(AssistantMessageEvent {
+        event_type: Some(AssistantMessageEventType::ToolCallEnd),
+        content_index: Some(content_index),
+        tool_call: Some(ToolCallContent::try_from_alchemy(tool_call)?),
+        partial: Some(AssistantMessage::try_from_alchemy(partial)?),
+        ..Default::default()
+    })
+}
+
+fn assistant_done_event(
+    reason: alchemy_types::StopReasonSuccess,
+    message: &AlchemyAssistantMessage,
+) -> Result<AssistantMessageEvent, AlchemyContractError> {
+    Ok(AssistantMessageEvent {
+        event_type: Some(AssistantMessageEventType::Done),
+        reason: Some(alchemy_stop_reason_string(reason.into())),
+        message: Some(AssistantMessage::try_from_alchemy(message)?),
+        ..Default::default()
+    })
+}
+
+fn assistant_error_event(
+    reason: alchemy_types::StopReasonError,
+    error: &AlchemyAssistantMessage,
+) -> Result<AssistantMessageEvent, AlchemyContractError> {
+    Ok(AssistantMessageEvent {
+        event_type: Some(AssistantMessageEventType::Error),
+        reason: Some(alchemy_stop_reason_string(reason.into())),
+        error: Some(AssistantEventError::Message(
+            AssistantMessage::try_from_alchemy(error)?,
+        )),
+        ..Default::default()
+    })
 }
 
 #[cfg(test)]
@@ -1321,7 +1408,10 @@ mod tests {
         )
         .expect_err("provider mismatch should fail");
 
-        assert!(matches!(error, AlchemyContractError::ProviderMismatch { .. }));
+        assert!(matches!(
+            error,
+            AlchemyContractError::ProviderMismatch { .. }
+        ));
     }
 
     #[test]
@@ -1340,7 +1430,10 @@ mod tests {
         assert_eq!(options.api_key.as_deref(), Some("sk-test"));
         assert_eq!(options.temperature, Some(0.2));
         assert_eq!(options.max_tokens, Some(512));
-        assert!(matches!(options.reasoning_effort, Some(ReasoningEffort::High)));
+        assert!(matches!(
+            options.reasoning_effort,
+            Some(ReasoningEffort::High)
+        ));
     }
 
     #[test]
@@ -1361,7 +1454,8 @@ mod tests {
         match &round_trip.content[0] {
             UserContent::Image(image) => {
                 assert!(
-                    image.url
+                    image
+                        .url
                         .as_deref()
                         .is_some_and(|url| url.starts_with("data:image/png;base64,"))
                 );
@@ -1476,7 +1570,10 @@ mod tests {
         )
         .expect("request should build");
 
-        assert_eq!(request.context.system_prompt.as_deref(), Some("You are terse"));
+        assert_eq!(
+            request.context.system_prompt.as_deref(),
+            Some("You are terse")
+        );
         assert_eq!(request.context.messages.len(), 1);
         assert_eq!(request.context.tools.as_ref().map(Vec::len), Some(1));
     }
