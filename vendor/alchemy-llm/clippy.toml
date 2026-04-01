@@ -1,0 +1,20 @@
+# Clippy configuration for Alchemy
+# See: https://doc.rust-lang.org/clippy/lint_configuration.html
+
+# Cyclomatic/cognitive complexity threshold
+# Default is 25, we set it to 20 to catch overly complex functions
+# TODO: Refactor process_chunk (currently 19) to get below 15
+cognitive-complexity-threshold = 15
+
+# Maximum lines for functions
+# Helps prevent overly long functions
+# TODO: Refactor process_chunk (161) and convert_messages (109) to get below 80
+too-many-lines-threshold = 80
+
+# Maximum number of arguments
+# Encourages using structs for complex parameter lists
+too-many-arguments-threshold = 7
+
+# Type complexity threshold
+# Prevents overly nested generic types
+type-complexity-threshold = 250
