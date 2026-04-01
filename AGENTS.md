@@ -1,69 +1,66 @@
 # AGENTS.md
 
 ## Project
-- This repo is now a Rust rewrite focused on a typed seam with `alchemy-rs`.
-- Do not plan or implement against the old Python package layout. It is gone from this branch on purpose.
-- Primary goal: a fully typed Rust agent/runtime layer that converts explicitly to and from the vendored `alchemy-llm` crate.
+- Rust rewrite only.
+- `vendor/alchemy-llm/` is the typed provider backend, not the rewrite target.
+- Primary goal: a typed agent/runtime layer that stays separate from the vendored transport layer.
 
-## Where To Start
-- `rust/Cargo.toml` — active crate manifest for this branch.
-- `rust/src/lib.rs` — current public Rust surface.
-- `rust/src/types.rs` — runtime types owned by this repo.
-- `rust/src/agent.rs` — typed agent/state layer.
-- `rust/src/alchemy_contract.rs` — typed boundary to `vendor/alchemy-llm`.
-- `docs/rust-runtime-types.md` — inventory of runtime types in `rust/src/types.rs`.
-- `vendor/alchemy-llm/src/types/` — upstream typed alchemy message/model/event contracts.
-- `vendor/alchemy-llm/src/stream/mod.rs` — generic typed stream dispatch.
+## Start Here
+- `rust/Cargo.toml` — active crate manifest.
+- `rust/src/lib.rs` — exported crate surface.
+- `rust/src/types.rs` — runtime-owned types.
+- `rust/src/agent.rs` — `Agent`, state reduction, run lifecycle.
+- `rust/src/agent_loop.rs` — turn loop and streaming reduction.
+- `rust/src/agent_tool_execution.rs` — tool-call execution path.
+- `rust/src/alchemy_backend.rs` — only runtime/alchemy translation layer.
+- `rust/examples/minimax_agent_multiturn.rs` — real end-to-end example.
+- `docs/README.md` — rewrite doc index.
 
 ## Repository Map
-- `rust/`
-  - `Cargo.toml` — crate config.
-  - `src/lib.rs` — crate exports.
-  - `src/types.rs` — runtime message, event, tool, context, and state types.
-  - `src/agent.rs` — agent state management and event reduction.
-  - `src/alchemy_contract.rs` — runtime/alchemy typed conversions and request builders.
-- `docs/rust-runtime-types.md` — compact runtime type index.
-- `vendor/alchemy-llm/` — vendored upstream crate used as the typed provider boundary.
+- `rust/src/types.rs` — messages, content blocks, events, tool types, loop config, state, stream queue.
+- `rust/src/agent.rs` — runtime API: prompting, continuation, listeners, aborts, state updates.
+- `rust/src/agent_loop.rs` — builds `Context`, resolves API key, drives turns, emits `AgentEvent`.
+- `rust/src/agent_tool_execution.rs` — validates tool calls, runs tools, emits tool execution events.
+- `rust/src/alchemy_backend.rs` — typed builders and `TryIntoAlchemy` / `TryFromAlchemy` conversions.
+- `vendor/alchemy-llm/src/types/` — upstream typed transport contracts.
+- `vendor/alchemy-llm/src/stream/mod.rs` — upstream streaming entrypoint.
+- `docs/` — rewrite docs for types, backend seam, ingress contracts, and the real agent.
 
 ## Commands
 - `cargo test --manifest-path rust/Cargo.toml`
 - `cargo test --manifest-path rust/Cargo.toml agent::tests`
-- `cargo test --manifest-path rust/Cargo.toml alchemy_contract::tests`
+- `cargo test --manifest-path rust/Cargo.toml alchemy_backend::tests`
+- `cargo run --manifest-path rust/Cargo.toml --example minimax_agent_multiturn`
 - `cargo test --manifest-path vendor/alchemy-llm/Cargo.toml`
 
 ## Rewrite Rules
-- Rust only. Do not reintroduce Python adapters, Python compatibility plans, or Python-first abstractions.
-- Keep the seam typed end-to-end. Prefer `Model<TApi>`, typed options, typed messages, and typed events over string dispatch.
-- Do not widen runtime enums or payloads “for compatibility” unless the wider shape is proven necessary and documented in code.
-- If two typed models disagree, resolve it structurally:
-  either tighten our type to match `alchemy-llm`, or introduce a separate explicit transport type.
-- Do not hide type mismatches behind runtime fallback logic, silent coercion, or vague compatibility helpers.
-- No stringly “api/provider logic” when the alchemy crate already expresses the distinction in types.
-- No ad hoc `serde_json::Value` field walking in core logic. If it has keys, it should usually be a typed struct or enum.
-- No Python-style “dict/get” design in Rust. Repeated key lookup is a contract failure, not an implementation detail.
-- No silent defaulting of required typed fields. Missing required data must stay impossible by construction, or fail explicitly at the boundary.
-- No `unwrap()` or `expect()` in production paths. If one is truly unavoidable, justify it in a short code comment right there.
-- Avoid `panic!`, hidden fallback branches, and “should never happen” runtime logic. Express invariants in types or return explicit errors.
-- No hidden lossy conversions. Any lossy bridge must be obvious in type names and function names.
+- Rust only. Do not reintroduce Python code, compatibility layers, or Python-first docs.
+- Keep the seam typed end to end. Prefer typed models, typed events, typed builders, and typed conversions.
+- `rust/src/alchemy_backend.rs` is the only place that should translate to or from `vendor/alchemy-llm`.
+- Do not hide type mismatches behind fallback logic, silent coercion, or vague compatibility helpers.
+- No stringly provider dispatch when `alchemy-llm` already expresses the distinction in types.
+- No ad hoc `serde_json::Value` walking in core logic when a typed struct or enum should exist.
+- No `dict/get` style Rust design.
+- No silent defaulting of required boundary data.
+- No `unwrap()` or `expect()` in production paths.
+- Avoid `panic!` and “should never happen” branches in runtime code. Return explicit errors instead.
 - Prefer compile-time guarantees over runtime branching.
 
 ## Boundaries
-- `rust/src/types.rs` is our runtime surface.
-- `vendor/alchemy-llm/src/types/*.rs` is the upstream alchemy transport/model surface.
-- `rust/src/alchemy_contract.rs` is the only place that should translate between those two domains.
-- `rust/src/agent.rs` should depend on our runtime types, not on provider-specific internals from `vendor/alchemy-llm`.
-- Loop execution and tool execution can arrive later; do not fake them with placeholders that blur the type boundary.
+- Runtime surface: `rust/src/types.rs`
+- Agent/runtime orchestration: `rust/src/agent.rs`, `rust/src/agent_loop.rs`, `rust/src/agent_tool_execution.rs`
+- Provider boundary: `rust/src/alchemy_backend.rs`
+- Vendored transport surface: `vendor/alchemy-llm/src/types/*.rs`
 
-## Change Guardrails
-- Before changing a contract type, inspect both `rust/src/types.rs` and the matching file under `vendor/alchemy-llm/src/types/`.
-- When adding a new alchemy-facing capability, encode it as a typed builder or typed conversion first.
-- Keep exported names in `rust/src/lib.rs` aligned with the actual crate surface.
-- Add tests for every boundary rule you add in `rust/src/alchemy_contract.rs`.
-- Keep `AGENTS.md` aligned with the repo that actually exists on this branch; remove stale paths aggressively.
+## Docs
+- `docs/rust-runtime-types.md`
+- `docs/rust-agent-alchemy-backend.md`
+- `docs/rust-data-ingress-contracts.md`
+- `docs/rust-real-agent.md`
 
 ## Validation Checklist
 - Every path listed above exists.
-- New runtime/alchemy conversions are covered by unit tests.
-- `cargo test --manifest-path rust/Cargo.toml` passes after every meaningful change.
-- If vendored alchemy types are touched, run `cargo test --manifest-path vendor/alchemy-llm/Cargo.toml`.
-- No new Python-oriented guidance, files, or assumptions were added.
+- New boundary rules in `rust/src/alchemy_backend.rs` have unit-test coverage.
+- `cargo test --manifest-path rust/Cargo.toml` passes after meaningful code changes.
+- If `vendor/alchemy-llm` types are touched, run `cargo test --manifest-path vendor/alchemy-llm/Cargo.toml`.
+- Keep this file aligned with the branch that actually exists.
