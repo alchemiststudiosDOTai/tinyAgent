@@ -6,11 +6,13 @@ This directory is the current doc set for the Rust rewrite on `rust-rewrite`.
 
 1. `docs/rust-runtime-types.md`
    Runtime-owned types and invariants in `rust/src/types.rs`.
-2. `docs/rust-agent-alchemy-backend.md`
+2. `docs/rust-tool-call-boundary.md`
+   One runtime tool-call shape, one translation seam, zero provider-specific tool logic in runtime code.
+3. `docs/rust-agent-alchemy-backend.md`
    How `Agent` connects to the typed alchemy backend.
-3. `docs/rust-data-ingress-contracts.md`
+4. `docs/rust-data-ingress-contracts.md`
    Where ingress is validated and how contract conformance is proved.
-4. `docs/rust-real-agent.md`
+5. `docs/rust-real-agent.md`
    What the current agent already does end to end.
 
 ## Code Map
