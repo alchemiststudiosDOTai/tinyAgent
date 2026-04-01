@@ -866,7 +866,7 @@ impl EventStream {
             return;
         }
 
-        let mut queue = self.queue.lock().expect("event stream queue lock poisoned");
+        let mut queue = self.lock_queue();
         queue.push_back(EventStreamQueueItem::Event(event));
         drop(queue);
         self.notify.notify_one();
@@ -874,14 +874,11 @@ impl EventStream {
 
     pub fn end(&self, result: Vec<AgentMessage>) {
         {
-            let mut stored_result = self
-                .result
-                .lock()
-                .expect("event stream result lock poisoned");
+            let mut stored_result = self.lock_result();
             *stored_result = Some(result);
         }
         self.ended.store(true, Ordering::SeqCst);
-        let mut queue = self.queue.lock().expect("event stream queue lock poisoned");
+        let mut queue = self.lock_queue();
         queue.push_back(EventStreamQueueItem::Wakeup(WakeupSignal));
         drop(queue);
         self.notify.notify_one();
@@ -893,14 +890,11 @@ impl EventStream {
         }
 
         {
-            let mut stored_exception = self
-                .exception
-                .lock()
-                .expect("event stream exception lock poisoned");
+            let mut stored_exception = self.lock_exception();
             *stored_exception = Some(exc);
         }
         self.ended.store(true, Ordering::SeqCst);
-        let mut queue = self.queue.lock().expect("event stream queue lock poisoned");
+        let mut queue = self.lock_queue();
         queue.push_back(EventStreamQueueItem::Wakeup(WakeupSignal));
         drop(queue);
         self.notify.notify_one();
@@ -922,10 +916,7 @@ impl EventStream {
                     EventStreamQueueItem::Event(event) => {
                         if (self.is_end_event)(&event) {
                             let result = (self.get_result)(&event);
-                            let mut stored_result = self
-                                .result
-                                .lock()
-                                .expect("event stream result lock poisoned");
+                            let mut stored_result = self.lock_result();
                             *stored_result = Some(result);
                             self.ended.store(true, Ordering::SeqCst);
                         }
@@ -962,29 +953,44 @@ impl EventStream {
             }
         }
 
-        let stored_result = self
-            .result
-            .lock()
-            .expect("event stream result lock poisoned");
+        let stored_result = self.lock_result();
         Ok(stored_result.clone().unwrap_or_default())
     }
 
     fn pop_queue_item(&self) -> Option<EventStreamQueueItem> {
-        let mut queue = self.queue.lock().expect("event stream queue lock poisoned");
+        let mut queue = self.lock_queue();
         queue.pop_front()
     }
 
     fn is_queue_empty(&self) -> bool {
-        let queue = self.queue.lock().expect("event stream queue lock poisoned");
+        let queue = self.lock_queue();
         queue.is_empty()
     }
 
     fn take_exception(&self) -> Option<EventStreamError> {
-        let mut stored_exception = self
-            .exception
-            .lock()
-            .expect("event stream exception lock poisoned");
+        let mut stored_exception = self.lock_exception();
         stored_exception.take()
+    }
+
+    fn lock_queue(&self) -> std::sync::MutexGuard<'_, VecDeque<EventStreamQueueItem>> {
+        match self.queue.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        }
+    }
+
+    fn lock_result(&self) -> std::sync::MutexGuard<'_, Option<Vec<AgentMessage>>> {
+        match self.result.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        }
+    }
+
+    fn lock_exception(&self) -> std::sync::MutexGuard<'_, Option<EventStreamError>> {
+        match self.exception.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        }
     }
 }
 

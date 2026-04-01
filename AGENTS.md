@@ -39,8 +39,11 @@
   either tighten our type to match `alchemy-llm`, or introduce a separate explicit transport type.
 - Do not hide type mismatches behind runtime fallback logic, silent coercion, or vague compatibility helpers.
 - No stringly “api/provider logic” when the alchemy crate already expresses the distinction in types.
+- No ad hoc `serde_json::Value` field walking in core logic. If it has keys, it should usually be a typed struct or enum.
+- No Python-style “dict/get” design in Rust. Repeated key lookup is a contract failure, not an implementation detail.
 - No silent defaulting of required typed fields. Missing required data must stay impossible by construction, or fail explicitly at the boundary.
 - No `unwrap()` or `expect()` in production paths. If one is truly unavoidable, justify it in a short code comment right there.
+- Avoid `panic!`, hidden fallback branches, and “should never happen” runtime logic. Express invariants in types or return explicit errors.
 - No hidden lossy conversions. Any lossy bridge must be obvious in type names and function names.
 - Prefer compile-time guarantees over runtime branching.
 
