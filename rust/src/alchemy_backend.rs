@@ -4,6 +4,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use alchemy_llm::providers::openai_completions::{OpenAICompletionsOptions, ReasoningEffort, ToolChoice};
+use futures::StreamExt;
 use alchemy_llm::types::{
     self as alchemy_types, Api as AlchemyApi, ApiType, AssistantMessage as AlchemyAssistantMessage,
     AssistantMessageEvent as AlchemyAssistantMessageEvent,
@@ -16,12 +17,14 @@ use alchemy_llm::types::{
     UserMessage as AlchemyUserMessage, ZaiChatCompletionsOptions,
 };
 use base64::Engine;
+use tokio::sync::{mpsc, oneshot};
 
 use crate::types::{
     self, AgentTool, AssistantContent, AssistantEventContent, AssistantEventError,
     AssistantMessage, AssistantMessageEvent, AssistantMessageEventType, Context, CostPayload,
-    ImageContent, Model, SimpleStreamOptions, StopReason, TextContent, ThinkingContent,
-    ToolCallContent, ToolResultContent, ToolResultMessage, UsagePayload, UserContent, UserMessage,
+    ImageContent, Model, SimpleStreamOptions, StopReason, StreamFn, StreamResponse, TextContent,
+    ThinkingContent, ThinkingLevel, ToolCallContent, ToolResultContent, ToolResultMessage,
+    UsagePayload, UserContent, UserMessage, zero_usage,
 };
 
 pub trait TryIntoAlchemy<T> {
@@ -38,6 +41,10 @@ pub enum AlchemyContractError {
     ApiMismatch {
         runtime: String,
         typed: &'static str,
+    },
+    ModelIdMismatch {
+        runtime: String,
+        typed: String,
     },
     ProviderMismatch {
         runtime: String,
@@ -58,6 +65,9 @@ impl fmt::Display for AlchemyContractError {
             Self::MissingField(field) => write!(f, "missing required field: {field}"),
             Self::ApiMismatch { runtime, typed } => {
                 write!(f, "runtime api '{runtime}' does not match typed api '{typed}'")
+            }
+            Self::ModelIdMismatch { runtime, typed } => {
+                write!(f, "runtime model '{runtime}' does not match typed model '{typed}'")
             }
             Self::ProviderMismatch { runtime, typed } => {
                 write!(
@@ -112,6 +122,311 @@ pub struct AlchemyRequest<TApi: ApiType> {
     pub model: AlchemyModel<TApi>,
     pub context: AlchemyContext,
     pub options: OpenAICompletionsOptions,
+}
+
+pub type AlchemyBackendError = AlchemyContractError;
+
+pub struct AlchemyBackend<TApi: ApiType> {
+    model: AlchemyModel<TApi>,
+    default_options: OpenAICompletionsOptions,
+}
+
+struct AlchemyStreamResponse {
+    event_receiver: mpsc::UnboundedReceiver<AssistantMessageEvent>,
+    result_receiver: Option<oneshot::Receiver<AssistantMessage>>,
+    cached_result: Option<AssistantMessage>,
+}
+
+impl<TApi> Clone for AlchemyBackend<TApi>
+where
+    TApi: ApiType + Clone,
+    TApi::Compat: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            model: self.model.clone(),
+            default_options: self.default_options.clone(),
+        }
+    }
+}
+
+impl<TApi> fmt::Debug for AlchemyBackend<TApi>
+where
+    TApi: ApiType,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AlchemyBackend")
+            .field("provider", &self.model.provider.as_str())
+            .field("api", &self.model.api.api().as_str())
+            .field("model_id", &self.model.id)
+            .field("base_url", &self.model.base_url)
+            .field("reasoning", &self.model.reasoning)
+            .finish()
+    }
+}
+
+impl<TApi> AlchemyBackend<TApi>
+where
+    TApi: ApiType + Clone + Send + Sync + 'static,
+    TApi::Compat: Clone + Send + Sync + 'static,
+{
+    pub fn new(model: AlchemyModel<TApi>) -> Self {
+        Self {
+            model,
+            default_options: OpenAICompletionsOptions::default(),
+        }
+    }
+
+    pub fn with_default_options(
+        model: AlchemyModel<TApi>,
+        default_options: OpenAICompletionsOptions,
+    ) -> Self {
+        Self {
+            model,
+            default_options,
+        }
+    }
+
+    pub fn model(&self) -> &AlchemyModel<TApi> {
+        &self.model
+    }
+
+    pub fn runtime_model(&self) -> Model {
+        Model {
+            provider: self.model.provider.as_str().to_string(),
+            id: self.model.id.clone(),
+            api: self.model.api.api().as_str().to_string(),
+            thinking_level: if self.model.reasoning {
+                ThinkingLevel::Medium
+            } else {
+                ThinkingLevel::Off
+            },
+        }
+    }
+
+    pub fn stream_fn(&self) -> StreamFn {
+        let backend = self.clone();
+
+        std::sync::Arc::new(move |runtime_model, runtime_context, runtime_options| {
+            let backend = backend.clone();
+            Box::pin(async move {
+                Box::new(AlchemyStreamResponse::spawn(
+                    backend,
+                    runtime_model,
+                    runtime_context,
+                    runtime_options,
+                )) as Box<dyn StreamResponse>
+            })
+        })
+    }
+
+    fn openai_options(
+        &self,
+        runtime_model: &Model,
+        runtime_options: &SimpleStreamOptions,
+    ) -> OpenAICompletionsOptions {
+        let mut options = self.default_options.clone();
+
+        if runtime_options.api_key.is_some() {
+            options.api_key = runtime_options.api_key.clone();
+        }
+        if runtime_options.temperature.is_some() {
+            options.temperature = runtime_options.temperature;
+        }
+        if runtime_options.max_tokens.is_some() {
+            options.max_tokens = runtime_options.max_tokens;
+        }
+        if options.reasoning_effort.is_none() {
+            options.reasoning_effort = reasoning_effort_from_level(runtime_model.thinking_level);
+        }
+
+        options
+    }
+
+    fn ensure_runtime_model_matches(&self, runtime: &Model) -> Result<(), AlchemyContractError> {
+        let typed_api = self.model.api.api().as_str();
+        if !runtime.api.is_empty() && runtime.api != typed_api {
+            return Err(AlchemyContractError::ApiMismatch {
+                runtime: runtime.api.clone(),
+                typed: typed_api,
+            });
+        }
+
+        let typed_provider = self.model.provider.as_str().to_string();
+        if !runtime.provider.is_empty() && runtime.provider != typed_provider {
+            return Err(AlchemyContractError::ProviderMismatch {
+                runtime: runtime.provider.clone(),
+                typed: typed_provider,
+            });
+        }
+
+        if !runtime.id.is_empty() && runtime.id.as_str() != self.model.id.as_str() {
+            return Err(AlchemyContractError::ModelIdMismatch {
+                runtime: runtime.id.clone(),
+                typed: self.model.id.clone(),
+            });
+        }
+
+        Ok(())
+    }
+
+    async fn run_stream(
+        self,
+        runtime_model: Model,
+        runtime_context: Context,
+        runtime_options: SimpleStreamOptions,
+        event_sender: mpsc::UnboundedSender<AssistantMessageEvent>,
+    ) -> AssistantMessage {
+        let request = match self.build_request(&runtime_model, &runtime_context, &runtime_options) {
+            Ok(request) => request,
+            Err(error) => return send_backend_error(&event_sender, &runtime_model, error),
+        };
+
+        let mut stream = match alchemy_llm::stream(&request.model, &request.context, Some(request.options))
+        {
+            Ok(stream) => stream,
+            Err(error) => return send_backend_error(&event_sender, &runtime_model, error),
+        };
+
+        while let Some(event) = stream.next().await {
+            let converted_event = match AssistantMessageEvent::try_from_alchemy(&event) {
+                Ok(event) => event,
+                Err(error) => return send_backend_error(&event_sender, &runtime_model, error),
+            };
+
+            if event_sender.send(converted_event).is_err() {
+                break;
+            }
+        }
+
+        match stream.result().await {
+            Ok(message) => match AssistantMessage::try_from_alchemy(&message) {
+                Ok(message) => message,
+                Err(error) => send_backend_error(&event_sender, &runtime_model, error),
+            },
+            Err(error) => send_backend_error(&event_sender, &runtime_model, error),
+        }
+    }
+
+    fn build_request(
+        &self,
+        runtime_model: &Model,
+        runtime_context: &Context,
+        runtime_options: &SimpleStreamOptions,
+    ) -> Result<AlchemyRequest<TApi>, AlchemyContractError> {
+        self.ensure_runtime_model_matches(runtime_model)?;
+
+        Ok(AlchemyRequest {
+            model: self.model.clone(),
+            context: runtime_context.try_into_alchemy()?,
+            options: self.openai_options(runtime_model, runtime_options),
+        })
+    }
+}
+
+impl AlchemyStreamResponse {
+    fn spawn<TApi>(
+        backend: AlchemyBackend<TApi>,
+        runtime_model: Model,
+        runtime_context: Context,
+        runtime_options: SimpleStreamOptions,
+    ) -> Self
+    where
+        TApi: ApiType + Clone + Send + Sync + 'static,
+        TApi::Compat: Clone + Send + Sync + 'static,
+    {
+        let (event_sender, event_receiver) = mpsc::unbounded_channel();
+        let (result_sender, result_receiver) = oneshot::channel();
+
+        tokio::spawn(async move {
+            let message = backend
+                .run_stream(runtime_model, runtime_context, runtime_options, event_sender)
+                .await;
+            let _ = result_sender.send(message);
+        });
+
+        Self {
+            event_receiver,
+            result_receiver: Some(result_receiver),
+            cached_result: None,
+        }
+    }
+}
+
+impl StreamResponse for AlchemyStreamResponse {
+    fn result<'a>(&'a mut self) -> futures::future::BoxFuture<'a, AssistantMessage> {
+        Box::pin(async move {
+            if let Some(message) = self.cached_result.clone() {
+                return message;
+            }
+
+            let message = match self.result_receiver.take() {
+                Some(receiver) => match receiver.await {
+                    Ok(message) => message,
+                    Err(_) => stream_bridge_error_message("alchemy stream ended without a result"),
+                },
+                None => self
+                    .cached_result
+                    .clone()
+                    .unwrap_or_else(|| stream_bridge_error_message("alchemy result already taken")),
+            };
+
+            self.cached_result = Some(message.clone());
+            message
+        })
+    }
+
+    fn next_event<'a>(&'a mut self) -> futures::future::BoxFuture<'a, Option<AssistantMessageEvent>> {
+        Box::pin(async move { self.event_receiver.recv().await })
+    }
+}
+
+fn send_backend_error(
+    event_sender: &mpsc::UnboundedSender<AssistantMessageEvent>,
+    runtime_model: &Model,
+    error: impl ToString,
+) -> AssistantMessage {
+    let message = backend_error_message(runtime_model, error.to_string());
+    let _ = event_sender.send(AssistantMessageEvent {
+        event_type: Some(AssistantMessageEventType::Error),
+        reason: Some("error".to_string()),
+        error: Some(AssistantEventError::Message(message.clone())),
+        ..Default::default()
+    });
+    message
+}
+
+fn backend_error_message(runtime_model: &Model, error_message: String) -> AssistantMessage {
+    AssistantMessage {
+        content: vec![Some(AssistantContent::Text(TextContent {
+            text: Some(error_message.clone()),
+            ..Default::default()
+        }))],
+        stop_reason: Some(StopReason::Error),
+        api: Some(runtime_model.api.clone()),
+        provider: Some(runtime_model.provider.clone()),
+        model: Some(runtime_model.id.clone()),
+        usage: Some(zero_usage()),
+        error_message: Some(error_message),
+        ..Default::default()
+    }
+}
+
+fn stream_bridge_error_message(message: impl Into<String>) -> AssistantMessage {
+    let error_message = message.into();
+    AssistantMessage {
+        content: vec![Some(AssistantContent::Text(TextContent {
+            text: Some(error_message.clone()),
+            ..Default::default()
+        }))],
+        stop_reason: Some(StopReason::Error),
+        api: Some(String::new()),
+        provider: Some(String::new()),
+        model: Some(String::new()),
+        usage: Some(zero_usage()),
+        error_message: Some(error_message),
+        ..Default::default()
+    }
 }
 
 pub fn build_alchemy_model<TApi>(

@@ -1,21 +1,48 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::Notify;
 
+use crate::agent_loop::{AgentEventStream, agent_loop, agent_loop_continue};
 use crate::types::{
     AgentContext, AgentEvent, AgentLoopConfig, AgentMessage, AgentState, AgentTool,
-    ApiKeyResolver, AssistantContent, AssistantMessage, Context, ConvertToLlmFn, ImageContent,
-    MaybeAwaitable, Message, MessageEndEvent, MessageStartEvent, MessageUpdateEvent, Model,
-    SimpleStreamOptions, StopReason, StreamFn, TextContent, ThinkingBudgets, ThinkingLevel,
-    ThinkingContent, ToolExecutionEndEvent, ToolExecutionStartEvent,
-    TransformContextFn, UserContent, UserMessage, zero_usage,
+    AgentMessageProvider, ApiKeyResolver, AssistantContent, AssistantMessage, Context,
+    ConvertToLlmFn, ImageContent, MaybeAwaitable, Message, MessageEndEvent, MessageStartEvent,
+    MessageUpdateEvent, Model, SimpleStreamOptions, StopReason, StreamFn, TextContent,
+    ThinkingBudgets, ThinkingLevel, ThinkingContent, ToolExecutionEndEvent,
+    ToolExecutionStartEvent, TransformContextFn, UserContent, UserMessage, zero_usage,
 };
 
 pub type AgentListener = Arc<dyn Fn(&AgentEvent) + Send + Sync>;
+pub type AgentRunResult<T> = Result<T, AgentRunError>;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AgentRunError {
+    MissingModel,
+    MissingStreamFn,
+    Loop(String),
+    Stream(String),
+    MissingAssistantResponse,
+}
+
+impl std::fmt::Display for AgentRunError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MissingModel => f.write_str("agent is missing a model"),
+            Self::MissingStreamFn => f.write_str("agent is missing a stream backend"),
+            Self::Loop(message) => f.write_str(message),
+            Self::Stream(message) => f.write_str(message),
+            Self::MissingAssistantResponse => {
+                f.write_str("agent run completed without an assistant response")
+            }
+        }
+    }
+}
+
+impl std::error::Error for AgentRunError {}
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
@@ -236,6 +263,10 @@ impl Agent {
         self.stream_fn.as_ref()
     }
 
+    pub fn set_stream_fn(&mut self, value: Option<StreamFn>) {
+        self.stream_fn = value;
+    }
+
     pub fn get_api_key(&self) -> Option<&ApiKeyResolver> {
         self.get_api_key.as_ref()
     }
@@ -429,7 +460,8 @@ impl Agent {
     }
 
     pub fn build_loop_config(&self) -> Option<AgentLoopConfig> {
-        let model = self.state.model.clone()?;
+        let mut model = self.state.model.clone()?;
+        model.thinking_level = self.state.thinking_level;
         Some(AgentLoopConfig {
             model,
             convert_to_llm: Arc::clone(&self.convert_to_llm),
@@ -456,6 +488,97 @@ impl Agent {
                 .and_then(|budgets| budgets.max_tokens),
             signal: self.abort_signal(),
         }
+    }
+
+    pub async fn prompt(&mut self, input: impl Into<AgentInput>) -> AgentRunResult<AssistantMessage> {
+        self.prompt_with_images(input, Vec::new()).await
+    }
+
+    pub async fn prompt_with_images(
+        &mut self,
+        input: impl Into<AgentInput>,
+        images: Vec<ImageContent>,
+    ) -> AgentRunResult<AssistantMessage> {
+        let prompts = self.build_input_messages(input, images);
+        self.run_prompts(prompts).await
+    }
+
+    pub async fn prompt_text(&mut self, input: impl Into<AgentInput>) -> AgentRunResult<String> {
+        let response = self.prompt(input).await?;
+        Ok(extract_text(&AgentMessage::Message(Message::Assistant(response))))
+    }
+
+    pub async fn continue_(&mut self) -> AgentRunResult<AssistantMessage> {
+        let model = self.state.model.clone().ok_or(AgentRunError::MissingModel)?;
+        let stream_fn = self.stream_fn.clone().ok_or(AgentRunError::MissingStreamFn)?;
+        let signal = self.begin_run();
+        let context = self.build_agent_context();
+        let config = self
+            .build_run_loop_config()
+            .ok_or(AgentRunError::MissingModel)?;
+        let stream = agent_loop_continue(context, config, Some(signal), Some(stream_fn))
+            .map_err(|error| AgentRunError::Loop(error.to_string()))?;
+
+        self.consume_stream(stream, &model).await
+    }
+
+    async fn run_prompts(&mut self, prompts: Vec<AgentMessage>) -> AgentRunResult<AssistantMessage> {
+        let model = self.state.model.clone().ok_or(AgentRunError::MissingModel)?;
+        let stream_fn = self.stream_fn.clone().ok_or(AgentRunError::MissingStreamFn)?;
+        let signal = self.begin_run();
+        let context = self.build_agent_context();
+        let config = self
+            .build_run_loop_config()
+            .ok_or(AgentRunError::MissingModel)?;
+        let stream = agent_loop(prompts, context, config, Some(signal), Some(stream_fn));
+
+        self.consume_stream(stream, &model).await
+    }
+
+    fn build_run_loop_config(&mut self) -> Option<AgentLoopConfig> {
+        let mut config = self.build_loop_config()?;
+        config.get_steering_messages = take_once_provider(self.take_steering_messages());
+        config.get_follow_up_messages = take_once_provider(self.take_follow_up_messages());
+        Some(config)
+    }
+
+    async fn consume_stream(
+        &mut self,
+        stream: AgentEventStream,
+        model: &Model,
+    ) -> AgentRunResult<AssistantMessage> {
+        let result = self.consume_stream_inner(&stream).await;
+        let was_aborted = self.is_aborted();
+        self.finish_run();
+
+        match result {
+            Ok(()) => self
+                .last_assistant_message()
+                .cloned()
+                .ok_or(AgentRunError::MissingAssistantResponse),
+            Err(error) => {
+                let error_text = error.to_string();
+                self.state.error = Some(error_text.clone());
+                self.append_message(create_error_message(model, &error_text, was_aborted));
+                Err(error)
+            }
+        }
+    }
+
+    async fn consume_stream_inner(&mut self, stream: &AgentEventStream) -> AgentRunResult<()> {
+        loop {
+            match stream.next().await {
+                Ok(Some(event)) => self.handle_event(event),
+                Ok(None) => break,
+                Err(error) => return Err(AgentRunError::Stream(error.to_string())),
+            }
+        }
+
+        stream
+            .result()
+            .await
+            .map(|_| ())
+            .map_err(|error| AgentRunError::Stream(error.to_string()))
     }
 
     pub fn llm_context_from_messages(
@@ -621,6 +744,29 @@ pub fn has_meaningful_content(message: &AgentMessage) -> bool {
             .is_some_and(|name| !name.trim().is_empty()),
         _ => false,
     })
+}
+
+fn take_once_provider(messages: Vec<AgentMessage>) -> Option<AgentMessageProvider> {
+    if messages.is_empty() {
+        return None;
+    }
+
+    let shared = Arc::new(Mutex::new(Some(messages)));
+    Some(Arc::new(move || {
+        let shared = Arc::clone(&shared);
+        Box::pin(async move {
+            match shared.lock() {
+                Ok(mut guard) => match guard.take() {
+                    Some(messages) => messages,
+                    None => Vec::new(),
+                },
+                Err(poisoned) => match poisoned.into_inner().take() {
+                    Some(messages) => messages,
+                    None => Vec::new(),
+                },
+            }
+        })
+    }))
 }
 
 fn current_timestamp_ms() -> i64 {
