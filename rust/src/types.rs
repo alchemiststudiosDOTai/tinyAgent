@@ -46,23 +46,19 @@ literal_tag!(ToolExecutionEndEventType, "tool_execution_end");
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum StopReason {
-    Complete,
-    Error,
-    Aborted,
-    ToolCalls,
     Stop,
     Length,
     ToolUse,
+    Error,
+    Aborted,
 }
 
 pub const STOP_REASONS: &[StopReason] = &[
-    StopReason::Complete,
-    StopReason::Error,
-    StopReason::Aborted,
-    StopReason::ToolCalls,
     StopReason::Stop,
     StopReason::Length,
     StopReason::ToolUse,
+    StopReason::Error,
+    StopReason::Aborted,
 ];
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]

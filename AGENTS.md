@@ -1,88 +1,66 @@
 # AGENTS.md
 
-we are in the middle of bringing the rust binding back into this repo because the external split has caused too many issues
+## Project
+- This repo is now a Rust rewrite focused on a typed seam with `alchemy-rs`.
+- Do not plan or implement against the old Python package layout. It is gone from this branch on purpose.
+- Primary goal: a fully typed Rust agent/runtime layer that converts explicitly to and from the vendored `alchemy-llm` crate.
+
 ## Where To Start
-- `README.md` — onboarding, install, examples, and current package usage notes.
-- `docs/ARCHITECTURE.md` — module responsibilities, event flow, quality gates, technical-debt policy.
-- `docs/api/README.md` — API reference index.
-- `docs/releasing-alchemy-binding.md` — current release workflow and migration notes for wheels that ship `tinyagent._alchemy`.
-- `HARNESS.md` — critical enforcement document for this repo: pre-commit hooks, ratchets, and rule entry points.
-- `tests/architecture/test_import_boundaries.py` — enforced layer contract for the Python package.
+- `rust/Cargo.toml` — active crate manifest for this branch.
+- `rust/src/lib.rs` — current public Rust surface.
+- `rust/src/types.rs` — runtime types owned by this repo.
+- `rust/src/agent.rs` — typed agent/state layer.
+- `rust/src/alchemy_contract.rs` — typed boundary to `vendor/alchemy-llm`.
+- `docs/rust-runtime-types.md` — inventory of runtime types in `rust/src/types.rs`.
+- `vendor/alchemy-llm/src/types/` — upstream typed alchemy message/model/event contracts.
+- `vendor/alchemy-llm/src/stream/mod.rs` — generic typed stream dispatch.
 
 ## Repository Map
-- `tinyagent/` — published Python package.
-  - `__init__.py` — public exports.
-  - `agent.py` — high-level `Agent` API and state management.
-  - `agent_loop.py` — orchestration loop.
-  - `agent_tool_execution.py` — concurrent tool execution.
-  - `agent_types.py` — shared message, event, and state models.
-  - `alchemy_provider.py` — Python bridge for the `tinyagent._alchemy` provider path.
-  - `proxy.py`, `proxy_event_handlers.py` — proxy streaming path.
-  - `caching.py` — prompt caching helpers.
-- `tests/` — unit and contract tests.
-- `tests/architecture/` — import-boundary enforcement.
-- `docs/api/` — per-module reference docs.
-- `docs/harness/tool_call_types_harness.py` — live typed tool-call harness.
-- `rules/` — ast-grep rules for `docs/harness/`.
-- `scripts/` — custom lint/consistency checks and smoke scripts.
-- `examples/` — runnable usage examples.
-- `static/images/` — repo assets used by docs/README.
+- `rust/`
+  - `Cargo.toml` — crate config.
+  - `src/lib.rs` — crate exports.
+  - `src/types.rs` — runtime message, event, tool, context, and state types.
+  - `src/agent.rs` — agent state management and event reduction.
+  - `src/alchemy_contract.rs` — runtime/alchemy typed conversions and request builders.
+- `docs/rust-runtime-types.md` — compact runtime type index.
+- `vendor/alchemy-llm/` — vendored upstream crate used as the typed provider boundary.
 
 ## Commands
-- `uv run pytest`
-- `uv run mypy --ignore-missing-imports --exclude "lint_file_length\\.py$" .`
-- `python3 scripts/lint_architecture.py`
-- `.venv/bin/python -m pytest tests/architecture/test_import_boundaries.py -x -q`
-- `uv run vulture --min-confidence 80 tinyagent`
-- `uv run pylint --disable=all --enable=duplicate-code tinyagent`
-- `python3 scripts/lint_debt.py`
-- `python3 scripts/check_release_binding.py`
-- `python3 scripts/check_release_binding.py --require-present` — run before building/publishing wheels that are expected to ship `_alchemy`
-- `uv run python docs/harness/tool_call_types_harness.py`
-- `sg scan -r rules/harness_no_duck_typing.yml docs/harness/`
-- `sg scan -r rules/harness_no_thin_protocols.yml docs/harness/`
+- `cargo test --manifest-path rust/Cargo.toml`
+- `cargo test --manifest-path rust/Cargo.toml agent::tests`
+- `cargo test --manifest-path rust/Cargo.toml alchemy_contract::tests`
+- `cargo test --manifest-path vendor/alchemy-llm/Cargo.toml`
+
+## Rewrite Rules
+- Rust only. Do not reintroduce Python adapters, Python compatibility plans, or Python-first abstractions.
+- Keep the seam typed end-to-end. Prefer `Model<TApi>`, typed options, typed messages, and typed events over string dispatch.
+- Do not widen runtime enums or payloads “for compatibility” unless the wider shape is proven necessary and documented in code.
+- If two typed models disagree, resolve it structurally:
+  either tighten our type to match `alchemy-llm`, or introduce a separate explicit transport type.
+- Do not hide type mismatches behind runtime fallback logic, silent coercion, or vague compatibility helpers.
+- No stringly “api/provider logic” when the alchemy crate already expresses the distinction in types.
+- No silent defaulting of required typed fields. Missing required data must stay impossible by construction, or fail explicitly at the boundary.
+- No `unwrap()` or `expect()` in production paths. If one is truly unavoidable, justify it in a short code comment right there.
+- No hidden lossy conversions. Any lossy bridge must be obvious in type names and function names.
+- Prefer compile-time guarantees over runtime branching.
 
 ## Boundaries
-- Layer order is enforced in `tests/architecture/test_import_boundaries.py`:
-  - Layer 3: `agent`
-  - Layer 2: `agent_loop`, `proxy`
-  - Layer 1: `agent_tool_execution`, `alchemy_provider`, `proxy_event_handlers`, `caching`
-  - Layer 0: `agent_types`
-- `agent_types.py` must remain the leaf module among governed TinyAgent modules.
-- Rust binding implementation work is allowed in this repo as part of the migration back from the external split.
-- Keep Rust binding changes isolated from the core Python layer boundaries unless a cross-layer change is required.
-- `tinyagent/__init__.py` is the public package surface; keep exports aligned with `scripts/lint_architecture.py` constraints.
-
-## Sources Of Truth
-- Product overview and examples: `README.md`
-- Architecture and repo policies: `docs/ARCHITECTURE.md`
-- API details: `docs/api/README.md`, `docs/api/*.md`
-- Alchemy wheel-release workflow: `docs/releasing-alchemy-binding.md`
-- Packaging/build config for this repo: `pyproject.toml`
-- Critical repo enforcement harness: `HARNESS.md`
-- Enforced checks: `.pre-commit-config.yaml`, `scripts/*.py`
-- Import boundaries: `tests/architecture/test_import_boundaries.py`
-- Harness-specific rules: `rules/README.md`, `rules/*.yml`
-- External binding repo: `https://github.com/tunahorse/tinyagent-alchemy` (historical reference during migration; not the required source of truth)
+- `rust/src/types.rs` is our runtime surface.
+- `vendor/alchemy-llm/src/types/*.rs` is the upstream alchemy transport/model surface.
+- `rust/src/alchemy_contract.rs` is the only place that should translate between those two domains.
+- `rust/src/agent.rs` should depend on our runtime types, not on provider-specific internals from `vendor/alchemy-llm`.
+- Loop execution and tool execution can arrive later; do not fake them with placeholders that blur the type boundary.
 
 ## Change Guardrails
-- Do not add `.env` loading or `dotenv` imports inside `tinyagent/`.
-- Provider modules must not mutate `os.environ`.
-- No free-form `TODO`/`FIXME`/`HACK`/`XXX`/`DEBT` markers; use the ticketed format documented in `docs/ARCHITECTURE.md` and enforced by `scripts/lint_debt.py`.
-- Keep docs in this repo aligned with the Python package and the in-repo Rust binding migration status.
-- Rust-binding source, build steps, and release rules may now live in this repo when they are part of restoring the binding here.
-- During the migration, prefer keeping the Python-facing `tinyagent._alchemy` contract stable even if the build/release internals change.
-- Treat `HARNESS.md` and the enforcement harness it describes as critical repo infrastructure. They are not optional process notes.
-- If a codebase rule matters, record it in `HARNESS.md` and back it with a typed check, hook, script, test, or rule file.
-- Prefer code-level enforcement over prose-only policy. Important rules should be enforced in `.pre-commit-config.yaml`, `scripts/*.py`, `tests/architecture/`, or `rules/` whenever practical.
-- If you add or rename a governed package module, update `tests/architecture/test_import_boundaries.py`.
-- If you change `docs/harness/`, rerun the ast-grep rules in `rules/`.
+- Before changing a contract type, inspect both `rust/src/types.rs` and the matching file under `vendor/alchemy-llm/src/types/`.
+- When adding a new alchemy-facing capability, encode it as a typed builder or typed conversion first.
+- Keep exported names in `rust/src/lib.rs` aligned with the actual crate surface.
+- Add tests for every boundary rule you add in `rust/src/alchemy_contract.rs`.
+- Keep `AGENTS.md` aligned with the repo that actually exists on this branch; remove stale paths aggressively.
 
 ## Validation Checklist
-- Every listed path still exists.
-- Every listed command still matches current config, docs, or scripts.
-- Docs are updated when public API, usage contracts, or Rust-binding ownership/build rules change.
-- Release/build instructions match the actual binding workflow used by this repo.
-- `HARNESS.md` stays aligned with the actual enforced hooks, ratchets, and rule entry points.
-- Layer checks pass after import changes.
-- `AGENTS.md` stays compact and points outward instead of duplicating docs.
+- Every path listed above exists.
+- New runtime/alchemy conversions are covered by unit tests.
+- `cargo test --manifest-path rust/Cargo.toml` passes after every meaningful change.
+- If vendored alchemy types are touched, run `cargo test --manifest-path vendor/alchemy-llm/Cargo.toml`.
+- No new Python-oriented guidance, files, or assumptions were added.
