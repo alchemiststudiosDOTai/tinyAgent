@@ -1,6 +1,10 @@
 ---
 title: Prompt Caching
-description: Reduce token costs and latency by caching repeated prompt prefixes across turns.
+summary: Reduce token costs and latency by caching repeated prompt prefixes across turns.
+when_to_read:
+  - When enabling prompt caching
+  - When checking cache-related message fields and behavior
+last_updated: "2026-04-04"
 ontological_relations:
   - composes_with: agent.md#AgentOptions
   - transforms: agent_types.md#AgentMessage
@@ -67,6 +71,123 @@ print(msg1.usage)
 msg2 = await agent.prompt("What is the capital of Germany?")
 print(msg2.usage)
 ```
+
+## Live Probe Example
+
+This repo includes a reproducible two-turn caching probe in
+`examples/example_caching.py`.
+
+Despite the historical filename, the script is provider- and model-agnostic. It
+reads these optional environment variables:
+
+- `CACHE_PROBE_PROVIDER`
+- `CACHE_PROBE_MODEL`
+- `CACHE_PROBE_API`
+- `CACHE_PROBE_BASE_URL`
+- `CACHE_PROBE_API_KEY`
+- `CACHE_PROBE_SESSION_ID`
+- `CACHE_PROBE_MAX_TOKENS`
+
+If those are unset, it defaults to the MiniMax probe configuration.
+
+Run it with environment variables from `.env`:
+
+```bash
+set -a
+source .env >/dev/null 2>&1
+set +a
+uv run python examples/example_caching.py
+```
+
+Example: OpenRouter `openai/gpt-4.1-mini`
+
+```bash
+set -a
+source .env >/dev/null 2>&1
+set +a
+CACHE_PROBE_PROVIDER=openrouter \
+CACHE_PROBE_MODEL=openai/gpt-4.1-mini \
+CACHE_PROBE_BASE_URL=https://openrouter.ai/api/v1/chat/completions \
+uv run python examples/example_caching.py
+```
+
+Example: Chutes with explicit API key override
+
+```bash
+set -a
+source .env >/dev/null 2>&1
+set +a
+CACHE_PROBE_PROVIDER=chutes \
+CACHE_PROBE_MODEL=Qwen/Qwen3-32B \
+CACHE_PROBE_BASE_URL=https://llm.chutes.ai/v1/chat/completions \
+CACHE_PROBE_API_KEY="$CHUTES_API_KEY" \
+uv run python examples/example_caching.py
+```
+
+Observed on April 4, 2026 against `MiniMax-M2.5` at
+`https://api.minimax.io/v1/chat/completions` using the `minimax-completions`
+binding path:
+
+```json
+{
+  "records": [
+    {
+      "turn": 1,
+      "usage": {
+        "cache_read": 32,
+        "cache_write": 0,
+        "input": 63,
+        "output": 20,
+        "total_tokens": 83
+      }
+    },
+    {
+      "turn": 2,
+      "usage": {
+        "cache_read": 32,
+        "cache_write": 0,
+        "input": 85,
+        "output": 20,
+        "total_tokens": 105
+      }
+    }
+  ]
+}
+```
+
+In that run, both turns returned `cache_read: 32` and `cache_write: 0`.
+
+Another observed run on April 4, 2026 returned:
+
+```json
+{
+  "records": [
+    {
+      "turn": 1,
+      "usage": {
+        "cache_read": 0,
+        "cache_write": 0,
+        "input": 63,
+        "output": 20,
+        "total_tokens": 83
+      }
+    },
+    {
+      "turn": 2,
+      "usage": {
+        "cache_read": 32,
+        "cache_write": 0,
+        "input": 85,
+        "output": 20,
+        "total_tokens": 105
+      }
+    }
+  ]
+}
+```
+
+In that run, turn 1 returned `cache_read: 0` and turn 2 returned
+`cache_read: 32`. `cache_write` remained `0` on both turns.
 
 ## Composing with `transform_context`
 

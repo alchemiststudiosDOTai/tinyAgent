@@ -1,0 +1,55 @@
+{
+  "provider": "minimax",
+  "model": "MiniMax-M2.5",
+  "base_url": "https://api.minimax.io/v1/chat/completions",
+  "enable_prompt_caching": true,
+  "session_id": "minimax-cache-probe",
+  "records": [
+    {
+      "turn": 1,
+      "prompt": "Reply with exactly: turn one acknowledged.",
+      "text": "\n\nturn one acknowledged.",
+      "usage": {
+        "cache_read": 32,
+        "cache_write": 0,
+        "cost": {
+          "cache_read": 0.0,
+          "cache_write": 0.0,
+          "input": 0.0,
+          "output": 0.0,
+          "total": 0.0
+        },
+        "input": 63,
+        "output": 20,
+        "total_tokens": 83
+      },
+      "provider": "minimax",
+      "model": "MiniMax-M2.5",
+      "api": "minimax-completions",
+      "stop_reason": "stop"
+    },
+    {
+      "turn": 2,
+      "prompt": "Reply with exactly: turn two acknowledged.",
+      "text": "\n\nturn two acknowledged.",
+      "usage": {
+        "cache_read": 32,
+        "cache_write": 0,
+        "cost": {
+          "cache_read": 0.0,
+          "cache_write": 0.0,
+          "input": 0.0,
+          "output": 0.0,
+          "total": 0.0
+        },
+        "input": 85,
+        "output": 20,
+        "total_tokens": 105
+      },
+      "provider": "minimax",
+      "model": "MiniMax-M2.5",
+      "api": "minimax-completions",
+      "stop_reason": "stop"
+    }
+  ]
+}

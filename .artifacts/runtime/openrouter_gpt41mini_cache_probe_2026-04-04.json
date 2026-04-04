@@ -1,0 +1,57 @@
+{
+  "provider": "openrouter",
+  "model": "openai/gpt-4.1-mini",
+  "base_url": "https://openrouter.ai/api/v1/chat/completions",
+  "enable_prompt_caching": true,
+  "session_id": "openrouter-gpt41mini-cache-probe",
+  "records": [
+    {
+      "turn": 1,
+      "prompt": "Reply with exactly: turn one acknowledged.",
+      "text": "turn one acknowledged.",
+      "usage": {
+        "cache_read": 0,
+        "cache_write": 0,
+        "cost": {
+          "cache_read": 0.0,
+          "cache_write": 0.0,
+          "input": 2.32e-05,
+          "output": 8e-06,
+          "total": 3.12e-05
+        },
+        "input": 58,
+        "output": 5,
+        "total_tokens": 63
+      },
+      "provider": "openrouter",
+      "model": "openai/gpt-4.1-mini",
+      "api": "openai-completions",
+      "stop_reason": "stop",
+      "error_message": null
+    },
+    {
+      "turn": 2,
+      "prompt": "Reply with exactly: turn two acknowledged.",
+      "text": "turn two acknowledged.",
+      "usage": {
+        "cache_read": 0,
+        "cache_write": 0,
+        "cost": {
+          "cache_read": 0.0,
+          "cache_write": 0.0,
+          "input": 3.12e-05,
+          "output": 8e-06,
+          "total": 3.92e-05
+        },
+        "input": 78,
+        "output": 5,
+        "total_tokens": 83
+      },
+      "provider": "openrouter",
+      "model": "openai/gpt-4.1-mini",
+      "api": "openai-completions",
+      "stop_reason": "stop",
+      "error_message": null
+    }
+  ]
+}

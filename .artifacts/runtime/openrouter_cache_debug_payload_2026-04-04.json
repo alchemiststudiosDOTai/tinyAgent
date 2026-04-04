@@ -1,0 +1,114 @@
+{
+  "provider": "openrouter",
+  "model": "openai/gpt-4.1-mini",
+  "base_url": "https://openrouter.ai/api/v1/chat/completions",
+  "session_id_on_agent": "prompt-caching-probe",
+  "simple_stream_options_fields": [
+    "api_key",
+    "temperature",
+    "max_tokens",
+    "signal"
+  ],
+  "session_id_forwarded_by_stream_options": false,
+  "python_context_messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Reply with exactly: turn one acknowledged.",
+          "cache_control": {
+            "type": "ephemeral"
+          }
+        }
+      ],
+      "timestamp": 1
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "placeholder assistant output 1"
+        }
+      ],
+      "stop_reason": "stop",
+      "timestamp": 101,
+      "api": "openai-completions",
+      "provider": "openrouter",
+      "model": "openai/gpt-4.1-mini",
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "cache_read": 0,
+        "cache_write": 0,
+        "total_tokens": 0,
+        "cost": {
+          "input": 0.0,
+          "output": 0.0,
+          "cache_read": 0.0,
+          "cache_write": 0.0,
+          "total": 0.0
+        }
+      }
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Reply with exactly: turn two acknowledged.",
+          "cache_control": {
+            "type": "ephemeral"
+          }
+        }
+      ],
+      "timestamp": 2
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "placeholder assistant output 2"
+        }
+      ],
+      "stop_reason": "stop",
+      "timestamp": 102,
+      "api": "openai-completions",
+      "provider": "openrouter",
+      "model": "openai/gpt-4.1-mini",
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "cache_read": 0,
+        "cache_write": 0,
+        "total_tokens": 0,
+        "cost": {
+          "input": 0.0,
+          "output": 0.0,
+          "cache_read": 0.0,
+          "cache_write": 0.0,
+          "total": 0.0
+        }
+      }
+    }
+  ],
+  "python_context_has_cache_control": true,
+  "annotated_user_blocks": [
+    {
+      "type": "text",
+      "text": "Reply with exactly: turn one acknowledged.",
+      "cache_control": {
+        "type": "ephemeral"
+      }
+    },
+    {
+      "type": "text",
+      "text": "Reply with exactly: turn two acknowledged.",
+      "cache_control": {
+        "type": "ephemeral"
+      }
+    }
+  ]
+}

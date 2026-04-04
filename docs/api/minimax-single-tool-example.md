@@ -1,6 +1,10 @@
 ---
 title: MiniMax Single Tool Call Example
-description: One minimal MiniMax live example showing OpenAI-style tool calling through TinyAgent.
+summary: One minimal MiniMax live example showing OpenAI-style tool calling through TinyAgent.
+when_to_read:
+  - When wiring a MiniMax tool-calling example
+  - When checking the smallest useful end-to-end tool call setup
+last_updated: "2026-04-04"
 ontological_relations:
   - extends: openai-compatible-endpoints.md
   - implemented_by: ../../docs/harness/tool_call_types_harness.py
@@ -22,8 +26,9 @@ It shows one tool:
 
 ## Requirements
 
-- `tinyagent._alchemy` installed from the external binding repo:
-  `https://github.com/tunahorse/tinyagent-alchemy`
+- `tinyagent._alchemy` available in this repo, either by:
+  - using a wheel that already includes the extension, or
+  - building the in-repo `rust/` crate and staging the artifact into `tinyagent/`
 - `MINIMAX_API_KEY` set in `.env`
 
 Example `.env`:
@@ -40,8 +45,6 @@ MINIMAX_BASE_URL=https://api.minimax.io/v1/chat/completions
 import asyncio
 import os
 from collections.abc import Callable
-
-from dotenv import load_dotenv
 
 from tinyagent import Agent, AgentOptions, AgentTool, AgentToolResult
 from tinyagent.agent_types import JsonObject, TextContent
@@ -73,8 +76,6 @@ async def add_numbers(
 
 
 async def main() -> None:
-    load_dotenv()
-
     agent = Agent(
         AgentOptions(
             stream_fn=stream_alchemy_openai_completions,
@@ -128,6 +129,24 @@ async def main() -> None:
 
 
 asyncio.run(main())
+```
+
+For a caching-specific live probe after exporting `.env` values into the shell, run:
+
+```bash
+set -a
+source .env >/dev/null 2>&1
+set +a
+uv run python examples/example_caching.py
+```
+
+The probe defaults to MiniMax, but you can override provider, model, base URL,
+API key, and session via `CACHE_PROBE_*` environment variables.
+
+For tool-contract validation in this repo, run:
+
+```bash
+uv run python docs/harness/tool_call_types_harness.py
 ```
 
 ## Tool schema
