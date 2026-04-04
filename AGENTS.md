@@ -63,7 +63,8 @@ we are in the middle of bringing the rust binding back into this repo because th
 - Enforced checks: `.pre-commit-config.yaml`, `scripts/*.py`
 - Import boundaries: `tests/architecture/test_import_boundaries.py`
 - Harness-specific rules: `rules/README.md`, `rules/*.yml`
-- External binding repo: `https://github.com/tunahorse/tinyagent-alchemy` (historical reference during migration; not the required source of truth)
+- Historical external binding repo: `https://github.com/alchemiststudiosDOTai/alchemy-rs`
+- Do not file binding/runtime issues against `tunahorse/tinyagent-alchemy`; use `alchemiststudiosDOTai/alchemy-rs` if an external alchemy issue is needed during migration
 
 ## Change Guardrails
 - Do not add `.env` loading or `dotenv` imports inside `tinyagent/`.

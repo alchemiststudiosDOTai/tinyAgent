@@ -4,8 +4,8 @@
 Usage:
   uv run python docs/harness/tool_call_types_harness.py
 
-Requires the optional external `tinyagent._alchemy` binding:
-  https://github.com/tunahorse/tinyagent-alchemy
+Requires the optional `tinyagent._alchemy` binding. Historical external repo:
+  https://github.com/alchemiststudiosDOTai/alchemy-rs
 """
 
 from __future__ import annotations

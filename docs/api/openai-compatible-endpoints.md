@@ -1,6 +1,10 @@
 ---
 title: OpenAI-Compatible Endpoints via OpenAICompatModel
-description: Use OpenAI-compatible `/chat/completions` endpoints with TinyAgent through `OpenAICompatModel`.
+summary: Use OpenAI-compatible `/chat/completions` endpoints with TinyAgent through `OpenAICompatModel`.
+when_to_read:
+  - When pointing TinyAgent at an OpenAI-compatible endpoint
+  - When configuring `OpenAICompatModel` for non-default providers
+last_updated: "2026-04-04"
 ontological_relations:
   - extends: providers.md
   - implemented_by: ../../tinyagent/alchemy_provider.py
@@ -156,6 +160,7 @@ blocks.
 - model errors at runtime
   - verify model ID and endpoint compatibility with the target backend.
 - alchemy binding import failures
-  - install/build the optional binding from `https://github.com/tunahorse/tinyagent-alchemy`.
+  - historical external repo during migration: `https://github.com/alchemiststudiosDOTai/alchemy-rs`.
+  - do not file binding issues against `tunahorse/tinyagent-alchemy`; use `alchemy-rs` if the issue belongs outside this repo.
   - if the binding is already present, inspect the original import error now included in the
     raised `RuntimeError` to catch platform or loader mismatches.

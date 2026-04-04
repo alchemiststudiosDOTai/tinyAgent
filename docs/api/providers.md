@@ -1,14 +1,25 @@
+---
+title: Providers
+when_to_read:
+  - When configuring provider integrations
+  - When comparing the available stream provider paths
+summary: Reference for TinyAgent provider implementations, configuration, and streaming behavior.
+last_updated: "2026-04-04"
+---
+
 # Providers
 
 LLM provider implementations that satisfy the `StreamFn` protocol.
 
-## Alchemy Provider (Optional External Binding)
+## Alchemy Provider (Optional Binding)
 
 TinyAgent keeps an OpenAI-compatible provider adapter in `alchemy_provider.py`.
-The underlying `tinyagent._alchemy` extension is optional and maintained in the
-external binding repo:
+The underlying `tinyagent._alchemy` extension is optional. During the migration
+back into this repo, the historical external binding repo is:
 
-- `https://github.com/tunahorse/tinyagent-alchemy`
+- `https://github.com/alchemiststudiosDOTai/alchemy-rs`
+
+Do not file binding/runtime issues against `tunahorse/tinyagent-alchemy`.
 
 ```python
 from tinyagent.alchemy_provider import OpenAICompatModel, stream_alchemy_openai_completions
@@ -71,7 +82,8 @@ For `stream_alchemy_openai_completions`:
 5. `MINIMAX_CN_API_KEY` when `model.provider == "minimax-cn"`
 
 If the binding is missing at runtime, `tinyagent.alchemy_provider` raises a
-`RuntimeError` that points to the external repo.
+`RuntimeError`. For historical external binding issues during migration, use
+`alchemy-rs`.
 
 ## Proxy Provider
 
