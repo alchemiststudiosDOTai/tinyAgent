@@ -42,6 +42,7 @@ dev = [
     "grimp>=3.0",
     "vulture>=2.11.0",
     "pylint>=3.0.0",
+    "pyyaml>=6.0",
 ]
 
 [tool.setuptools.packages.find]

@@ -1,3 +1,12 @@
+---
+title: Agent Types Module
+when_to_read:
+  - When working with shared runtime types
+  - When checking message, event, or state model contracts
+summary: Reference for the shared TinyAgent message, event, and state models.
+last_updated: "2026-04-04"
+---
+
 # Agent Types Module
 
 Type definitions for the TinyAgent runtime.

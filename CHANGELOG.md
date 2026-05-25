@@ -1,3 +1,12 @@
+---
+title: Changelog
+when_to_read:
+  - When reviewing release history
+  - When checking what changed between versions
+summary: Release-by-release history of notable TinyAgent changes.
+last_updated: "2026-04-04"
+---
+
 # Changelog
 
 All notable changes to `tiny-agent-os` are documented in this file.

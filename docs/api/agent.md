@@ -1,3 +1,12 @@
+---
+title: Agent Module
+when_to_read:
+  - When using the high-level Agent API
+  - When checking state-management behavior in the public interface
+summary: Reference for the high-level Agent API and its stateful interaction surface.
+last_updated: "2026-04-04"
+---
+
 # Agent Module
 
 High-level Agent class that wraps the agent loop with state management.

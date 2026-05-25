@@ -1,3 +1,12 @@
+---
+title: TinyAgent Docs
+when_to_read:
+  - When starting from the docs directory instead of the repo root
+  - When looking for the main product overview inside docs
+summary: Docs-local entry point for TinyAgent overview, installation, and examples.
+last_updated: "2026-04-04"
+---
+
 # TinyAgent
 
 ![tinyAgent Logo](https://raw.githubusercontent.com/alchemiststudiosDOTai/tinyAgent/master/static/images/new-ta-logo.jpg)

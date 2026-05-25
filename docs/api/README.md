@@ -1,3 +1,12 @@
+---
+title: API Reference
+when_to_read:
+  - When navigating the API docs
+  - When choosing which module reference to open next
+summary: Index of the TinyAgent API reference pages by module and feature area.
+last_updated: "2026-04-04"
+---
+
 # API Reference
 
 Complete API documentation for the tinyagent package.
