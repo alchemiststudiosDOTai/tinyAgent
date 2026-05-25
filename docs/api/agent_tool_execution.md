@@ -1,3 +1,12 @@
+---
+title: Agent Tool Execution Module
+when_to_read:
+  - When debugging tool-call execution
+  - When checking how assistant tool calls are extracted and run
+summary: Reference for TinyAgent's concurrent tool execution helpers and result handling.
+last_updated: "2026-04-04"
+---
+
 # Agent Tool Execution Module
 
 Tool execution logic for the agent loop. Extracts tool calls from assistant messages and executes them.

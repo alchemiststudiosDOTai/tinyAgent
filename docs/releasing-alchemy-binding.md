@@ -1,3 +1,12 @@
+---
+title: Shipping the tinyagent._alchemy Binding in Release Wheels
+when_to_read:
+  - When preparing a wheel release that ships `_alchemy`
+  - When changing binding build or packaging steps
+summary: Release workflow and packaging notes for shipping the `tinyagent._alchemy` binding in wheels.
+last_updated: "2026-04-04"
+---
+
 # Shipping the `tinyagent._alchemy` Binding in Release Wheels
 
 This document captures the release task we completed to make `tiny-agent-os`

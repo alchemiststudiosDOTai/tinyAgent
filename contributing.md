@@ -1,3 +1,12 @@
+---
+title: Contributing to TinyAgent
+when_to_read:
+  - When preparing a contribution
+  - When checking repository expectations before changing code
+summary: Contributor guidance for working within TinyAgent's architecture, docs, and quality gates.
+last_updated: "2026-04-04"
+---
+
 # Contributing to TinyAgent
 
 TinyAgent is a small, typed, streaming-first agent framework for Python. This

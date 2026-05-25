@@ -1,3 +1,12 @@
+---
+title: Harness
+when_to_read:
+  - When changing repository quality gates
+  - When checking what blocks a push or release
+summary: Blocking hooks, release checks, and enforced rule entry points for this repository.
+last_updated: "2026-04-04"
+---
+
 # HARNESS
 
 ## Pre-commit
@@ -21,8 +30,11 @@
 
 ## Pre-push
 
-- No dedicated `pre-push` hook is currently configured in this repo.
-- The architecture doc says the same blocking checks used in pre-commit should also run in CI.
+- `markdown-frontmatter-required`: run `uv run --group dev python scripts/check_markdown_frontmatter.py`
+  to require `when_to_read`, `summary`, and `last_updated` frontmatter on repo-root
+  Markdown files and every Markdown file under `docs/`, excluding `AGENTS.md`.
+- Install the hook locally with `uv run --group dev python -m pre_commit install --hook-type pre-push`.
+- CI should continue to enforce the same documentation contract as local hooks.
 
 ## Release
 

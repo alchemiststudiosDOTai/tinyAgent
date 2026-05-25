@@ -1,17 +1,22 @@
 ---
-title: Usage Semantics Alignment Plan (Option A: Provider-Raw)
+title: "Usage Semantics Alignment Plan (Option A: Provider-Raw)"
+when_to_read:
+  - When reviewing the historical usage-semantics alignment plan
+  - When comparing Python and Rust usage mapping decisions
+summary: Historical plan for aligning usage semantics around provider-raw behavior.
+last_updated: "2026-04-04"
 link: usage-semantics-alignment-plan-provider-raw
 type: doc
 path: docs/plans/usage-semantics-alignment-plan.md
 depth: 2
 seams: [D]
 ontological_relations:
-  - relates_to: [[usage-contract]]
-  - affects: [[tinyagent/alchemy_provider.py]]
-  - historical_note: `openrouter_provider.py` path was removed during hard cutover
-  - affects: [[tinyagent/alchemy_provider.py]]
-  - historical_affects: in-repo `src/lib.rs` binding before extraction to the external binding repo
-  - affects: [[alchemy-rs/src/providers/openai_completions.rs]]
+  - relates_to: "[[usage-contract]]"
+  - affects: "[[tinyagent/alchemy_provider.py]]"
+  - historical_note: "`openrouter_provider.py` path was removed during hard cutover"
+  - affects: "[[tinyagent/alchemy_provider.py]]"
+  - historical_affects: "in-repo `src/lib.rs` binding before extraction to the external binding repo"
+  - affects: "[[alchemy-rs/src/providers/openai_completions.rs]]"
 tags:
   - usage
   - contracts

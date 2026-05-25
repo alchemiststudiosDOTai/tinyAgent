@@ -1,3 +1,12 @@
+---
+title: Architecture
+when_to_read:
+  - When changing module boundaries
+  - When understanding TinyAgent event flow and responsibilities
+summary: Architecture map for TinyAgent modules, event flow, and boundary decisions.
+last_updated: "2026-04-04"
+---
+
 # Architecture
 
 This document describes the architecture of TinyAgent: where components live, what they do, and how they interact.

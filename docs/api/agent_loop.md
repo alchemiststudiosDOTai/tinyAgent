@@ -1,3 +1,12 @@
+---
+title: Agent Loop Module
+when_to_read:
+  - When tracing the orchestration loop
+  - When debugging how prompts, tools, and streaming are coordinated
+summary: Reference for the core agent loop and the flow that drives LLM calls and tools.
+last_updated: "2026-04-04"
+---
+
 # Agent Loop Module
 
 Core agent execution loop. Orchestrates LLM calls and tool execution.

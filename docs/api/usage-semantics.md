@@ -1,6 +1,10 @@
 ---
 title: Usage Semantics Contract
-description: Canonical usage contract for the active built-in provider path.
+summary: Canonical usage contract for the active built-in provider path.
+when_to_read:
+  - When validating usage payload semantics
+  - When comparing usage fields across provider implementations
+last_updated: "2026-04-04"
 ontological_relations:
   - extends: providers.md
   - implemented_by: ../../tinyagent/alchemy_provider.py

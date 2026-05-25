@@ -1,3 +1,12 @@
+---
+title: Harness Rules for docs/harness
+when_to_read:
+  - When editing code under `docs/harness/`
+  - When adding or auditing harness-specific rules
+summary: Guardrails and rule entry points for the strict `docs/harness/` proof path.
+last_updated: "2026-04-04"
+---
+
 # HARNESS.md
 
 This document defines guardrails for code in `docs/harness/`.

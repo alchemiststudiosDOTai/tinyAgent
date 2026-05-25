@@ -80,3 +80,11 @@ repos:
         entry: python3 scripts/lint_file_length.py --max-lines 700
         language: system
         files: ^tinyagent/.*\.py$
+
+      - id: markdown-frontmatter-required
+        name: markdown-frontmatter-required (repo-root/docs frontmatter)
+        entry: bash scripts/check_markdown_frontmatter.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
