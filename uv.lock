@@ -841,7 +841,6 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "python-dotenv" },
-    { name = "pyyaml" },
     { name = "ruff" },
     { name = "vulture" },
 ]
@@ -864,7 +863,6 @@ dev = [
     { name = "pytest", specifier = ">=8.0.0" },
     { name = "pytest-asyncio", specifier = ">=0.25.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
-    { name = "pyyaml", specifier = ">=6.0" },
     { name = "ruff", specifier = ">=0.9.0" },
     { name = "vulture", specifier = ">=2.11.0" },
 ]

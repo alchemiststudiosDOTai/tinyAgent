@@ -83,7 +83,7 @@ repos:
 
       - id: markdown-frontmatter-required
         name: markdown-frontmatter-required (repo-root/docs frontmatter)
-        entry: uv run --group dev python scripts/check_markdown_frontmatter.py
+        entry: bash scripts/check_markdown_frontmatter.sh
         language: system
         pass_filenames: false
         always_run: true
