@@ -134,6 +134,19 @@ tool = AgentTool(
 agent.set_tools([tool])
 ```
 
+Tools can end repeated tool-call loops cleanly by returning a terminal result:
+
+```python
+return AgentToolResult(
+    content=[TextContent(text="Stopping after repeated identical tool arguments.")],
+    details={"policy": "same-tool-args"},
+    terminate=True,
+)
+```
+
+For host-level policies, `AgentOptions` also supports `before_tool_call`,
+`after_tool_call`, and `should_stop_after_turn` hooks.
+
 ### Events
 
 The agent emits events during execution:

@@ -10,6 +10,7 @@ from typing import TypeAlias, TypeGuard
 from .agent_loop import agent_loop, agent_loop_continue
 from .agent_types import (
     ZERO_USAGE,
+    AfterToolCallFn,
     AgentContext,
     AgentEndEvent,
     AgentEvent,
@@ -18,11 +19,13 @@ from .agent_types import (
     AgentState,
     AgentTool,
     AssistantMessage,
+    BeforeToolCallFn,
     ImageContent,
     MaybeAwaitable,
     Message,
     MessageUpdateEvent,
     Model,
+    ShouldStopAfterTurnFn,
     StreamFn,
     TextContent,
     ThinkingBudgets,
@@ -267,6 +270,9 @@ class AgentOptions:
     get_api_key: ApiKeyResolverCallback | None = None
     thinking_budgets: ThinkingBudgets | None = None
     enable_prompt_caching: bool = False
+    before_tool_call: BeforeToolCallFn | None = None
+    after_tool_call: AfterToolCallFn | None = None
+    should_stop_after_turn: ShouldStopAfterTurnFn | None = None
 
 
 class Agent:
@@ -295,6 +301,9 @@ class Agent:
         self.get_api_key: ApiKeyResolverCallback | None = opts.get_api_key
         self._running_prompt: asyncio.Future[None] | None = None
         self._thinking_budgets: ThinkingBudgets | None = opts.thinking_budgets
+        self._before_tool_call = opts.before_tool_call
+        self._after_tool_call = opts.after_tool_call
+        self._should_stop_after_turn = opts.should_stop_after_turn
 
     @property
     def session_id(self) -> str | None:
@@ -620,6 +629,9 @@ class Agent:
             get_api_key=self.get_api_key,
             get_steering_messages=self._get_steering_messages,
             get_follow_up_messages=self._get_follow_up_messages,
+            before_tool_call=self._before_tool_call,
+            after_tool_call=self._after_tool_call,
+            should_stop_after_turn=self._should_stop_after_turn,
         )
 
         return context, config

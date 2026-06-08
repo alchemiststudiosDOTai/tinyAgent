@@ -23,6 +23,7 @@ from tinyagent.agent_types import (
     AgentMessage,
     AgentMessageProvider,
     AgentTool,
+    AgentToolResult,
     AssistantMessage,
     AssistantMessageEvent,
     Context,
@@ -415,8 +416,18 @@ def test_agent_does_not_continue_turn_when_tool_execution_returns_no_results(
             signal: asyncio.Event | None,
             stream: object,
             get_steering_messages: AgentMessageProvider | None = None,
+            before_tool_call: object = None,
+            after_tool_call: object = None,
         ) -> ToolExecutionResult:
-            del tools, assistant_message, signal, stream, get_steering_messages
+            del (
+                tools,
+                assistant_message,
+                signal,
+                stream,
+                get_steering_messages,
+                before_tool_call,
+                after_tool_call,
+            )
             return ToolExecutionResult()
 
         agent_loop_module = importlib.import_module("tinyagent.agent_loop")
@@ -475,6 +486,181 @@ def test_agent_does_not_continue_turn_when_tool_execution_returns_no_results(
     _run(_scenario())
 
 
+def test_agent_stops_cleanly_when_tool_result_requests_termination() -> None:
+    async def _scenario() -> None:
+        stream_call_count = 0
+
+        tool_call_message = AssistantMessage(
+            content=[
+                ToolCallContent(
+                    id="call_1",
+                    name="terminal_tool",
+                    arguments={"reason": "same-args"},
+                )
+            ],
+            stop_reason="tool_calls",
+            api="openai-completions",
+            provider="openrouter",
+            model="moonshotai/kimi-k2.5",
+            usage=_usage_payload(),
+            timestamp=123,
+        )
+
+        async def fake_stream_fn(
+            model: Model,
+            context: Context,
+            options: SimpleStreamOptions,
+        ) -> FakeStreamResponse:
+            nonlocal stream_call_count
+            del model, context, options
+            stream_call_count += 1
+            if stream_call_count > 1:
+                raise AssertionError("terminal tool result should stop the loop")
+            return FakeStreamResponse(
+                [
+                    AssistantMessageEvent(
+                        type="done",
+                        reason="tool_calls",
+                        message=tool_call_message,
+                    )
+                ],
+                tool_call_message,
+            )
+
+        async def execute_terminal_tool(
+            tool_call_id: str,
+            args: JsonObject,
+            signal: asyncio.Event | None,
+            on_update: object,
+        ) -> AgentToolResult:
+            del tool_call_id, args, signal, on_update
+            return AgentToolResult(
+                content=[TextContent(text="terminal result")],
+                details={"policy": "same-args"},
+                terminate=True,
+            )
+
+        agent = Agent(AgentOptions(stream_fn=fake_stream_fn))
+        agent.set_model(
+            Model(
+                provider="openrouter",
+                id="moonshotai/kimi-k2.5",
+                api="openai-completions",
+            )
+        )
+        agent.set_tools(
+            [
+                AgentTool(
+                    name="terminal_tool",
+                    description="Stops loops",
+                    execute=execute_terminal_tool,
+                )
+            ]
+        )
+
+        message = await agent.prompt("hello")
+        tool_results = [msg for msg in agent.state.messages if isinstance(msg, ToolResultMessage)]
+
+        assert stream_call_count == 1
+        assert cast(AssistantMessage, message).stop_reason == "tool_calls"
+        assert len(tool_results) == 1
+        assert tool_results[0].terminate is True
+        assert tool_results[0].details == {"policy": "same-args"}
+        assert agent.state.error is None
+
+    _run(_scenario())
+
+
+def test_agent_options_should_stop_after_turn_ends_without_another_model_turn() -> None:
+    async def _scenario() -> None:
+        stream_call_count = 0
+        hook_called = False
+
+        tool_call_message = AssistantMessage(
+            content=[
+                ToolCallContent(
+                    id="call_1",
+                    name="echo",
+                    arguments={"text": "hello"},
+                )
+            ],
+            stop_reason="tool_calls",
+            api="openai-completions",
+            provider="openrouter",
+            model="moonshotai/kimi-k2.5",
+            usage=_usage_payload(),
+            timestamp=123,
+        )
+
+        async def fake_stream_fn(
+            model: Model,
+            context: Context,
+            options: SimpleStreamOptions,
+        ) -> FakeStreamResponse:
+            nonlocal stream_call_count
+            del model, context, options
+            stream_call_count += 1
+            if stream_call_count > 1:
+                raise AssertionError("should_stop_after_turn should stop the loop")
+            return FakeStreamResponse(
+                [
+                    AssistantMessageEvent(
+                        type="done",
+                        reason="tool_calls",
+                        message=tool_call_message,
+                    )
+                ],
+                tool_call_message,
+            )
+
+        async def execute_echo(
+            tool_call_id: str,
+            args: JsonObject,
+            signal: asyncio.Event | None,
+            on_update: object,
+        ) -> AgentToolResult:
+            del tool_call_id, args, signal, on_update
+            return AgentToolResult(content=[TextContent(text="ok")])
+
+        async def should_stop_after_turn(
+            message: AssistantMessage,
+            tool_results: list[ToolResultMessage],
+            current_context: AgentContext,
+            new_messages: list[AgentMessage],
+        ) -> bool:
+            nonlocal hook_called
+            hook_called = True
+            assert message is tool_call_message
+            assert len(tool_results) == 1
+            assert current_context.messages[-1] is tool_results[0]
+            assert new_messages[-1] is tool_results[0]
+            return True
+
+        agent = Agent(
+            AgentOptions(
+                stream_fn=fake_stream_fn,
+                should_stop_after_turn=should_stop_after_turn,
+            )
+        )
+        agent.set_model(
+            Model(
+                provider="openrouter",
+                id="moonshotai/kimi-k2.5",
+                api="openai-completions",
+            )
+        )
+        agent.set_tools([AgentTool(name="echo", description="Echo", execute=execute_echo)])
+
+        message = await agent.prompt("hello")
+
+        assert hook_called is True
+        assert stream_call_count == 1
+        assert cast(AssistantMessage, message).stop_reason == "tool_calls"
+        assert agent.state.error is None
+
+    _run(_scenario())
+
+
 def test_process_turn_does_not_double_poll_steering_after_tool_batch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -528,8 +714,10 @@ def test_process_turn_does_not_double_poll_steering_after_tool_batch(
             signal: asyncio.Event | None,
             stream: object,
             get_steering_messages_cb: AgentMessageProvider | None = None,
+            before_tool_call: object = None,
+            after_tool_call: object = None,
         ) -> ToolExecutionResult:
-            del tools, assistant_message, signal, stream
+            del tools, assistant_message, signal, stream, before_tool_call, after_tool_call
             assert get_steering_messages_cb is not None
             await get_steering_messages_cb()
             return ToolExecutionResult(

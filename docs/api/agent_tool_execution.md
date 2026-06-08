@@ -4,7 +4,7 @@ when_to_read:
   - When debugging tool-call execution
   - When checking how assistant tool calls are extracted and run
 summary: Reference for TinyAgent's concurrent tool execution helpers and result handling.
-last_updated: "2026-04-04"
+last_updated: "2026-05-25"
 ---
 
 # Agent Tool Execution Module
@@ -21,6 +21,8 @@ async def execute_tool_calls(
     signal: asyncio.Event | None,
     stream: EventStream,
     get_steering_messages: Callable[[], Awaitable[list[AgentMessage]]] | None = None,
+    before_tool_call: BeforeToolCallFn | None = None,
+    after_tool_call: AfterToolCallFn | None = None,
 ) -> ToolExecutionResult
 ```
 
@@ -32,8 +34,10 @@ Execute all tool calls found in an assistant message.
 - `signal`: Abort signal
 - `stream`: Event stream to push execution events
 - `get_steering_messages`: Optional callback polled once after the parallel tool batch completes
+- `before_tool_call`: Optional host hook that can block a tool call with a structured result
+- `after_tool_call`: Optional host hook that can inspect or override each result
 
-**Returns**: `ToolExecutionResult` with tool results and optional steering messages
+**Returns**: `ToolExecutionResult` with tool results, optional steering messages, and a terminal batch flag
 
 **Events Emitted**:
 - `ToolExecutionStartEvent` (for all tools before execution begins)
@@ -44,12 +48,18 @@ Execute all tool calls found in an assistant message.
 **Execution Flow** (parallel):
 1. Extract tool calls from message content
 2. Emit `ToolExecutionStartEvent` for all tools
-3. Execute all tools concurrently via `asyncio.gather()`
-4. Emit `ToolExecutionEndEvent` and `ToolResultMessage` events in original order
-5. Check for steering messages once after all tools complete
-6. Return results
+3. Run `before_tool_call` for each tool, then execute unblocked tools concurrently via `asyncio.gather()`
+4. Run `after_tool_call` before emitting each final result
+5. Emit `ToolExecutionEndEvent` and `ToolResultMessage` events in original order
+6. Check for steering messages once after all tools complete, unless the batch is terminal
+7. Return results
 
 **Steering semantics**: In parallel mode, all tool calls in the batch start before steering is polled. Steering redirects subsequent turns; it does not retroactively skip already-started tool calls.
+
+**Loop-control semantics**: A tool can return `AgentToolResult(terminate=True)`,
+or a hook can return `ToolLoopControl(terminate=True)`. The batch still emits
+normal tool end and message events, then the agent loop ends without another
+model turn.
 
 **Event ordering**: All start events are emitted before any tool begins executing.
 After all tools complete, end events and result messages are emitted in the
@@ -113,10 +123,11 @@ async def _execute_single_tool(
     signal: asyncio.Event | None,
     stream: EventStream,
     parent_task: asyncio.Task[object] | None,
-) -> tuple[AgentToolResult, bool]
+    before_tool_call: BeforeToolCallFn | None,
+) -> tuple[AgentToolResult, bool, bool]
 ```
 
-Execute a single tool and return `(result, is_error)`.
+Execute a single tool and return `(result, is_error, terminate)`.
 
 **Error Handling**:
 - Tool not found: Returns error result
@@ -145,12 +156,28 @@ Create a `ToolResultMessage` from execution result.
 class ToolExecutionResult(BaseModel):
     tool_results: list[ToolResultMessage] = Field(default_factory=list)
     steering_messages: list[AgentMessage] | None = None
+    terminate: bool = False
 ```
 
 Result from executing tool calls.
 
 - `tool_results`: Results for all executed tools
 - `steering_messages`: Messages queued at the post-batch steering check (or `None` if none queued)
+- `terminate`: Whether a tool result or hook marked the batch terminal
+
+### ToolLoopControl
+
+```python
+@dataclass
+class ToolLoopControl:
+    terminate: bool = False
+    result: AgentToolResult | None = None
+    is_error: bool | None = None
+```
+
+`before_tool_call` may return a control object with `result` to skip execution
+and emit that structured tool result. `after_tool_call` may return one to
+replace the result, override `is_error`, or mark the batch terminal.
 
 ## Tool Execute Signature
 
@@ -187,4 +214,14 @@ async def search_web(
         content=[TextContent(type="text", text=json.dumps(results))],
         details={"result_count": len(results)}
     )
+```
+
+To end a repeated tool-call loop cleanly from inside a tool, return:
+
+```python
+return AgentToolResult(
+    content=[TextContent(text="Stopping after repeated identical arguments.")],
+    details={"policy": "same-tool-args"},
+    terminate=True,
+)
 ```

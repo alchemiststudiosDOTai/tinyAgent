@@ -4,7 +4,7 @@ when_to_read:
   - When tracing the orchestration loop
   - When debugging how prompts, tools, and streaming are coordinated
 summary: Reference for the core agent loop and the flow that drives LLM calls and tools.
-last_updated: "2026-04-04"
+last_updated: "2026-05-25"
 ---
 
 # Agent Loop Module
@@ -179,8 +179,23 @@ agent_loop()
                     │   └── execute_tool_calls()
                     │       └── Execute all tools in parallel
                     │
+                    ├── Check tool-result and host turn-stop controls
+                    │
                     └── Check steering at turn boundaries
 ```
+
+## Host Loop Controls
+
+The loop can end cleanly after a tool batch without another model turn when:
+
+- a tool returns `AgentToolResult(terminate=True)`
+- `before_tool_call` or `after_tool_call` returns `ToolLoopControl(terminate=True)`
+- `should_stop_after_turn(...)` returns `True`
+
+The terminal path still emits `turn_end`, then `agent_end`, and the final event
+contains the messages produced in the run. This is distinct from `abort()`,
+which uses the provider/tool cancellation signal and reports an aborted/error
+assistant message when cancellation propagates.
 
 ## Steering and Follow-up
 
@@ -193,6 +208,9 @@ Steering messages redirect the current run at turn boundaries:
 3. After a tool batch completes (or immediately on turns without tools), loop checks `get_steering_messages()`
 4. If steering messages exist, they become pending input for the next turn
 5. In parallel tool mode, already-started tools complete; steering affects subsequent turns
+
+If a tool batch is marked terminal, post-batch steering is not applied to that
+run because the host requested a clean stop.
 
 ### Follow-up
 
