@@ -6,8 +6,9 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from collections.abc import Sequence
 
-from tinyagent import Agent, AgentOptions
+from tinyagent import Agent, AgentOptions, AssistantMessage
 from tinyagent.alchemy_provider import OpenAICompatModel, stream_alchemy_openai_completions
 
 SYSTEM_PROMPT = (
@@ -108,7 +109,7 @@ def _resolve_api_key(provider: str) -> str | None:
     return os.getenv(env_var)
 
 
-def _extract_text(message_content: list[object]) -> str:
+def _extract_text(message_content: Sequence[object]) -> str:
     lines: list[str] = []
     for block in message_content:
         text = getattr(block, "text", None)
@@ -145,6 +146,8 @@ async def main() -> None:
     records: list[dict[str, object]] = []
     for turn, prompt in enumerate(PROMPTS, start=1):
         message = await agent.prompt(prompt)
+        if not isinstance(message, AssistantMessage):
+            raise RuntimeError(f"Expected AssistantMessage, got {type(message).__name__}")
         records.append(
             {
                 "turn": turn,

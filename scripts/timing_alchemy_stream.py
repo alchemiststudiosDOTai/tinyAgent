@@ -108,11 +108,7 @@ def _resolve_api_key(provider: str) -> str | None:
 def _plain_context() -> Context:
     return Context(
         system_prompt="You are a latency test assistant. Respond with plain text only.",
-        messages=[
-            UserMessage(
-                content=[TextContent(text="Reply with exactly: latency-ok")]
-            )
-        ],
+        messages=[UserMessage(content=[TextContent(text="Reply with exactly: latency-ok")])],
     )
 
 
@@ -125,11 +121,7 @@ def _tool_context() -> Context:
         ),
         messages=[
             UserMessage(
-                content=[
-                    TextContent(
-                        text="Call add_numbers exactly once with a=17 and b=25."
-                    )
-                ]
+                content=[TextContent(text="Call add_numbers exactly once with a=17 and b=25.")]
             )
         ],
         tools=[

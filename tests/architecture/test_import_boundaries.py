@@ -10,6 +10,7 @@ Layer map (top to bottom -- higher may import lower, never reverse):
     Layer 2: agent_loop, proxy                          (coordination)
     Layer 1: agent_tool_execution,
              alchemy_provider, proxy_event_handlers     (leaf services)
+    Layer 0.5: provider_contracts                       (provider helpers)
     Layer 0: agent_types                                (foundation)
 
 Sibling modules within the same layer are independent (cannot import each
@@ -38,6 +39,7 @@ LAYERS = [
         "caching",
         independent=True,
     ),
+    grimp.Layer("provider_contracts"),
     grimp.Layer("agent_types"),
 ]
 
@@ -49,6 +51,7 @@ GOVERNED_MODULES = {
     f"{PKG}.agent_types",
     f"{PKG}.alchemy_provider",
     f"{PKG}.rust_binding_provider",
+    f"{PKG}.provider_contracts",
     f"{PKG}.proxy",
     f"{PKG}.proxy_event_handlers",
     f"{PKG}.caching",

@@ -143,7 +143,7 @@ This document describes the architecture of TinyAgent: where components live, wh
 - `turn_end`: Capture errors from assistant messages
 - `agent_end`: Mark streaming as complete
 
-### Providers (`alchemy_provider.py`, `proxy.py`)
+### Providers (`alchemy_provider.py`, `rust_binding_provider.py`, `proxy.py`)
 
 **What**: Implement `StreamFn` protocol for specific LLM backends.
 
@@ -152,6 +152,11 @@ This document describes the architecture of TinyAgent: where components live, wh
 - OpenAI-compatible request/response model with OpenRouter-style endpoints
 - Structured model/event pipeline and usage contract normalization
 - Streaming via the binding-backed `Async` bridge
+
+**Provider Contract Helpers (`provider_contracts.py`)**:
+- Shared validation for binding-backed provider assistant messages and usage payloads
+- Shared blocking-handle stream adapter used by provider modules
+- Common optional model metadata fields for OpenAI-compatible and restored Rust binding models
 
 **Proxy Provider**:
 - Uses `httpx` to call a relay service
