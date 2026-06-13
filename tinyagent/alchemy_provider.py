@@ -31,6 +31,12 @@ from .provider_contracts import (
     ProviderMetadataModel,
     resolve_model_metadata,
 )
+from .provider_contracts import (
+    ReasoningEffort as ReasoningEffort,
+)
+from .provider_contracts import (
+    ReasoningMode as ReasoningMode,
+)
 
 
 class _AlchemyModule(Protocol):

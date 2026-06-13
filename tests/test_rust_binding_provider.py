@@ -15,6 +15,12 @@ from tinyagent.agent_types import (
     TextContent,
     UserMessage,
 )
+from tinyagent.provider_contracts import (
+    ReasoningEffort as ProviderReasoningEffort,
+)
+from tinyagent.provider_contracts import (
+    ReasoningMode as ProviderReasoningMode,
+)
 from tinyagent.rust_binding_provider import (
     DEFAULT_BASE_URLS,
     RustBindingModel,
@@ -25,6 +31,13 @@ from tinyagent.rust_binding_provider import (
     _resolve_model_api,
     stream_rust_binding,
 )
+
+
+def test_reasoning_type_aliases_remain_importable_from_rust_provider() -> None:
+    from tinyagent.rust_binding_provider import ReasoningEffort, ReasoningMode
+
+    assert ReasoningEffort is ProviderReasoningEffort
+    assert ReasoningMode is ProviderReasoningMode
 
 
 def test_resolve_model_api_defaults_to_kimi_anthropic_path() -> None:

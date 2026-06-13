@@ -23,6 +23,19 @@ from tinyagent.alchemy_provider import (
     _resolve_model_api,
     stream_alchemy_openai_completions,
 )
+from tinyagent.provider_contracts import (
+    ReasoningEffort as ProviderReasoningEffort,
+)
+from tinyagent.provider_contracts import (
+    ReasoningMode as ProviderReasoningMode,
+)
+
+
+def test_reasoning_type_aliases_remain_importable_from_compat_provider() -> None:
+    from tinyagent.alchemy_provider import ReasoningEffort, ReasoningMode
+
+    assert ReasoningEffort is ProviderReasoningEffort
+    assert ReasoningMode is ProviderReasoningMode
 
 
 def test_resolve_base_url_defaults_for_generic_model() -> None:
