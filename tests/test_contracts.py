@@ -95,6 +95,15 @@ class TestMessageRoles:
         )
         assert msg.role == "tool_result"
 
+    def test_tool_result_termination_flag_is_host_side_only(self) -> None:
+        msg = ToolResultMessage(
+            tool_call_id="x",
+            content=[],
+            terminate=True,
+        )
+        assert msg.terminate is True
+        assert "terminate" not in msg.model_dump(exclude_none=True)
+
 
 # -- StopReason contracts --
 

@@ -4,7 +4,7 @@ when_to_read:
   - When working with shared runtime types
   - When checking message, event, or state model contracts
 summary: Reference for the shared TinyAgent message, event, and state models.
-last_updated: "2026-04-04"
+last_updated: "2026-05-25"
 ---
 
 # Agent Types Module
@@ -120,8 +120,12 @@ class ToolResultMessage(BaseModel):
     content: list[TextContent | ImageContent] = Field(default_factory=list)
     details: JsonObject = Field(default_factory=dict)
     is_error: bool = False
+    terminate: bool = Field(default=False, exclude=True)
     timestamp: int | None = None
 ```
+
+`terminate` is host-side loop-control metadata. It is intentionally excluded from
+`model_dump()` so providers do not receive it as part of the LLM message payload.
 
 ### Message
 
@@ -171,7 +175,25 @@ class AgentTool(Tool):
 class AgentToolResult:
     content: list[TextContent | ImageContent] = field(default_factory=list)
     details: JsonObject = field(default_factory=dict)
+    terminate: bool = False
 ```
+
+Set `terminate=True` when a tool result should end the current agent run after the
+current tool batch and `turn_end` event, without asking the model for another turn.
+
+### ToolLoopControl
+
+```python
+@dataclass
+class ToolLoopControl:
+    terminate: bool = False
+    result: AgentToolResult | None = None
+    is_error: bool | None = None
+```
+
+Returned by host loop-control hooks. `result` replaces or supplies a structured
+tool result, `is_error` overrides the result error state, and `terminate` prevents
+another model turn after the current batch.
 
 ## Context Types
 
@@ -389,6 +411,18 @@ TransformContextFn: TypeAlias = Callable[
 ]
 ApiKeyResolver: TypeAlias = Callable[[str], MaybeAwaitable[str | None]]
 AgentMessageProvider: TypeAlias = Callable[[], Awaitable[list[AgentMessage]]]
+BeforeToolCallFn: TypeAlias = Callable[
+    [ToolCallContent, AgentTool | None, JsonObject],
+    MaybeAwaitable[ToolLoopControl | None],
+]
+AfterToolCallFn: TypeAlias = Callable[
+    [ToolCallContent, ToolResultMessage],
+    MaybeAwaitable[ToolLoopControl | None],
+]
+ShouldStopAfterTurnFn: TypeAlias = Callable[
+    [AssistantMessage, list[ToolResultMessage], AgentContext, list[AgentMessage]],
+    MaybeAwaitable[bool],
+]
 
 @dataclass
 class AgentLoopConfig:
@@ -398,6 +432,9 @@ class AgentLoopConfig:
     get_api_key: ApiKeyResolver | None = None
     get_steering_messages: AgentMessageProvider | None = None
     get_follow_up_messages: AgentMessageProvider | None = None
+    before_tool_call: BeforeToolCallFn | None = None
+    after_tool_call: AfterToolCallFn | None = None
+    should_stop_after_turn: ShouldStopAfterTurnFn | None = None
     api_key: str | None = None
     temperature: float | None = None
     max_tokens: int | None = None

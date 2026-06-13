@@ -17,9 +17,7 @@ def resolve_wheel_path(input_path: Path) -> Path:
     if input_path.is_dir():
         wheels = sorted(path for path in input_path.glob("*.whl") if path.is_file())
         if len(wheels) != 1:
-            raise RuntimeError(
-                f"expected exactly one wheel in {input_path}, found {len(wheels)}"
-            )
+            raise RuntimeError(f"expected exactly one wheel in {input_path}, found {len(wheels)}")
         return wheels[0]
 
     raise RuntimeError(f"expected a wheel file or directory, got: {input_path}")

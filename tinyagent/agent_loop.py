@@ -31,6 +31,7 @@ from .agent_types import (
     SimpleStreamOptions,
     StreamFn,
     StreamResponse,
+    ToolResultMessage,
     TurnEndEvent,
     TurnStartEvent,
     is_agent_end_event,
@@ -243,6 +244,30 @@ def _emit_pending_messages(
         new_messages.append(message)
 
 
+async def _should_stop_after_turn(
+    config: AgentLoopConfig,
+    message: AssistantMessage,
+    tool_results: list[ToolResultMessage],
+    current_context: AgentContext,
+    new_messages: list[AgentMessage],
+    terminate: bool,
+) -> bool:
+    if terminate:
+        return True
+    if not config.should_stop_after_turn:
+        return False
+    return bool(
+        await _maybe_await(
+            config.should_stop_after_turn(
+                message,
+                tool_results,
+                current_context,
+                new_messages,
+            )
+        )
+    )
+
+
 async def _process_turn(
     current_context: AgentContext,
     new_messages: list[AgentMessage],
@@ -289,6 +314,8 @@ async def _process_turn(
         signal,
         stream,
         config.get_steering_messages,
+        config.before_tool_call,
+        config.after_tool_call,
     )
     tool_results = tool_execution.tool_results
     has_more_tool_calls = len(tool_results) > 0
@@ -297,6 +324,23 @@ async def _process_turn(
         current_context.messages.append(result)
         new_messages.append(result)
     stream.push(TurnEndEvent(message=message, tool_results=tool_results))
+
+    if await _should_stop_after_turn(
+        config,
+        message,
+        tool_results,
+        current_context,
+        new_messages,
+        tool_execution.terminate,
+    ):
+        stream.push(AgentEndEvent(messages=new_messages))
+        stream.end(new_messages)
+        return TurnProcessingResult(
+            pending_messages=[],
+            has_more_tool_calls=False,
+            first_turn=first_turn,
+            should_continue=False,
+        )
 
     if has_more_tool_calls:
         pending_messages = steering_after_tools or []

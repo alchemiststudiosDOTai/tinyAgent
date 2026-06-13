@@ -4,7 +4,7 @@ when_to_read:
   - When navigating the API docs
   - When choosing which module reference to open next
 summary: Index of the TinyAgent API reference pages by module and feature area.
-last_updated: "2026-04-04"
+last_updated: "2026-05-25"
 ---
 
 # API Reference
@@ -52,6 +52,7 @@ from tinyagent import (
     ToolResultMessage,
     AgentTool,
     AgentToolResult,
+    ToolLoopControl,
     AgentEvent,
     AgentState,
 )
@@ -119,6 +120,11 @@ ApiKeyResolverCallback = Callable[
 
 # Tool progress updates
 AgentToolUpdateCallback = Callable[[AgentToolResult], None]
+
+# Host-side tool-loop controls
+BeforeToolCallFn = Callable[..., ToolLoopControl | None]
+AfterToolCallFn = Callable[..., ToolLoopControl | None]
+ShouldStopAfterTurnFn = Callable[..., bool]
 ```
 
 ## Runtime Cutover Validation

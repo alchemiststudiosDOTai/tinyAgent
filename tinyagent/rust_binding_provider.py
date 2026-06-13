@@ -8,7 +8,6 @@ current API surface.
 
 from __future__ import annotations
 
-import asyncio
 import importlib
 import os
 from dataclasses import dataclass
@@ -17,13 +16,23 @@ from typing import Literal, Protocol, TypeAlias, cast
 from pydantic import BaseModel, ConfigDict, field_validator
 
 from .agent_types import (
-    AssistantMessage,
-    AssistantMessageEvent,
     Context,
     JsonObject,
     Model,
     SimpleStreamOptions,
     dump_model_dumpable,
+)
+from .provider_contracts import (
+    BindingStreamHandle,
+    BindingStreamResponseBase,
+    ProviderMetadataModel,
+    resolve_model_metadata,
+)
+from .provider_contracts import (
+    ReasoningEffort as ReasoningEffort,
+)
+from .provider_contracts import (
+    ReasoningMode as ReasoningMode,
 )
 
 BindingApi: TypeAlias = Literal[
@@ -31,9 +40,6 @@ BindingApi: TypeAlias = Literal[
     "openai-completions",
     "minimax-completions",
 ]
-ReasoningEffort: TypeAlias = Literal["minimal", "low", "medium", "high", "xhigh"]
-ReasoningMode: TypeAlias = bool | ReasoningEffort
-
 DEFAULT_BASE_URLS: dict[str, str] = {
     "openai": "https://api.openai.com/v1/chat/completions",
     "openrouter": "https://openrouter.ai/api/v1/chat/completions",
@@ -52,15 +58,6 @@ _PROVIDER_API_KEY_ENV = {
     "kimi": "KIMI_API_KEY",
 }
 
-_USAGE_KEYS = frozenset({"input", "output", "cache_read", "cache_write", "total_tokens", "cost"})
-_COST_KEYS = frozenset({"input", "output", "cache_read", "cache_write", "total"})
-
-
-class _BindingStreamHandle(Protocol):
-    def next_event(self) -> object | None: ...
-
-    def result(self) -> object: ...
-
 
 class _BindingModule(Protocol):
     def openai_completions_stream(
@@ -68,29 +65,25 @@ class _BindingModule(Protocol):
         model: dict[str, object],
         context: dict[str, object],
         options: dict[str, object],
-    ) -> _BindingStreamHandle: ...
+    ) -> BindingStreamHandle: ...
 
 
 class _BindingPayloadModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class RustBindingModel(Model):
+class RustBindingModel(ProviderMetadataModel):
     """Typed model surface for the restored Rust binding."""
 
     provider: str = "openrouter"
     id: str = "moonshotai/kimi-k2.5"
     api: BindingApi | Literal[""] = ""
     base_url: str | None = None
-    name: str | None = None
-    headers: dict[str, str] | None = None
-    context_window: int = 128_000
-    max_tokens: int = 4096
-    reasoning: ReasoningMode = False
 
     @field_validator("api")
     @classmethod
     def _validate_api(cls, value: str) -> str:
+        del cls
         valid = {"", "anthropic-messages", "openai-completions", "minimax-completions"}
         if value not in valid:
             raise ValueError(
@@ -102,6 +95,7 @@ class RustBindingModel(Model):
     @field_validator("base_url")
     @classmethod
     def _normalize_base_url(cls, value: str | None) -> str | None:
+        del cls
         if value is None:
             return None
         stripped = value.strip()
@@ -141,50 +135,6 @@ class BindingOptionsPayload(_BindingPayloadModel):
 _BINDING_MODULE: _BindingModule | None = None
 
 
-def _missing_keys(data: dict[str, object], required: frozenset[str]) -> list[str]:
-    return sorted(key for key in required if key not in data)
-
-
-def _validate_usage_contract(raw_usage: object, *, where: str) -> JsonObject:
-    if not isinstance(raw_usage, dict):
-        raise RuntimeError(f"{where}: usage must be a dict")
-
-    usage = cast(dict[str, object], raw_usage)
-    missing_usage = _missing_keys(usage, _USAGE_KEYS)
-    if missing_usage:
-        raise RuntimeError(f"{where}: usage missing key(s): {', '.join(missing_usage)}")
-
-    cost_raw = usage.get("cost")
-    if not isinstance(cost_raw, dict):
-        raise RuntimeError(f"{where}: usage.cost must be a dict")
-
-    cost = cast(dict[str, object], cost_raw)
-    missing_cost = _missing_keys(cost, _COST_KEYS)
-    if missing_cost:
-        raise RuntimeError(f"{where}: usage.cost missing key(s): {', '.join(missing_cost)}")
-
-    return cast(JsonObject, usage)
-
-
-def _validate_assistant_message_contract(
-    raw_message: object,
-    *,
-    where: str,
-    require_usage: bool,
-) -> AssistantMessage:
-    if isinstance(raw_message, AssistantMessage):
-        message = raw_message
-    elif isinstance(raw_message, dict):
-        message = AssistantMessage.model_validate(raw_message)
-    else:
-        raise RuntimeError(f"{where}: assistant message must be a dict")
-
-    if require_usage:
-        _validate_usage_contract(message.usage, where=where)
-
-    return message
-
-
 def _get_binding_module() -> _BindingModule:
     global _BINDING_MODULE
     if _BINDING_MODULE is None:
@@ -207,35 +157,10 @@ def _get_binding_module() -> _BindingModule:
 
 
 @dataclass
-class RustBindingStreamResponse:
+class RustBindingStreamResponse(BindingStreamResponseBase):
     """StreamResponse backed by the in-repo Rust binding."""
 
-    _handle: _BindingStreamHandle
-    _final_message: AssistantMessage | None = None
-
-    async def result(self) -> AssistantMessage:
-        if self._final_message is not None:
-            return self._final_message
-
-        raw_message = await asyncio.to_thread(self._handle.result)
-        final_message = _validate_assistant_message_contract(
-            raw_message,
-            where="result",
-            require_usage=True,
-        )
-        self._final_message = final_message
-        return final_message
-
-    def __aiter__(self) -> RustBindingStreamResponse:
-        return self
-
-    async def __anext__(self) -> AssistantMessageEvent:
-        raw_event = await asyncio.to_thread(self._handle.next_event)
-        if raw_event is None:
-            raise StopAsyncIteration
-        if not isinstance(raw_event, dict):
-            raise RuntimeError("tinyagent._alchemy returned an invalid event")
-        return AssistantMessageEvent.model_validate(raw_event)
+    invalid_event_message: str = "tinyagent._alchemy returned an invalid event"
 
 
 def _resolve_provider(model: Model) -> str:
@@ -279,9 +204,7 @@ def _resolve_base_url(model: Model, provider: str) -> str:
     if default:
         return default
 
-    raise ValueError(
-        "Model `base_url` must be set for unknown providers in rust_binding_provider"
-    )
+    raise ValueError("Model `base_url` must be set for unknown providers in rust_binding_provider")
 
 
 def _resolve_api_key(model: Model, options: SimpleStreamOptions) -> str | None:
@@ -300,28 +223,18 @@ def _build_model_payload(model: Model) -> BindingModelPayload:
     if not model.id.strip():
         raise ValueError("Model `id` must be a non-empty string")
 
-    name: str | None = None
-    headers: dict[str, str] | None = None
-    reasoning: ReasoningMode = False
-    context_window = 128_000
-    max_tokens = 4096
-    if isinstance(model, RustBindingModel):
-        name = model.name
-        headers = model.headers
-        reasoning = model.reasoning
-        context_window = model.context_window
-        max_tokens = model.max_tokens
+    metadata = resolve_model_metadata(model, context_window=128_000, max_tokens=4096)
 
     return BindingModelPayload(
         id=model.id,
         provider=provider,
         api=_resolve_model_api(model, provider),
         base_url=_resolve_base_url(model, provider),
-        name=name,
-        headers=headers,
-        reasoning=reasoning,
-        context_window=context_window,
-        max_tokens=max_tokens,
+        name=metadata.name,
+        headers=metadata.headers,
+        reasoning=metadata.reasoning,
+        context_window=metadata.context_window or 128_000,
+        max_tokens=metadata.max_tokens or 4096,
     )
 
 

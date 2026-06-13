@@ -4,7 +4,7 @@ when_to_read:
   - When using the high-level Agent API
   - When checking state-management behavior in the public interface
 summary: Reference for the high-level Agent API and its stateful interaction surface.
-last_updated: "2026-04-04"
+last_updated: "2026-05-25"
 ---
 
 # Agent Module
@@ -240,6 +240,9 @@ class AgentOptions:
     get_api_key: ApiKeyResolverCallback | None = None
     thinking_budgets: ThinkingBudgets | None = None
     enable_prompt_caching: bool = False
+    before_tool_call: BeforeToolCallFn | None = None
+    after_tool_call: AfterToolCallFn | None = None
+    should_stop_after_turn: ShouldStopAfterTurnFn | None = None
 ```
 
 **Options**:
@@ -251,6 +254,37 @@ class AgentOptions:
 - `follow_up_mode`: "one-at-a-time" (default) or "all" - how to process follow-up queue
 - `get_api_key`: Callback to resolve API keys dynamically
 - `enable_prompt_caching`: Enable Anthropic-style prompt caching. See [Prompt Caching](caching.md)
+- `before_tool_call`: Inspect each tool call before execution. Return `ToolLoopControl(result=...)` to block execution with a structured tool result.
+- `after_tool_call`: Inspect or override each tool result before events are emitted.
+- `should_stop_after_turn`: Inspect the assistant message, tool results, current context, and new messages after each turn. Return `True` to emit `agent_end` without another model turn.
+
+## Host Loop Controls
+
+Applications can stop repeated tool-call loops without aborting the run:
+
+```python
+from tinyagent import Agent, AgentOptions, AgentToolResult, TextContent
+
+async def should_stop_after_turn(message, tool_results, context, new_messages):
+    return sum(result.is_error for result in tool_results) >= 3
+
+agent = Agent(
+    AgentOptions(
+        stream_fn=stream_fn,
+        should_stop_after_turn=should_stop_after_turn,
+    )
+)
+```
+
+Tools can also mark a result terminal directly:
+
+```python
+return AgentToolResult(
+    content=[TextContent(text="Stopping after repeated identical tool arguments.")],
+    details={"policy": "same-tool-args"},
+    terminate=True,
+)
+```
 
 ## Helper Functions
 

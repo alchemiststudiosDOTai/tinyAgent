@@ -19,6 +19,8 @@ from tinyagent.agent_types import (
     JsonObject,
     TextContent,
     ToolCallContent,
+    ToolLoopControl,
+    ToolResultMessage,
     UserMessage,
 )
 
@@ -265,6 +267,109 @@ class TestParallelErrorHandling:
         stream = _make_stream()
         result = await execute_tool_calls([tool], message, None, stream)
         assert result.tool_results[0].is_error is True
+
+
+class TestToolLoopControls:
+    """Host tool-loop controls can block or terminate batches."""
+
+    async def test_before_tool_call_can_block_execution_with_structured_error(self) -> None:
+        execute_called = False
+
+        async def execute(
+            tool_call_id: str,
+            args: JsonObject,
+            signal: asyncio.Event | None,
+            on_update: Callable[[AgentToolResult], None],
+        ) -> AgentToolResult:
+            nonlocal execute_called
+            del tool_call_id, args, signal, on_update
+            execute_called = True
+            return AgentToolResult(content=[TextContent(text="should not run")])
+
+        async def before_tool_call(
+            tool_call: ToolCallContent,
+            tool: AgentTool | None,
+            args: JsonObject,
+        ) -> ToolLoopControl:
+            assert tool_call.name == "edit"
+            assert tool is not None
+            assert args == {"path": "a.py"}
+            return ToolLoopControl(
+                terminate=True,
+                is_error=True,
+                result=AgentToolResult(
+                    content=[TextContent(text="blocked by host policy")],
+                    details={"policy": "repeat-failure"},
+                ),
+            )
+
+        tool = AgentTool(name="edit", description="Edit file", execute=execute)
+        message = AssistantMessage(
+            content=[ToolCallContent(id="tc_1", name="edit", arguments={"path": "a.py"})]
+        )
+        stream = _make_stream()
+
+        result = await execute_tool_calls(
+            [tool],
+            message,
+            None,
+            stream,
+            before_tool_call=before_tool_call,
+        )
+
+        assert execute_called is False
+        assert result.terminate is True
+        assert len(result.tool_results) == 1
+        assert result.tool_results[0].is_error is True
+        assert result.tool_results[0].terminate is True
+        assert result.tool_results[0].details == {"policy": "repeat-failure"}
+        assert result.tool_results[0].content == [TextContent(text="blocked by host policy")]
+
+    async def test_after_tool_call_can_override_result_and_skip_steering(self) -> None:
+        steering_check_count = 0
+
+        async def get_steering() -> list[AgentMessage]:
+            nonlocal steering_check_count
+            steering_check_count += 1
+            return [UserMessage(content=[TextContent(text="queued")])]
+
+        async def after_tool_call(
+            tool_call: ToolCallContent,
+            tool_result: ToolResultMessage,
+        ) -> ToolLoopControl:
+            assert tool_call.name == "edit"
+            assert tool_result.is_error is False
+            return ToolLoopControl(
+                terminate=True,
+                is_error=True,
+                result=AgentToolResult(
+                    content=[TextContent(text="stopping repeated edit failure")],
+                    details={"policy": "same-edit-args"},
+                ),
+            )
+
+        tool = _make_tool("edit", result_text="raw result")
+        message = _make_message("edit")
+        stream = _make_stream()
+
+        result = await execute_tool_calls(
+            [tool],
+            message,
+            None,
+            stream,
+            get_steering,
+            after_tool_call=after_tool_call,
+        )
+
+        assert steering_check_count == 0
+        assert result.terminate is True
+        assert result.steering_messages is None
+        assert result.tool_results[0].is_error is True
+        assert result.tool_results[0].terminate is True
+        assert result.tool_results[0].details == {"policy": "same-edit-args"}
+        assert result.tool_results[0].content == [
+            TextContent(text="stopping repeated edit failure")
+        ]
 
 
 class TestParallelSteering:

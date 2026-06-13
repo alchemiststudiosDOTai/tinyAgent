@@ -90,10 +90,15 @@ This document describes the architecture of TinyAgent: where components live, wh
 **Flow**:
 1. Emit `AgentStartEvent`
 2. Outer loop: Check for follow-up messages after agent would stop
-3. Inner loop: Process turns (LLM call → tool execution → steering)
+3. Inner loop: Process turns (LLM call → tool execution → loop controls → steering)
 4. Emit `AgentEndEvent`
 
 **Steering**: User can inject messages mid-run via `steer()`. During turns with tool calls, the loop polls steering after the parallel tool batch completes, then applies queued steering messages on the next turn.
+
+**Loop controls**: Hosts can end repeated tool-call loops cleanly with
+`AgentToolResult(terminate=True)`, `before_tool_call`, `after_tool_call`, or
+`should_stop_after_turn`. These controls emit normal `TurnEndEvent` and
+`AgentEndEvent` events instead of relying on aborts or outer timeouts.
 
 ### agent_tool_execution.py
 
@@ -107,10 +112,11 @@ This document describes the architecture of TinyAgent: where components live, wh
 **Execution Flow**:
 1. Extract tool calls from assistant message content
 2. Emit `ToolExecutionStartEvent` for all calls
-3. Execute all tool calls concurrently
-4. Emit `ToolExecutionEndEvent` + result messages in original call order
-5. Poll steering once after the batch completes
-6. Return tool results as `ToolResultMessage` objects
+3. Run `before_tool_call` controls, then execute unblocked tool calls concurrently
+4. Run `after_tool_call` controls before result events
+5. Emit `ToolExecutionEndEvent` + result messages in original call order
+6. Poll steering once after the batch completes, unless the batch is terminal
+7. Return tool results as `ToolResultMessage` objects
 
 ### agent.py
 
@@ -137,7 +143,7 @@ This document describes the architecture of TinyAgent: where components live, wh
 - `turn_end`: Capture errors from assistant messages
 - `agent_end`: Mark streaming as complete
 
-### Providers (`alchemy_provider.py`, `proxy.py`)
+### Providers (`alchemy_provider.py`, `rust_binding_provider.py`, `proxy.py`)
 
 **What**: Implement `StreamFn` protocol for specific LLM backends.
 
@@ -146,6 +152,11 @@ This document describes the architecture of TinyAgent: where components live, wh
 - OpenAI-compatible request/response model with OpenRouter-style endpoints
 - Structured model/event pipeline and usage contract normalization
 - Streaming via the binding-backed `Async` bridge
+
+**Provider Contract Helpers (`provider_contracts.py`)**:
+- Shared validation for binding-backed provider assistant messages and usage payloads
+- Shared blocking-handle stream adapter used by provider modules
+- Common optional model metadata fields for OpenAI-compatible and restored Rust binding models
 
 **Proxy Provider**:
 - Uses `httpx` to call a relay service

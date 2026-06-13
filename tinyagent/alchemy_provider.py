@@ -13,31 +13,30 @@ Important limitations:
 
 from __future__ import annotations
 
-import asyncio
 import importlib
 import os
 from dataclasses import dataclass
-from typing import Literal, Protocol, TypeAlias, cast
+from typing import Protocol, cast
 
 from .agent_types import (
     AgentTool,
-    AssistantMessage,
-    AssistantMessageEvent,
     Context,
-    JsonObject,
     Model,
     SimpleStreamOptions,
     dump_model_dumpable,
 )
-
-ReasoningEffort: TypeAlias = Literal["minimal", "low", "medium", "high", "xhigh"]
-ReasoningMode: TypeAlias = bool | ReasoningEffort
-
-
-class _AlchemyStreamHandle(Protocol):
-    def next_event(self) -> object | None: ...
-
-    def result(self) -> object: ...
+from .provider_contracts import (
+    BindingStreamHandle,
+    BindingStreamResponseBase,
+    ProviderMetadataModel,
+    resolve_model_metadata,
+)
+from .provider_contracts import (
+    ReasoningEffort as ReasoningEffort,
+)
+from .provider_contracts import (
+    ReasoningMode as ReasoningMode,
+)
 
 
 class _AlchemyModule(Protocol):
@@ -46,7 +45,7 @@ class _AlchemyModule(Protocol):
         model: dict[str, object],
         context: dict[str, object],
         options: dict[str, object],
-    ) -> _AlchemyStreamHandle: ...
+    ) -> BindingStreamHandle: ...
 
 
 _ALCHEMY_MODULE: _AlchemyModule | None = None
@@ -59,53 +58,6 @@ _PROVIDER_API_KEY_ENV = {
     "minimax": "MINIMAX_API_KEY",
     "minimax-cn": "MINIMAX_CN_API_KEY",
 }
-
-_USAGE_KEYS = frozenset({"input", "output", "cache_read", "cache_write", "total_tokens", "cost"})
-_COST_KEYS = frozenset({"input", "output", "cache_read", "cache_write", "total"})
-
-
-def _missing_keys(data: dict[str, object], required: frozenset[str]) -> list[str]:
-    return sorted(key for key in required if key not in data)
-
-
-def _validate_usage_contract(raw_usage: object, *, where: str) -> JsonObject:
-    if not isinstance(raw_usage, dict):
-        raise RuntimeError(f"{where}: usage must be a dict")
-
-    usage = cast(dict[str, object], raw_usage)
-    missing_usage = _missing_keys(usage, _USAGE_KEYS)
-    if missing_usage:
-        raise RuntimeError(f"{where}: usage missing key(s): {', '.join(missing_usage)}")
-
-    cost_raw = usage.get("cost")
-    if not isinstance(cost_raw, dict):
-        raise RuntimeError(f"{where}: usage.cost must be a dict")
-
-    cost = cast(dict[str, object], cost_raw)
-    missing_cost = _missing_keys(cost, _COST_KEYS)
-    if missing_cost:
-        raise RuntimeError(f"{where}: usage.cost missing key(s): {', '.join(missing_cost)}")
-
-    return cast(JsonObject, usage)
-
-
-def _validate_assistant_message_contract(
-    raw_message: object,
-    *,
-    where: str,
-    require_usage: bool,
-) -> AssistantMessage:
-    if isinstance(raw_message, AssistantMessage):
-        message = raw_message
-    elif isinstance(raw_message, dict):
-        message = AssistantMessage.model_validate(raw_message)
-    else:
-        raise RuntimeError(f"{where}: assistant message must be a dict")
-
-    if require_usage:
-        _validate_usage_contract(message.usage, where=where)
-
-    return message
 
 
 def _get_alchemy_module() -> _AlchemyModule:
@@ -137,7 +89,7 @@ def _get_alchemy_module() -> _AlchemyModule:
     return _ALCHEMY_MODULE
 
 
-class OpenAICompatModel(Model):
+class OpenAICompatModel(ProviderMetadataModel):
     """Model config for OpenAI-compatible chat/completions endpoints."""
 
     provider: str = "openrouter"
@@ -145,46 +97,13 @@ class OpenAICompatModel(Model):
     api: str = "openai-completions"
 
     base_url: str = DEFAULT_OPENAI_COMPAT_CHAT_COMPLETIONS_URL
-    name: str | None = None
-    headers: dict[str, str] | None = None
-
-    context_window: int = 128_000
-    max_tokens: int = 4096
-    reasoning: ReasoningMode = False
 
 
 @dataclass
-class AlchemyStreamResponse:
+class AlchemyStreamResponse(BindingStreamResponseBase):
     """StreamResponse backed by a Rust stream handle."""
 
-    _handle: _AlchemyStreamHandle
-    _final_message: AssistantMessage | None = None
-
-    async def result(self) -> AssistantMessage:
-        if self._final_message is not None:
-            return self._final_message
-
-        msg = await asyncio.to_thread(self._handle.result)
-        final_message = _validate_assistant_message_contract(
-            msg,
-            where="result",
-            require_usage=True,
-        )
-        self._final_message = final_message
-        return final_message
-
-    def __aiter__(self) -> AlchemyStreamResponse:
-        return self
-
-    async def __anext__(self) -> AssistantMessageEvent:
-        ev = await asyncio.to_thread(self._handle.next_event)
-        if ev is None:
-            raise StopAsyncIteration
-        if isinstance(ev, AssistantMessageEvent):
-            return ev
-        if not isinstance(ev, dict):
-            raise RuntimeError("tinyagent._alchemy returned an invalid event")
-        return AssistantMessageEvent.model_validate(ev)
+    invalid_event_message: str = "tinyagent._alchemy returned an invalid event"
 
 
 def _convert_tools(tools: list[AgentTool] | None) -> list[dict[str, object]] | None:
@@ -278,28 +197,18 @@ async def stream_alchemy_openai_completions(
     provider = _resolve_provider(model)
     base_url = _resolve_base_url(model)
     api = _resolve_model_api(model, provider)
-    name: str | None = None
-    headers: dict[str, str] | None = None
-    reasoning: ReasoningMode = False
-    context_window: int | None = None
-    max_tokens: int | None = None
-    if isinstance(model, OpenAICompatModel):
-        name = model.name
-        headers = model.headers
-        reasoning = model.reasoning
-        context_window = model.context_window
-        max_tokens = model.max_tokens
+    metadata = resolve_model_metadata(model, context_window=None, max_tokens=None)
 
     model_dict: dict[str, object] = {
         "id": model.id,
         "provider": provider,
         "api": api,
         "base_url": base_url,
-        "name": name,
-        "headers": headers,
-        "reasoning": reasoning,
-        "context_window": context_window,
-        "max_tokens": max_tokens,
+        "name": metadata.name,
+        "headers": metadata.headers,
+        "reasoning": metadata.reasoning,
+        "context_window": metadata.context_window,
+        "max_tokens": metadata.max_tokens,
     }
 
     context_dict: dict[str, object] = {

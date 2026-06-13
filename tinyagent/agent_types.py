@@ -193,6 +193,7 @@ class ToolResultMessage(_AgentBaseModel):
     content: list[TextContent | ImageContent] = Field(default_factory=list)
     details: JsonObject = Field(default_factory=dict)
     is_error: bool = False
+    terminate: bool = Field(default=False, exclude=True)
     timestamp: int | None = None
 
 
@@ -229,6 +230,16 @@ class AgentToolResult:
 
     content: list[TextContent | ImageContent] = field(default_factory=list)
     details: JsonObject = field(default_factory=dict)
+    terminate: bool = False
+
+
+@dataclass
+class ToolLoopControl:
+    """Host decision used by tool-loop control hooks."""
+
+    terminate: bool = False
+    result: AgentToolResult | None = None
+    is_error: bool | None = None
 
 
 AgentToolUpdateCallback = Callable[[AgentToolResult], None]
@@ -272,6 +283,20 @@ class AgentContext:
     system_prompt: str = ""
     messages: list[AgentMessage] = field(default_factory=list)
     tools: list[AgentTool] | None = None
+
+
+BeforeToolCallFn: TypeAlias = Callable[
+    [ToolCallContent, AgentTool | None, JsonObject],
+    MaybeAwaitable[ToolLoopControl | None],
+]
+AfterToolCallFn: TypeAlias = Callable[
+    [ToolCallContent, ToolResultMessage],
+    MaybeAwaitable[ToolLoopControl | None],
+]
+ShouldStopAfterTurnFn: TypeAlias = Callable[
+    [AssistantMessage, list[ToolResultMessage], AgentContext, list[AgentMessage]],
+    MaybeAwaitable[bool],
+]
 
 
 class Model(_AgentBaseModel):
@@ -488,6 +513,9 @@ class AgentLoopConfig:
     get_api_key: ApiKeyResolver | None = None
     get_steering_messages: AgentMessageProvider | None = None
     get_follow_up_messages: AgentMessageProvider | None = None
+    before_tool_call: BeforeToolCallFn | None = None
+    after_tool_call: AfterToolCallFn | None = None
+    should_stop_after_turn: ShouldStopAfterTurnFn | None = None
     api_key: str | None = None
     temperature: float | None = None
     max_tokens: int | None = None
