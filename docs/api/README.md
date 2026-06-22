@@ -4,7 +4,7 @@ when_to_read:
   - When navigating the API docs
   - When choosing which module reference to open next
 summary: Index of the TinyAgent API reference pages by module and feature area.
-last_updated: "2026-05-25"
+last_updated: "2026-06-21"
 ---
 
 # API Reference
@@ -25,6 +25,7 @@ Complete API documentation for the tinyagent package.
 | Module | Description |
 |--------|-------------|
 | [caching](caching.md) | Prompt caching for reduced cost and latency |
+| [tool-loop-controls](tool-loop-controls.md) | Terminal tool results and host-side loop-control hooks |
 | [usage-semantics](usage-semantics.md) | Canonical usage contract and token semantics for the built-in provider path |
 
 ## Providers
