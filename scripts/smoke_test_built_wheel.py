@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import subprocess
+import sys
 import venv
 from pathlib import Path
 
@@ -25,7 +27,17 @@ def resolve_wheel_path(input_path: Path) -> Path:
 
 def smoke_test_wheel(wheel_path: Path) -> None:
     venv_dir = Path(".venv-smoke")
-    venv.EnvBuilder(with_pip=True).create(venv_dir)
+    if venv_dir.exists():
+        shutil.rmtree(venv_dir)
+
+    uv = shutil.which("uv")
+    if uv is not None:
+        subprocess.run(
+            [uv, "venv", "--seed", "--python", sys.executable, str(venv_dir)],
+            check=True,
+        )
+    else:
+        venv.EnvBuilder(with_pip=True, symlinks=os.name != "nt").create(venv_dir)
 
     scripts_dir = "Scripts" if os.name == "nt" else "bin"
     python_name = "python.exe" if os.name == "nt" else "python"

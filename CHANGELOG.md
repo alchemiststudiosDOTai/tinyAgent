@@ -4,7 +4,7 @@ when_to_read:
   - When reviewing release history
   - When checking what changed between versions
 summary: Release-by-release history of notable TinyAgent changes.
-last_updated: "2026-04-04"
+last_updated: "2026-06-21"
 ---
 
 # Changelog
@@ -17,6 +17,20 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+
+## [1.2.28] - 2026-06-21
+
+### Added
+- Added host-side tool loop controls for steering subsequent agent turns after tool execution.
+- Added repository markdown frontmatter validation and applied the required metadata to docs.
+- Added prompt-caching probe artifacts, caching ownership notes, and a runnable caching example.
+
+### Changed
+- Clarified historical alchemy repository references and updated release/runtime documentation.
+- Updated the locked Pygments dependency.
+
+### Fixed
+- Made the built-wheel smoke test recreate `.venv-smoke` cleanly and use `uv venv --seed` when available, fixing smoke validation under uv-managed Python installs.
 
 ## [1.2.27] - 2026-03-25
 
@@ -337,7 +351,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Code quality gates (dead code, duplicates, debt)
 - Rust `alchemy_llm_py` binding documentation
 
-[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.16...HEAD
+[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.28...HEAD
+[1.2.28]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.27...v1.2.28
 [1.2.16]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.15...v1.2.16
 [1.2.15]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.14...v1.2.15
 [1.2.14]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.13...v1.2.14
