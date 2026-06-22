@@ -4,7 +4,7 @@ when_to_read:
   - When starting from the docs directory instead of the repo root
   - When looking for the main product overview inside docs
 summary: Docs-local entry point for TinyAgent overview, installation, and examples.
-last_updated: "2026-04-04"
+last_updated: "2026-06-21"
 ---
 
 # TinyAgent
@@ -145,7 +145,10 @@ return AgentToolResult(
 ```
 
 For host-level policies, `AgentOptions` also supports `before_tool_call`,
-`after_tool_call`, and `should_stop_after_turn` hooks.
+`after_tool_call`, and `should_stop_after_turn` hooks. Use these when the
+application needs to block unsafe tool calls, replace a tool result, or stop
+after a turn without aborting the stream. See
+[Tool Loop Controls](api/tool-loop-controls.md) for the full flow.
 
 ### Events
 
@@ -255,6 +258,7 @@ Smoke validation after installing a wheel with the binding:
 - [Architecture](ARCHITECTURE.md): System design and component interactions
 - [API Reference](api/): Detailed module documentation
 - [Prompt Caching](api/caching.md): Cache breakpoints, cost savings, and provider requirements
+- [Tool Loop Controls](api/tool-loop-controls.md): Terminal tool results and host hooks for clean loop termination
 - [OpenAI-Compatible Endpoints](api/openai-compatible-endpoints.md): Using `OpenAICompatModel.base_url` with OpenRouter/OpenAI/Chutes-compatible backends
 - [Usage Semantics](api/usage-semantics.md): Canonical `usage` schema across provider flows
 - [Harness Rules](../rules/README.md): ast-grep rules for the live tool-call harness
