@@ -4,7 +4,7 @@ when_to_read:
   - When reviewing release history
   - When checking what changed between versions
 summary: Release-by-release history of notable TinyAgent changes.
-last_updated: "2026-06-21"
+last_updated: "2026-07-09"
 ---
 
 # Changelog
@@ -17,6 +17,11 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+
+## [1.2.29] - 2026-07-09
+
+### Fixed
+- Preserved original tool-call arguments on `ToolExecutionEndEvent` for normal and skipped execution paths, allowing end-event-only consumers to render completed tool metadata correctly ([#43](https://github.com/alchemiststudiosDOTai/tinyAgent/issues/43)).
 
 ## [1.2.28] - 2026-06-21
 
@@ -351,7 +356,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Code quality gates (dead code, duplicates, debt)
 - Rust `alchemy_llm_py` binding documentation
 
-[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.28...HEAD
+[Unreleased]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.29...HEAD
+[1.2.29]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.28...v1.2.29
 [1.2.28]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.27...v1.2.28
 [1.2.16]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.15...v1.2.16
 [1.2.15]: https://github.com/alchemiststudiosDOTai/tinyAgent/compare/v1.2.14...v1.2.15

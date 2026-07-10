@@ -446,6 +446,7 @@ class ToolExecutionEndEvent:
     tool_name: str = ""
     result: AgentToolResult | None = None
     is_error: bool = False
+    args: JsonObject | None = None
 
 
 AgentEvent = Union[

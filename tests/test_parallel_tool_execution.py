@@ -7,7 +7,7 @@ from collections.abc import Callable
 
 import pytest
 
-from tinyagent.agent_tool_execution import execute_tool_calls
+from tinyagent.agent_tool_execution import execute_tool_calls, skip_tool_call
 from tinyagent.agent_types import (
     AgentEvent,
     AgentMessage,
@@ -19,6 +19,7 @@ from tinyagent.agent_types import (
     JsonObject,
     TextContent,
     ToolCallContent,
+    ToolExecutionEndEvent,
     ToolLoopControl,
     ToolResultMessage,
     UserMessage,
@@ -141,6 +142,24 @@ class TestParallelEventOrdering:
         ]
         assert end_names == ["a", "b", "c"]
 
+    async def test_end_event_includes_tool_call_arguments(self) -> None:
+        tool = _make_tool("read_file")
+        message = AssistantMessage(
+            content=[
+                ToolCallContent(
+                    id="tc_1",
+                    name="read_file",
+                    arguments={"filepath": "src/foo.py"},
+                )
+            ]
+        )
+        stream, events = _capturing_stream()
+
+        await execute_tool_calls([tool], message, None, stream)
+
+        end_event = next(event for event in events if isinstance(event, ToolExecutionEndEvent))
+        assert end_event.args == {"filepath": "src/foo.py"}
+
     async def test_message_events_follow_end_events(self) -> None:
         tools = [_make_tool("x")]
         message = _make_message("x")
@@ -154,6 +173,19 @@ class TestParallelEventOrdering:
             "message_start",
             "message_end",
         ]
+
+    async def test_skipped_end_event_includes_tool_call_arguments(self) -> None:
+        tool_call = ToolCallContent(
+            id="tc_1",
+            name="read_file",
+            arguments={"filepath": "src/foo.py"},
+        )
+        stream, events = _capturing_stream()
+
+        skip_tool_call(tool_call, stream)
+
+        end_event = next(event for event in events if isinstance(event, ToolExecutionEndEvent))
+        assert end_event.args == {"filepath": "src/foo.py"}
 
 
 class TestParallelErrorHandling:

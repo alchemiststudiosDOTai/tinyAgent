@@ -118,6 +118,12 @@ def test_agent_event_type_guards_cover_all_variants(
     assert is_tool_execution_event(event) is expected.tool_event
 
 
+def test_tool_execution_end_event_accepts_arguments() -> None:
+    event = ToolExecutionEndEvent(args={"filepath": "src/foo.py"})
+
+    assert event.args == {"filepath": "src/foo.py"}
+
+
 def _make_event_stream() -> EventStream:
     return EventStream(
         is_end_event=lambda event: isinstance(event, AgentEndEvent),

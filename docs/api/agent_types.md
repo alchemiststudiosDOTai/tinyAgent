@@ -4,7 +4,7 @@ when_to_read:
   - When working with shared runtime types
   - When checking message, event, or state model contracts
 summary: Reference for the shared TinyAgent message, event, and state models.
-last_updated: "2026-05-25"
+last_updated: "2026-07-09"
 ---
 
 # Agent Types Module
@@ -380,7 +380,11 @@ class ToolExecutionEndEvent:
     tool_name: str = ""
     result: AgentToolResult | None = None
     is_error: bool = False
+    args: JsonObject | None = None
 ```
+
+All three tool execution event variants expose the original tool-call arguments.
+The end-event field is appended to preserve the positional order of its existing fields.
 
 ### Event Type Alias
 

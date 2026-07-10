@@ -4,7 +4,7 @@ when_to_read:
   - When debugging tool-call execution
   - When checking how assistant tool calls are extracted and run
 summary: Reference for TinyAgent's concurrent tool execution helpers and result handling.
-last_updated: "2026-05-25"
+last_updated: "2026-07-09"
 ---
 
 # Agent Tool Execution Module
@@ -65,6 +65,9 @@ model turn.
 After all tools complete, end events and result messages are emitted in the
 original tool call order. This ensures consumers see a clear parallel lifecycle:
 all tools start → all tools finish → results delivered in order.
+
+Start, update, and end events each include the original tool-call arguments in
+their `args` field, so end-only consumers do not need to cache the start event.
 
 ### skip_tool_call
 ```python

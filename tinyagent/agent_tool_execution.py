@@ -314,6 +314,7 @@ async def execute_tool_calls(
                 tool_name=tool_call.name or "",
                 result=result,
                 is_error=is_error,
+                args=tool_call.arguments,
             )
         )
         results.append(tool_result_message)
@@ -358,6 +359,7 @@ def skip_tool_call(tool_call: ToolCallContent, stream: EventStream) -> ToolResul
             tool_name=tool_call_name,
             result=result,
             is_error=True,
+            args=tool_call_args,
         )
     )
 
