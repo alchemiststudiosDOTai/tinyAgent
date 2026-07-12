@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-
-from tinyagent.agent import _handle_agent_event
+from tinyagent.agent import Agent, AgentOptions
 from tinyagent.agent_types import (
-    AgentMessage,
     AgentState,
     AssistantMessage,
     TextContent,
@@ -17,70 +14,34 @@ from tinyagent.agent_types import (
 )
 
 
-def _append_collector() -> tuple[list[AgentMessage], Callable[[AgentMessage], None]]:
-    appended: list[AgentMessage] = []
-
-    def _append(message: AgentMessage) -> None:
-        appended.append(message)
-
-    return appended, _append
+def _agent_with_state(state: AgentState) -> Agent:
+    return Agent(AgentOptions(initial_state=state))
 
 
-def test_handle_agent_event_updates_pending_tool_calls_set() -> None:
-    state = AgentState(pending_tool_calls={"existing"})
-    partial_holder: list[AgentMessage | None] = [None]
-    _, append_message = _append_collector()
+def test_apply_event_updates_pending_tool_calls_set() -> None:
+    agent = _agent_with_state(AgentState(pending_tool_calls={"existing"}))
 
-    _handle_agent_event(
-        state,
-        ToolExecutionStartEvent(tool_call_id="tc_1", tool_name="echo"),
-        partial_holder,
-        append_message,
-    )
-    _handle_agent_event(
-        state,
-        ToolExecutionStartEvent(tool_call_id="tc_1", tool_name="echo"),
-        partial_holder,
-        append_message,
-    )
-    assert state.pending_tool_calls == {"existing", "tc_1"}
+    agent._apply_event(ToolExecutionStartEvent(tool_call_id="tc_1", tool_name="echo"))
+    agent._apply_event(ToolExecutionStartEvent(tool_call_id="tc_1", tool_name="echo"))
+    assert agent.state.pending_tool_calls == {"existing", "tc_1"}
 
-    _handle_agent_event(
-        state,
-        ToolExecutionEndEvent(tool_call_id="tc_1", tool_name="echo"),
-        partial_holder,
-        append_message,
-    )
-    assert state.pending_tool_calls == {"existing"}
+    agent._apply_event(ToolExecutionEndEvent(tool_call_id="tc_1", tool_name="echo"))
+    assert agent.state.pending_tool_calls == {"existing"}
 
 
-def test_handle_agent_event_turn_end_captures_assistant_error_message() -> None:
-    state = AgentState()
-    partial_holder: list[AgentMessage | None] = [None]
-    _, append_message = _append_collector()
+def test_apply_event_turn_end_captures_assistant_error_message() -> None:
+    agent = _agent_with_state(AgentState())
 
     assistant_error_message = AssistantMessage(
         content=[TextContent(text="")],
         error_message="provider failed",
     )
-    _handle_agent_event(
-        state,
-        TurnEndEvent(message=assistant_error_message),
-        partial_holder,
-        append_message,
-    )
-    assert state.error == "provider failed"
+    agent._apply_event(TurnEndEvent(message=assistant_error_message))
+    assert agent.state.error == "provider failed"
 
 
-def test_handle_agent_event_turn_end_ignores_non_assistant_message() -> None:
-    state = AgentState(error="keep-existing")
-    partial_holder: list[AgentMessage | None] = [None]
-    _, append_message = _append_collector()
+def test_apply_event_turn_end_ignores_non_assistant_message() -> None:
+    agent = _agent_with_state(AgentState(error="keep-existing"))
 
-    _handle_agent_event(
-        state,
-        TurnEndEvent(message=UserMessage(content=[TextContent(text="hi")])),
-        partial_holder,
-        append_message,
-    )
-    assert state.error == "keep-existing"
+    agent._apply_event(TurnEndEvent(message=UserMessage(content=[TextContent(text="hi")])))
+    assert agent.state.error == "keep-existing"
